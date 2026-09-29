@@ -1,0 +1,8 @@
+name = "carrotworld-explorer"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"                          # accessed in code as env.DB
+database_name = "carrotworld-explorer-db"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"   # printed by `wrangler d1 create`

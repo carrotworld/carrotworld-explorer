@@ -1055,23 +1055,10 @@ function BottomNavigation({ items, active, onSelect }) {
 /* ================================================================== */
 function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
   const myAdventures = adventures.filter((a) => a.studentId === studentId);
-  const withProgram = myAdventures.map((a) => ({ a, program: getProgram(a.programId) })).filter((x) => x.program);
+  const withProgram = myAdventures.map((a) => ({ a, program: getProgram(a.programId) }));
   const next = withProgram.find(({ a }) => getStatus(a) !== "completed") || withProgram[0];
   const upcoming = withProgram.filter(({ a }) => getStatus(a) !== "completed");
   const completed = withProgram.filter(({ a }) => getStatus(a) === "completed");
-
-  if (!next) {
-    return (
-      <div className="pb-6 px-5 pt-7">
-        <h1 className="f-display text-2xl font-semibold" style={{ color: C.green }}>Hi, Explorer</h1>
-        <p className="f-body text-sm text-gray-500 mt-1 mb-8">Your next adventure is coming soon.</p>
-        <div className="bg-white rounded-2xl p-6 text-center">
-          <p className="f-body text-sm text-gray-500">아직 등록된 체험이 없어요.</p>
-          <p className="f-body text-xs text-gray-400 mt-1">선생님이 프로그램에 등록해주시면 여기 나타나요.</p>
-        </div>
-      </div>
-    );
-  }
 
   const count = attendedCount(adventures, studentId);
   const { rank } = rankFor(count);
@@ -3200,19 +3187,18 @@ export default function CarrotExplorer() {
       .fetchState()
       .then((data) => {
         if (cancelled) return;
-        // The server responded — trust it completely, even if every list is
-        // empty. Empty means "nothing registered yet," not "fetch failed."
-        PROGRAMS.length = 0;
-        PROGRAMS.push(...(data.programs || []));
-        setProgramsVersion((v) => v + 1);
-        setStudents(data.students || []);
-        setAdventures(data.adventures || []);
-        setSuggestions(data.suggestions || []);
+        if (data.programs && data.programs.length) {
+          PROGRAMS.length = 0;
+          PROGRAMS.push(...data.programs);
+          setProgramsVersion((v) => v + 1);
+        }
+        if (data.students && data.students.length) setStudents(data.students);
+        if (data.adventures) setAdventures(data.adventures);
+        if (data.suggestions) setSuggestions(data.suggestions);
       })
       .catch((err) => {
-        // The fetch itself failed (offline, no D1 binding yet, local dev
-        // without the API, etc.) — only then fall back to the built-in
-        // demo data so the app still works standalone.
+        // No server yet (e.g. local dev without the D1 binding) — keep the
+        // built-in demo data so the app still works standalone.
         console.warn("[init] could not load server state, using built-in demo data:", err.message || err);
       });
     return () => {

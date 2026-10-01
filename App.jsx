@@ -41,6 +41,11 @@ const FONTS = `
 .tap:active { transform: scale(0.96); }
 @keyframes levelPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 .level-current { animation: levelPulse 1.8s ease-in-out infinite; }
+@keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(540deg); opacity: 0.9; } }
+.confetti-piece { position: absolute; top: -16px; width: 8px; height: 14px; border-radius: 2px; animation-name: confettiFall; animation-timing-function: ease-in; animation-fill-mode: forwards; }
+@keyframes burstIn { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.burst-in { animation: burstIn 0.6s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) { .confetti-piece { display: none; } .burst-in { animation: none; } }
 .focus-ring:focus-visible { outline: 3px solid ${C.orange}; outline-offset: 2px; }
 `;
 
@@ -675,6 +680,38 @@ function StageProgress({ before, trip, after, current, onPick, labels }) {
   );
 }
 
+/** Slim three-part switcher used inside an adventure (replaces the big circles + banner). */
+function StageTabs({ before, trip, after, current, onPick }) {
+  const stages = [
+    { key: "before", label: "Get Ready", state: before },
+    { key: "trip", label: "Explore", state: trip },
+    { key: "after", label: "Remember", state: after },
+  ];
+  return (
+    <div className="flex gap-1 p-1 rounded-full" style={{ background: C.beige }} role="tablist">
+      {stages.map((st) => {
+        const active = current === st.key;
+        const locked = st.state === "locked";
+        return (
+          <button
+            key={st.key}
+            role="tab"
+            aria-selected={active}
+            onClick={() => !locked && onPick(st.key)}
+            disabled={locked}
+            className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-full py-1.5 flex items-center justify-center gap-1"
+            style={{ background: active ? "white" : "transparent", color: active ? C.green : "#9C927D" }}
+          >
+            {st.state === "done" && <Check size={12} strokeWidth={3} />}
+            {locked && <Lock size={11} />}
+            {st.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Badge({ b, size = "md" }) {
   const dim = size === "sm" ? "w-14 h-14 text-2xl" : "w-20 h-20 text-4xl";
   return (
@@ -717,7 +754,7 @@ function PracticeBoxes({ word, count, onChange }) {
     else if (i === count - 1) onChange(count - 1);
   };
   return (
-    <div className="mt-3" role="group" aria-label={`Practice ${word}`}>
+    <div className="mt-2.5" role="group" aria-label={`Practice ${word}`}>
       <div className="flex gap-1.5">
         {Array.from({ length: WORD_PRACTICE_GOAL }).map((_, i) => {
           const on = i < count;
@@ -729,16 +766,14 @@ function PracticeBoxes({ word, count, onChange }) {
               aria-label={`${word} practice ${i + 1}`}
               onClick={() => press(i)}
               className="focus-ring tap flex-1 rounded-lg flex items-center justify-center"
-              style={{ height: 30, background: on ? C.orange : C.cream, border: `1.5px solid ${on ? C.orange : C.beige}` }}
+              style={{ height: 26, background: on ? C.orange : "white", border: `1.5px solid ${on ? C.orange : C.beige}` }}
             >
-              {on && <Check size={16} color="white" strokeWidth={3.5} />}
+              {on && <Check size={14} color="white" strokeWidth={3.5} />}
             </button>
           );
         })}
       </div>
-      <p className="f-body text-[10px] mt-1" style={{ color: count >= WORD_PRACTICE_GOAL ? "#1F7A44" : "#9C927D" }}>
-        {count >= WORD_PRACTICE_GOAL ? "Great! All 5 done ⭐" : `${count} / ${WORD_PRACTICE_GOAL}`}
-      </p>
+      {count >= WORD_PRACTICE_GOAL && <p className="f-body text-[11px] font-bold mt-1.5" style={{ color: "#1F7A44" }}>All 5 done ⭐</p>}
     </div>
   );
 }
@@ -853,7 +888,37 @@ function IconGift({ size = 48, color = C.cream }) {
   );
 }
 
-function CelebrationModal({ title, subtitle, badge, onClose }) {
+const CONFETTI_PIECES = Array.from({ length: 18 }).map((_, i) => ({
+  left: (i * 37) % 100,
+  delay: (i % 6) * 0.12,
+  dur: 2.2 + (i % 5) * 0.35,
+  color: [C.orange, C.green, C.gold, "#F4B6AE", "#9FD6B2"][i % 5],
+  rot: (i * 53) % 360,
+}));
+function Confetti() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {CONFETTI_PIECES.map((c, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{ left: `${c.left}%`, background: c.color, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, transform: `rotate(${c.rot}deg)` }}
+        />
+      ))}
+    </div>
+  );
+}
+function StarRow() {
+  return (
+    <div className="flex justify-center gap-1.5 mb-3" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="burst-in text-2xl" style={{ animationDelay: `${0.15 + i * 0.12}s` }}>⭐</span>
+      ))}
+    </div>
+  );
+}
+
+function CelebrationModal({ title, subtitle, badge, praise = "Great Job!", onClose }) {
   const [opened, setOpened] = useState(!badge);
 
   if (!opened) {
@@ -876,30 +941,30 @@ function CelebrationModal({ title, subtitle, badge, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-8" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true">
-      <div className="bg-white rounded-2xl p-7 w-full max-w-sm text-center screen-in">
-        {badge ? (
-          <div className="rounded-xl p-5 mb-5" style={{ border: `2px dashed ${C.orange}` }}>
-            <div className="flex justify-center mb-2">
-              <ProgramIcon kind="medal" size={26} color={C.orange} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-8 overflow-hidden" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true">
+      <Confetti />
+      <div className="relative bg-white rounded-2xl p-7 w-full max-w-sm text-center screen-in">
+        <div className="text-5xl mb-1 burst-in" aria-hidden="true">🎉</div>
+        <h3 className="f-display text-3xl font-bold mb-1" style={{ color: C.orange }}>
+          {praise}
+        </h3>
+        <StarRow />
+        {title && title !== praise && (
+          <p className="f-display text-base font-semibold mb-1" style={{ color: C.green }}>
+            {title}
+          </p>
+        )}
+        {subtitle && <p className="f-body text-sm text-gray-500 mb-4">{subtitle}</p>}
+        {badge && (
+          <div className="rounded-2xl p-4 mb-5 mt-3 flex items-center gap-3 text-left" style={{ background: C.cream, border: `1.5px solid ${C.beige}` }}>
+            <div className="text-4xl burst-in" style={{ animationDelay: "0.3s" }}>{badge.emoji}</div>
+            <div className="min-w-0">
+              <p className="f-body text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: C.orange }}>New badge unlocked</p>
+              <p className="f-display text-base font-semibold truncate" style={{ color: C.green }}>{badge.name}</p>
             </div>
-            <p className="f-body text-[10px] font-bold uppercase tracking-[0.15em] mb-3" style={{ color: "#B9AE99" }}>
-              Certificate of Adventure
-            </p>
-            <div className="text-3xl mb-2">{badge.emoji}</div>
-            <p className="f-display text-base font-semibold" style={{ color: C.green }}>
-              {badge.name}
-            </p>
-          </div>
-        ) : (
-          <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ background: C.beige }}>
-            <Check size={26} color={C.green} strokeWidth={3} />
           </div>
         )}
-        <h3 className="f-display text-xl font-semibold mb-1" style={{ color: C.green }}>
-          {title}
-        </h3>
-        {subtitle && <p className="f-body text-sm text-gray-500 mb-5">{subtitle}</p>}
+        {!badge && <div className="mb-4" />}
         <PrimaryButton onClick={onClose}>Continue</PrimaryButton>
       </div>
     </div>
@@ -1116,6 +1181,19 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
   const { rank } = rankFor(count);
   const { before, trip, after } = stageState(next.a, next.program);
 
+  const statusLine = !next.a.beforeCompleted
+    ? "Step 1 of 3 · Get Ready"
+    : !next.program.dateReached
+      ? "All set! Waiting for the big day"
+      : !next.a.attended
+        ? "Step 2 of 3 · Explore"
+        : !next.a.afterCompleted
+          ? "Step 3 of 3 · Remember"
+          : "Adventure complete!";
+  const others = withProgram.filter(({ program }) => program.id !== next.program.id);
+  const otherUpcoming = others.filter(({ a }) => getStatus(a) !== "completed");
+  const otherDone = others.filter(({ a }) => getStatus(a) === "completed");
+
   const ctaLabel = (() => {
     if (!next.a.beforeCompleted) return "Continue Preparing →";
     if (!next.program.dateReached) return "You're Ready! →";
@@ -1130,7 +1208,6 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
         <h1 className="f-display text-2xl font-semibold" style={{ color: C.green }}>
           Hi, Explorer
         </h1>
-        <p className="f-body text-sm text-gray-500 mt-1">Your next adventure is coming soon.</p>
 
         <button onClick={onViewProgress} className="focus-ring tap w-full flex items-center gap-2.5 bg-white rounded-2xl px-4 py-3.5 mt-5" style={{ boxShadow: "0 1px 3px rgba(23,76,53,0.06)" }}>
           <RankIcon label={rank.label} size={20} color={C.orange} />
@@ -1173,7 +1250,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
             <h2 className="f-display text-lg font-semibold mt-0.5 mb-3" style={{ color: C.green }}>
               {next.program.title}
             </h2>
-            <StageProgress before={before} trip={trip} after={after} current="none" />
+            <p className="f-body text-[12px] text-gray-500">{statusLine}</p>
             <div className="mt-4" onClick={(e) => e.stopPropagation()}>
               <PrimaryButton onClick={() => onOpen(next.program.id)}>{ctaLabel}</PrimaryButton>
             </div>
@@ -1181,38 +1258,30 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
         </div>
       </div>
 
-      <div className="px-5 mt-6">
-        <p className="f-display font-semibold mb-2" style={{ color: C.green }}>
-          Your Adventure Journey
-        </p>
-        <p className="f-body text-xs text-gray-500 mb-3">Prepare → Explore → Remember</p>
-      </div>
-
-      <div className="px-5 mt-6">
-        <h3 className="f-display font-semibold mb-3" style={{ color: C.green }}>
-          My Adventures
-        </h3>
-        {upcoming.length > 0 && (
-          <>
-            <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Upcoming</p>
-            <div className="flex gap-3 overflow-x-auto pb-2 mb-4 -mx-5 px-5">
-              {upcoming.map(({ program }) => (
+      {others.length > 0 && (
+        <div className="px-5 mt-6">
+          <h3 className="f-display font-semibold mb-3" style={{ color: C.green }}>
+            More adventures
+          </h3>
+          {otherUpcoming.length > 0 && (
+            <div className="flex gap-3 overflow-x-auto pb-2 mb-3 -mx-5 px-5">
+              {otherUpcoming.map(({ program }) => (
                 <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
               ))}
             </div>
-          </>
-        )}
-        {completed.length > 0 && (
-          <>
-            <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Completed</p>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-              {completed.map(({ program }) => (
-                <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+          )}
+          {otherDone.length > 0 && (
+            <>
+              <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Completed</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+                {otherDone.map(({ program }) => (
+                  <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1544,14 +1613,28 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
 
   const q = program.challenge[qIndex];
 
+  // Last question answered: save and go straight to the celebration (or back to the summary on a replay).
+  const finish = (finalCorrect) => {
+    setCorrectCount(finalCorrect);
+    if (isReplay) {
+      setIsReplay(false);
+      return;
+    }
+    onComplete({
+      bigQuestionAnswer: prediction,
+      bigQuestionCustom: predictionCustom,
+      challengeScore: { correct: finalCorrect, total: program.challenge.length },
+      insights: insRef.current,
+    });
+  };
+
   return (
     <div className="px-5 pb-10">
-      <ProgressDots steps={["vocab", "question", "challenge", "done"]} current={step} />
+      <ProgressDots steps={["vocab", "question", "challenge"]} current={step} />
 
       {step === "vocab" && (
         <div>
-          <p className="f-body text-sm text-gray-500 mb-1">Tap a card to hear the word 🔊</p>
-          <p className="f-body text-sm text-gray-500 mb-3">Say it out loud, then tick a box ✓ — you can practice each word 5 times!</p>
+          <p className="f-body text-[13px] text-gray-500 mb-3">Tap to listen 🔊 · say it · tick a box ✓</p>
           <div className="grid grid-cols-2 gap-3 mb-6">
             {program.vocabulary.map((v) => (
               <VocabularyCard
@@ -1563,7 +1646,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
               />
             ))}
           </div>
-          <PrimaryButton onClick={() => { setIns({}, true); setStep("question"); }}>Next: Big Question</PrimaryButton>
+          <PrimaryButton onClick={() => { setIns({}, true); setStep("question"); }}>Next</PrimaryButton>
         </div>
       )}
 
@@ -1602,7 +1685,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
             }}
             disabled={!prediction}
           >
-            Next: Quick Challenge
+            Next
           </PrimaryButton>
         </div>
       )}
@@ -1616,9 +1699,10 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
               onDone={() => {
                 setIns({ challengeResults: { ...insRef.current.challengeResults, [q.id]: { correct: true, ms: Date.now() - qStart.current } } }, true);
                 qStart.current = Date.now();
-                setCorrectCount((c) => c + 1);
-                if (qIndex + 1 < program.challenge.length) setQIndex((i) => i + 1);
-                else setStep("done");
+                if (qIndex + 1 < program.challenge.length) {
+                  setCorrectCount((c) => c + 1);
+                  setQIndex((i) => i + 1);
+                } else finish(correctCount + 1);
               }}
             />
           ) : (
@@ -1628,35 +1712,12 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
               onAnswered={(correct, choice) => {
                 setIns({ challengeResults: { ...insRef.current.challengeResults, [q.id]: { correct: !!correct, choice, ms: Date.now() - qStart.current } } }, true);
                 qStart.current = Date.now();
-                if (correct) setCorrectCount((c) => c + 1);
-                if (qIndex + 1 < program.challenge.length) setQIndex((i) => i + 1);
-                else setStep("done");
+                if (qIndex + 1 < program.challenge.length) {
+                  if (correct) setCorrectCount((c) => c + 1);
+                  setQIndex((i) => i + 1);
+                } else finish(correctCount + (correct ? 1 : 0));
               }}
             />
-          )}
-        </div>
-      )}
-
-      {step === "done" && (
-        <div className="text-center pt-6">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Check size={22} color={C.green} strokeWidth={3} /></div>
-          <p className="f-display text-xl font-semibold mb-1" style={{ color: C.green }}>You're ready for your adventure!</p>
-          <p className="f-body text-sm text-gray-500 mb-6">Great job! You got {correctCount} of {program.challenge.length}.</p>
-          {isReplay ? (
-            <PrimaryButton onClick={() => setIsReplay(false)}>Back to Adventure</PrimaryButton>
-          ) : (
-            <PrimaryButton
-              onClick={() =>
-                onComplete({
-                  bigQuestionAnswer: prediction,
-                  bigQuestionCustom: predictionCustom,
-                  challengeScore: { correct: correctCount, total: program.challenge.length },
-                  insights: insRef.current,
-                })
-              }
-            >
-              Claim my badge
-            </PrimaryButton>
           )}
         </div>
       )}
@@ -1763,8 +1824,9 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete }) {
     return (
       <div className="px-5 pb-10">
         <div className="bg-white rounded-2xl p-6 text-center mb-5">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Check size={22} color={C.green} strokeWidth={3} /></div>
-          <p className="f-display font-semibold" style={{ color: C.green }}>Adventure Complete!</p>
+          <div className="text-4xl mb-1" aria-hidden="true">🎉</div>
+          <p className="f-display text-xl font-bold" style={{ color: C.orange }}>Great Job!</p>
+          <p className="f-display font-semibold mt-0.5" style={{ color: C.green }}>Adventure Complete!</p>
         </div>
         <div className="bg-white rounded-2xl p-4 mb-3">
           <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
@@ -1780,7 +1842,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete }) {
   }
 
   const q = program.remember[qIndex];
-  const steps = ["remember", "favorite", "discovery", "rating", "complete"];
+  const steps = ["remember", "favorite", "share", "complete"];
 
   return (
     <div className="px-5 pb-10">
@@ -1826,24 +1888,18 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete }) {
               e.target.value = "";
             }}
           />
-          <PrimaryButton onClick={() => setStep("discovery")} disabled={!favoriteText || !favoriteReason}>Next</PrimaryButton>
+          <PrimaryButton onClick={() => setStep("share")} disabled={!favoriteText || !favoriteReason}>Next</PrimaryButton>
         </div>
       )}
 
-      {step === "discovery" && (
+      {step === "share" && (
         <div>
           <p className="f-display text-sm font-semibold mb-3" style={{ color: C.green }}>One Thing I Discovered</p>
           <div className="bg-white rounded-2xl p-5 mb-5">
             <p className="f-body text-sm mb-2" style={{ color: C.charcoal }}>Today I discovered that...</p>
             <textarea value={discovery} onChange={(e) => setDiscovery(e.target.value)} rows={3} aria-label="What you discovered today" className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
           </div>
-          <PrimaryButton onClick={() => setStep("rating")} disabled={!discovery}>Next</PrimaryButton>
-        </div>
-      )}
-
-      {step === "rating" && (
-        <div className="text-center">
-          <p className="f-display text-sm font-semibold mb-4" style={{ color: C.green }}>How was your adventure?</p>
+          <p className="f-display text-sm font-semibold mb-2 text-center" style={{ color: C.green }}>How was your adventure?</p>
           <div className="flex justify-center gap-2 mb-6">
             {[1, 2, 3, 4, 5].map((n) => (
               <button key={n} onClick={() => setRating(n)} aria-label={`${n} star${n > 1 ? "s" : ""}`} className="focus-ring">
@@ -1857,7 +1913,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete }) {
               onComplete(reflection);
               setStep("complete");
             }}
-            disabled={!rating}
+            disabled={!discovery || !rating}
           >
             Finish Adventure
           </PrimaryButton>
@@ -1865,12 +1921,17 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete }) {
       )}
 
       {step === "complete" && (
-        <div className="text-center pt-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Check size={22} color={C.green} strokeWidth={3} /></div>
-          <p className="f-display text-xl font-semibold mb-1" style={{ color: C.green }}>Adventure Complete!</p>
-          <p className="f-body text-sm text-gray-500 mb-1">{program.title}</p>
-          <p className="f-body text-[12px] font-bold mb-5" style={{ color: C.orange }}>🥕 +{POINTS_PER_ADVENTURE} carrot points</p>
-          <div className="bg-white rounded-2xl p-5 text-left mb-4">
+        <div className="relative text-center pt-4 overflow-hidden">
+          <Confetti />
+          <div className="relative">
+            <div className="text-5xl mb-1 burst-in" aria-hidden="true">🎉</div>
+            <p className="f-display text-3xl font-bold mb-1" style={{ color: C.orange }}>Great Job!</p>
+            <StarRow />
+            <p className="f-display text-lg font-semibold mb-1" style={{ color: C.green }}>Adventure Complete!</p>
+            <p className="f-body text-sm text-gray-500 mb-2">You finished {program.title}</p>
+            <p className="inline-block f-body text-[12px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 +{POINTS_PER_ADVENTURE} carrot points</p>
+          </div>
+          <div className="relative bg-white rounded-2xl p-5 text-left mb-4">
             <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
             <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
             {photo && <img src={photo} alt="Favorite moment" className="w-full h-36 object-cover rounded-xl mb-3" />}
@@ -1899,6 +1960,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
   const initialSection = before !== "done" ? "before" : trip !== "done" ? "trip" : after !== "done" ? "after" : "before";
   const [section, setSection] = useState(initialSection);
   const [celebration, setCelebration] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
 
   const badgesBefore = computeBadges(adventures, studentId).filter((b) => b.earned).map((b) => b.id);
   const newlyEarned = (updatedAdventures) => computeBadges(updatedAdventures, studentId).filter((b) => b.earned && !badgesBefore.includes(b.id));
@@ -1911,23 +1973,28 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
 
   return (
     <div className="pb-6">
-      <ScreenHeader title={program.title} onBack={onBack} />
-      <div className="px-5 mb-2">
-        <Cover program={program} className="h-32 mb-4" />
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
-          <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
-          <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
-        </div>
-        <p className="f-body text-sm text-gray-500 italic mb-4">"{program.theme}"</p>
-        <StageProgress before={before} trip={trip} after={after} current={section} onPick={setSection} />
+      <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+        <button onClick={onBack} aria-label="Go back" className="focus-ring tap w-9 h-9 rounded-full flex items-center justify-center bg-white border shrink-0" style={{ borderColor: C.beige }}>
+          <ArrowLeft size={18} color={C.green} />
+        </button>
+        <h1 className="f-display text-base font-semibold truncate" style={{ color: C.green }}>{program.title}</h1>
       </div>
-
-      <div className="px-5 my-4">
-        <div className="rounded-2xl p-3" style={{ background: C.beige }}>
-          <p className="f-display text-[12px] font-bold tracking-wide" style={{ color: C.green }}>{chapters[section].title}</p>
-          <p className="f-body text-[12px] text-gray-600 mt-0.5">{chapters[section].desc}</p>
-        </div>
+      <div className="px-5 mb-4">
+        <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
+        <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[11px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
+          {showAbout ? "Hide details ▴" : "About this adventure ▾"}
+        </button>
+        {showAbout && (
+          <div className="mt-2">
+            <Cover program={program} className="h-28 mb-3" />
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
+              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
+              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
+            </div>
+            <p className="f-body text-sm text-gray-500 italic">"{program.theme}"</p>
+          </div>
+        )}
       </div>
 
       {section === "before" && (
@@ -1937,7 +2004,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
           onSaveInsights={(insights) => update({ insights })}
           onComplete={(patch) => {
             const updated = update({ beforeCompleted: true, ...patch });
-            setCelebration({ title: "You're ready for your adventure!", subtitle: "Great job learning your new words.", badge: newlyEarned(updated)[0] || null });
+            setCelebration({ title: "You're ready for your adventure!", subtitle: "You learned your new words!", badge: newlyEarned(updated)[0] || null });
           }}
         />
       )}
@@ -1953,7 +2020,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
             const updated = update({ missionsCompleted, attended: nowAttended });
             if (nowAttended && !wasAttended) {
               const earned = newlyEarned(updated);
-              if (earned.length) setCelebration({ title: "Level Up!", subtitle: "You filled a stamp card!", badge: earned[0] });
+              if (earned.length) setCelebration({ praise: "Level Up!", title: "You filled a stamp card!", badge: earned[0] });
             }
           }}
           onCapturePhoto={(i, dataUrl) => {
@@ -1963,7 +2030,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
             const updated = update({ missionsCompleted, attended: nowAttended });
             if (nowAttended && !wasAttended) {
               const earned = newlyEarned(updated);
-              if (earned.length) setCelebration({ title: "Level Up!", subtitle: "You filled a stamp card!", badge: earned[0] });
+              if (earned.length) setCelebration({ praise: "Level Up!", title: "You filled a stamp card!", badge: earned[0] });
             }
           }}
           onFinish={() => setSection("after")}
@@ -2134,13 +2201,52 @@ const WISH_TYPE = "찜";
 const KAKAO_CHAT_URL = ""; // paste the KakaoTalk channel / open-chat link here to show a "카카오톡으로 문의하기" button
 const wishId = (familyPin, programId) => `wish-${familyPin}-${programId}`;
 const isWish = (sg) => sg.type === WISH_TYPE;
+
+/* App visits (customers only): one small row per family per day, saved the first time a parent
+   logs in that day. Teacher logins are never counted. Day = Korea time. */
+const VISIT_TYPE = "방문";
+const kstDay = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+const visitId = (familyPin, day) => `visit-${familyPin}-${day}`;
+const isVisit = (sg) => sg.type === VISIT_TYPE;
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg); // not shown as parent opinions
+const lastDays = (n) => {
+  const out = [];
+  const base = new Date(`${kstDay()}T12:00:00+09:00`);
+  for (let i = n - 1; i >= 0; i--) out.push(kstDay(new Date(base.getTime() - i * 86400000)));
+  return out;
+};
+function visitStats(suggestions) {
+  const seen = new Set();
+  const rows = [];
+  suggestions.forEach((sg) => {
+    if (!isVisit(sg)) return;
+    const m = /^visit-(.+)-(\d{4}-\d{2}-\d{2})$/.exec(sg.id);
+    if (!m || seen.has(sg.id)) return;
+    seen.add(sg.id);
+    rows.push({ pin: m[1], day: m[2] });
+  });
+  const today = kstDay();
+  const byDay = {};
+  const daysPerFamily = {};
+  rows.forEach((r) => {
+    byDay[r.day] = (byDay[r.day] || 0) + 1;
+    (daysPerFamily[r.pin] = daysPerFamily[r.pin] || new Set()).add(r.day);
+  });
+  return {
+    today: byDay[today] || 0,
+    total: rows.length,
+    families: Object.keys(daysPerFamily).length,
+    returning: Object.values(daysPerFamily).filter((d) => d.size >= 2).length,
+    week: lastDays(7).map((day) => ({ day, count: byDay[day] || 0 })),
+  };
+}
 const wishesFor = (suggestions, programId) => suggestions.filter((sg) => isWish(sg) && !sg.resolved && sg.id.endsWith(`-${programId}`) && sg.id === wishId(sg.familyPin, programId));
 
 function SuggestionBox({ suggestions, familyPin, onAdd }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState(SUGGESTION_TYPES[0]);
   const [message, setMessage] = useState("");
-  const mine = suggestions.filter((s) => s.familyPin === familyPin && !isWish(s)).slice().reverse();
+  const mine = suggestions.filter((s) => s.familyPin === familyPin && !isSystemRow(s)).slice().reverse();
 
   const submit = () => {
     if (!message.trim()) return;
@@ -2209,6 +2315,7 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
 /** In-app notices for a parent, worked out from what already exists (nothing extra is stored). */
 function parentNotices(children, adventures) {
   const list = [];
+  const infoShown = new Set(); // one "안내" notice per program, even with siblings
   children.forEach((child) => {
     adventures
       .filter((a) => a.studentId === child.id)
@@ -2218,6 +2325,14 @@ function parentNotices(children, adventures) {
         const base = `${child.name} · ${program.title}`;
         if (a.feedback) {
           list.push({ key: `${base}-report`, icon: "📝", title: "선생님 리포트가 도착했어요", text: base, action: "리포트 보기", kind: "report", childId: child.id });
+        }
+        if (program.info?.published && hasInfo(program.info) && !a.attended && !infoShown.has(program.id)) {
+          infoShown.add(program.id);
+          const when = [program.date, program.info.time].filter(Boolean).join(" ");
+          list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
+        }
+        if (a.attended && !a.parentSurvey) {
+          list.push({ key: `${base}-survey`, icon: "📋", title: "체험 후 설문을 남겨 주세요", text: `${base} · 1~2분이면 돼요`, action: "설문하기", kind: "survey", childId: child.id, programId: program.id });
         }
         if (getStatus(a) === "completed") return;
         if (program.dateReached && !a.attended) {
@@ -2229,11 +2344,12 @@ function parentNotices(children, adventures) {
         }
       });
   });
-  const priority = { "🎒": 0, "📝": 1, "📸": 2, "📚": 3 };
+  const priority = { "🎒": 0, "📍": 1, "📝": 2, "📋": 3, "📸": 4, "📚": 5 };
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
 function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish }) {
+  const [openId, setOpenId] = useState(null);
   const cards = PROGRAMS.map((p) => ({
     program: p,
     pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
@@ -2243,7 +2359,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
     <div id="browse-programs">
       <div className="mb-2 mt-1">
         <p className="f-display font-semibold" style={{ color: C.green }}>체험 둘러보기</p>
-        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험은 ♥ 찜해 두세요. 인기 있는 체험을 파악해 다음 체험을 준비하는 데 도움이 돼요. 신청이나 궁금한 점은 카카오톡으로 문의해 주세요.</p>
+        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청·문의는 카카오톡으로 해 주세요.</p>
         {KAKAO_CHAT_URL && (
           <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[12px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#191919" }}>
             카카오톡으로 문의하기
@@ -2255,30 +2371,39 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
           <p className="f-body text-sm text-gray-400">지금 신청할 수 있는 새 체험이 없어요. 새 체험이 열리면 여기에 나타나요.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="bg-white rounded-2xl overflow-hidden">
           {cards.map(({ program: p, pending }) => {
             const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 찜`;
             const liked = suggestions.some((sg) => sg.id === wishId(familyPin, p.id) && !sg.resolved);
+            const open = openId === p.id;
             return (
-              <div key={p.id} className="bg-white rounded-2xl overflow-hidden">
-                <Cover program={p} className="w-full h-32 rounded-b-none" />
-                <div className="p-4">
-                  <p className="f-display font-semibold" style={{ color: C.green }}>{p.title}</p>
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(p)}</span>
-                    {p.date && <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>{p.date}</span>}
-                    {(p.locationKo || p.location) && <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>{p.locationKo || p.location}</span>}
-                  </div>
-                  {p.themeKo && <p className="f-body text-[12px] mt-2.5" style={{ color: C.charcoal }}>{p.themeKo}</p>}
+              <div key={p.id} className="p-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
+                    <Cover program={p} className="w-12 h-12 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block f-display font-semibold text-sm truncate" style={{ color: C.green }}>{p.title}</span>
+                      <span className="block f-body text-[11px] text-gray-400">{p.date} · Level {levelLabel(p)}</span>
+                    </span>
+                  </button>
                   <button
                     onClick={() => onToggleWish({ familyPin, programId: p.id, message })}
                     aria-pressed={liked}
-                    className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-2.5 mt-3"
-                    style={{ background: liked ? "#FFE3E0" : C.cream, color: liked ? "#C0392B" : C.charcoal, border: `1px solid ${liked ? "#F4B6AE" : C.beige}` }}
+                    aria-label={liked ? "찜 취소" : "찜하기"}
+                    className="focus-ring tap shrink-0 w-10 h-10 rounded-full text-lg"
+                    style={{ background: liked ? "#FFE3E0" : C.cream, color: liked ? "#C0392B" : "#B9AE99" }}
                   >
-                    {liked ? "♥ 찜했어요" : "♡ 찜하기"}
+                    {liked ? "♥" : "♡"}
                   </button>
                 </div>
+                {open && (
+                  <div className="mt-3">
+                    {p.themeKo && <p className="f-body text-[12px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
+                    {(p.locationKo || p.location) && <p className="f-body text-[11px] text-gray-400 mt-1">📍 {p.locationKo || p.location}</p>}
+                    {p.info?.published && p.info.time && <p className="f-body text-[11px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
+                    {p.info?.published && feeText(p.info) && <p className="f-body text-[11px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -2288,7 +2413,261 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
   );
 }
 
-function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onStartAdventure, onLogout }) {
+/* ================================================================== */
+/*  PARENT SATISFACTION SURVEY (after the child has attended)          */
+/*  Saved on the child's adventure record as `parentSurvey`.           */
+/* ================================================================== */
+const SURVEY_ITEMS = [
+  { key: "overall", label: "전체 만족도", hint: "이번 체험에 전반적으로 만족하셨나요?", required: true },
+  { key: "content", label: "체험 내용", hint: "프로그램 내용이 알차고 재미있었나요?" },
+  { key: "teacher", label: "선생님 진행·소통", hint: "진행과 안내, 아이를 대하는 모습은 어땠나요?" },
+  { key: "learning", label: "영어 학습 효과", hint: "아이가 영어를 즐겁게 접할 수 있었나요?" },
+  { key: "prep", label: "예습 자료 (앱)", hint: "앱으로 한 예습이 체험에 도움이 되었나요?" },
+  { key: "logistics", label: "장소·시간·안전", hint: "장소, 일정, 안전 관리는 어땠나요?" },
+];
+const REJOIN_OPTIONS = [
+  { key: "yes", label: "꼭 참여하고 싶어요" },
+  { key: "maybe", label: "고민해 볼게요" },
+  { key: "unsure", label: "아직 모르겠어요" },
+];
+
+function StarPicker({ value, onChange, label }) {
+  return (
+    <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${label} ${n}점`}
+          onClick={() => onChange(value === n ? undefined : n)}
+          className="focus-ring tap"
+        >
+          <Star size={30} color={C.gold} fill={n <= (value || 0) ? C.gold : "none"} strokeWidth={1.5} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
+  const [ratings, setRatings] = useState({});
+  const [rejoin, setRejoin] = useState(null);
+  const [good, setGood] = useState("");
+  const [improve, setImprove] = useState("");
+  const [wish, setWish] = useState("");
+  const [done, setDone] = useState(!!adv?.parentSurvey);
+  const canSubmit = !!ratings.overall;
+
+  if (done) {
+    return (
+      <div className="pb-8">
+        <ScreenHeader title="설문" onBack={onBack} />
+        <div className="px-5">
+          <div className="relative bg-white rounded-2xl p-8 text-center overflow-hidden">
+            <Confetti />
+            <div className="relative">
+              <div className="text-5xl mb-2 burst-in" aria-hidden="true">💛</div>
+              <p className="f-display text-xl font-bold mb-1" style={{ color: C.green }}>소중한 의견 감사합니다!</p>
+              <p className="f-body text-sm text-gray-500 mb-5">남겨 주신 의견은 다음 체험을 더 좋게 만드는 데 쓸게요.</p>
+              <PrimaryButton onClick={onBack}>돌아가기</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const submit = () => {
+    if (!canSubmit) return;
+    const clean = (t) => t.trim() || undefined;
+    onSubmit({
+      ratings: Object.fromEntries(Object.entries(ratings).filter(([, v]) => typeof v === "number")),
+      rejoin: rejoin || undefined,
+      good: clean(good),
+      improve: clean(improve),
+      wish: clean(wish),
+      at: new Date().toISOString(),
+    });
+    setDone(true);
+  };
+
+  const field = "focus-ring w-full rounded-xl p-3 f-body text-sm outline-none";
+  const fieldStyle = { background: "white", border: `1px solid ${C.beige}` };
+  return (
+    <div className="pb-10">
+      <ScreenHeader title="체험 후 설문" subtitle={`${student.name} · ${program.title}`} onBack={onBack} />
+      <div className="px-5 space-y-3">
+        <p className="f-body text-[12px] text-gray-500">1~2분이면 끝나요. 별을 눌러 점수를 남겨 주세요. <b>전체 만족도</b>만 꼭 남겨 주시면 돼요.</p>
+
+        {SURVEY_ITEMS.map((item) => (
+          <div key={item.key} className="bg-white rounded-2xl p-4">
+            <p className="f-display text-sm font-semibold" style={{ color: C.green }}>
+              {item.label} {item.required && <span style={{ color: C.orange }}>*</span>}
+            </p>
+            <p className="f-body text-[11px] text-gray-400 mt-0.5 mb-2">{item.hint}</p>
+            <StarPicker label={item.label} value={ratings[item.key]} onChange={(v) => setRatings((r) => ({ ...r, [item.key]: v }))} />
+          </div>
+        ))}
+
+        <div className="bg-white rounded-2xl p-4">
+          <p className="f-display text-sm font-semibold mb-2" style={{ color: C.green }}>다른 체험이 열리면 또 참여하고 싶으세요?</p>
+          <div className="space-y-2">
+            {REJOIN_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                onClick={() => setRejoin(rejoin === o.key ? null : o.key)}
+                aria-pressed={rejoin === o.key}
+                className="focus-ring tap w-full text-left f-body text-[13px] font-bold rounded-xl px-3 py-2.5"
+                style={{ background: rejoin === o.key ? C.green : C.cream, color: rejoin === o.key ? "white" : C.charcoal, border: `1px solid ${rejoin === o.key ? C.green : C.beige}` }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 space-y-3">
+          <div>
+            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>좋았던 점 <span className="font-normal text-gray-400">(선택)</span></p>
+            <textarea value={good} onChange={(e) => setGood(e.target.value)} rows={2} aria-label="좋았던 점" className={field} style={fieldStyle} />
+          </div>
+          <div>
+            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>아쉬운 점·바라는 점 <span className="font-normal text-gray-400">(선택)</span></p>
+            <textarea value={improve} onChange={(e) => setImprove(e.target.value)} rows={2} aria-label="아쉬운 점" className={field} style={fieldStyle} />
+          </div>
+          <div>
+            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>다음에 가보고 싶은 체험이나 장소 <span className="font-normal text-gray-400">(선택)</span></p>
+            <textarea value={wish} onChange={(e) => setWish(e.target.value)} rows={2} aria-label="가보고 싶은 체험" className={field} style={fieldStyle} />
+          </div>
+        </div>
+
+        <PrimaryButton onClick={submit} disabled={!canSubmit}>설문 보내기</PrimaryButton>
+        {!canSubmit && <p className="f-body text-[11px] text-gray-400 text-center">전체 만족도 별점을 눌러 주세요.</p>}
+      </div>
+    </div>
+  );
+}
+
+/* First-time walkthrough for parents: three short cards, shown once per device, reopen from "도움말". */
+const GUIDE_KEY = "cw-explorer-guide-parent-v1";
+const guideSeen = () => {
+  try {
+    return localStorage.getItem(GUIDE_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+};
+const markGuideSeen = () => {
+  try {
+    localStorage.setItem(GUIDE_KEY, "1");
+  } catch (e) {
+    /* storage unavailable: the guide simply shows again next time */
+  }
+};
+const GUIDE_STEPS = [
+  { icon: "📚", title: "체험 전 · 예습", text: "체험 며칠 전부터 아이와 함께 앱을 열어 보세요. 단어 카드를 눌러 듣고, 따라 말한 뒤 칸을 체크해요. 하루 몇 분이면 충분해요." },
+  { icon: "🎒", title: "체험 날 · 현장", text: "당일에 선생님이 현장 미션을 열어 드려요. 아이는 미션을 하나씩 해 보고, 선생님이 출석을 체크해요." },
+  { icon: "🌟", title: "체험 후 · 기록", text: "아이가 가장 좋았던 순간을 남기면 끝! 부모님은 짧은 설문을 남기고 선생님 리포트를 볼 수 있어요. 궁금한 점은 카카오톡으로 문의해 주세요." },
+];
+const APP_ADDRESS = "explorer.carrotworld.kr";
+// Android Chrome offers a real "add to home screen" prompt; keep it so the guide can show a one-tap button.
+let deferredInstall = null;
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+  });
+}
+
+/** The same guide as the KakaoTalk image, as one scrollable page (opened from "도움말"). */
+function GuideSheet({ onClose }) {
+  const [canInstall, setCanInstall] = useState(!!deferredInstall);
+  const install = async () => {
+    if (!deferredInstall) return;
+    try {
+      deferredInstall.prompt();
+      await deferredInstall.userChoice;
+    } catch (e) {
+      /* the browser declined to show it; the written steps below still apply */
+    }
+    deferredInstall = null;
+    setCanInstall(false);
+  };
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="사용 방법">
+      <div className="max-w-md mx-auto px-5 pt-6 pb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="f-display text-lg font-semibold" style={{ color: C.green }}>사용 방법</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+            닫기
+          </button>
+        </div>
+        <p className="f-body text-sm text-gray-500 mb-4">딱 3단계예요.</p>
+        <div className="space-y-3">
+          {GUIDE_STEPS.map((st, k) => (
+            <div key={st.title} className="bg-white rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="w-9 h-9 rounded-full flex items-center justify-center f-display font-bold text-white shrink-0" style={{ background: C.orange }}>{k + 1}</span>
+                <p className="f-display font-semibold" style={{ color: C.green }}>{st.title}</p>
+              </div>
+              <p className="f-body text-[13px] text-gray-600">{st.text}</p>
+            </div>
+          ))}
+          <div className="rounded-2xl p-4" style={{ background: C.beige }}>
+            <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.orange }}>앱 주소</p>
+            <p className="f-display text-lg font-semibold mb-2" style={{ color: C.green }}>{APP_ADDRESS}</p>
+            <p className="f-body text-[13px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가해 두면 더 편해요</p>
+            <p className="f-body text-[12px] text-gray-600">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
+            <p className="f-body text-[12px] text-gray-600">아이폰: 공유 버튼 → 홈 화면에 추가</p>
+            {canInstall && (
+              <button onClick={install} className="focus-ring tap f-body text-[13px] font-bold rounded-xl px-4 py-2.5 mt-3 text-white" style={{ background: C.orange }}>
+                지금 홈 화면에 추가
+              </button>
+            )}
+          </div>
+          <p className="f-body text-[12px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ParentGuide({ onClose }) {
+  const [i, setI] = useState(0);
+  const last = i === GUIDE_STEPS.length - 1;
+  const step = GUIDE_STEPS[i];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label="사용 안내">
+      <div className="bg-white rounded-2xl p-7 w-full max-w-sm text-center screen-in">
+        <p className="f-body text-[11px] font-bold tracking-[0.1em]" style={{ color: C.orange }}>사용 안내 {i + 1} / {GUIDE_STEPS.length}</p>
+        <div className="text-5xl my-4" aria-hidden="true">{step.icon}</div>
+        <h3 className="f-display text-xl font-semibold mb-2" style={{ color: C.green }}>{step.title}</h3>
+        <p className="f-body text-sm text-gray-600 mb-6" style={{ minHeight: 88 }}>{step.text}</p>
+        <div className="flex justify-center gap-1.5 mb-5" aria-hidden="true">
+          {GUIDE_STEPS.map((_, k) => (
+            <span key={k} className="rounded-full" style={{ width: k === i ? 18 : 6, height: 6, background: k === i ? C.orange : C.beige }} />
+          ))}
+        </div>
+        <PrimaryButton onClick={() => (last ? onClose() : setI(i + 1))}>{last ? "시작하기" : "다음"}</PrimaryButton>
+        {!last && (
+          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold mt-3" style={{ color: "#B9AE99" }}>
+            건너뛰기
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onLogout }) {
+  const [showGuide, setShowGuide] = useState(() => !guideSeen());
+  const [showSheet, setShowSheet] = useState(false);
+  const [infoId, setInfoId] = useState(null);
+  const closeGuide = () => {
+    markGuideSeen();
+    setShowGuide(false);
+  };
   const myChildren = students.filter((s) => s.familyPin === familyPin);
   const notices = parentNotices(myChildren, adventures);
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2297,11 +2676,19 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
       <ScreenHeader
         title="내 자녀 관리"
         right={
-          <button onClick={onLogout} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: "#B9AE99" }}>
-            Switch user
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: C.orange }}>
+              도움말
+            </button>
+            <button onClick={onLogout} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: "#B9AE99" }}>
+              Switch user
+            </button>
+          </div>
         }
       />
+      {showGuide && <ParentGuide onClose={closeGuide} />}
+      {showSheet && <GuideSheet onClose={() => setShowSheet(false)} />}
+      {infoId && getProgram(infoId) && <ProgramInfoSheet program={getProgram(infoId)} onClose={() => setInfoId(null)} />}
       <div className="px-5 space-y-3">
         {myChildren.length === 0 && (
           <p className="f-body text-sm text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
@@ -2314,7 +2701,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
               {notices.map((n) => (
                 <button
                   key={n.key}
-                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : onStartAdventure(n.childId))}
+                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" ? setInfoId(n.programId) : onStartAdventure(n.childId))}
                   className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
                   style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
                 >
@@ -3169,7 +3556,229 @@ function MaterialsEditor({ value, onChange }) {
   );
 }
 
-function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel }) {
+/* ================================================================== */
+/*  PRE-EXPERIENCE NOTICE (체험 전 안내)                               */
+/*  Saved on the program as `info`. Parents see it once `published`.   */
+/* ================================================================== */
+const FEE_TYPES = [
+  { key: "free", label: "없음 (무료)" },
+  { key: "parent", label: "부모님 부담" },
+  { key: "included", label: "프로그램비 포함" },
+];
+const emptyInfo = () => ({ time: "", meetingTime: "", meetingPoint: "", venue: "", bring: "", feeType: "", feeAmount: "", feeNote: "", note: "", published: false });
+const infoFrom = (program) => ({ ...emptyInfo(), ...(program?.info || {}) });
+const splitBring = (text) => (text || "").split(/[\n,，、]+/).map((t) => t.trim()).filter(Boolean);
+const moneyText = (v) => {
+  const digits = String(v ?? "").replace(/[^\d]/g, "");
+  return digits ? `${Number(digits).toLocaleString("ko-KR")}원` : "";
+};
+function feeText(info) {
+  if (info?.feeType === "free") return "입장료 없음 (무료)";
+  if (info?.feeType === "included") return "입장료는 프로그램비에 포함돼 있어요";
+  if (info?.feeType === "parent") {
+    const amount = moneyText(info.feeAmount);
+    return `입장료 있음 · 부모님 부담${amount ? ` ${amount}` : ""}${info.feeNote ? ` (${info.feeNote})` : ""}`;
+  }
+  return "";
+}
+const hasInfo = (info) => !!info && [info.time, info.meetingTime, info.meetingPoint, info.venue, info.bring, info.feeType, info.note].some((v) => v && String(v).trim());
+
+/** A ready-to-send KakaoTalk message built from the same fields. */
+function buildInfoMessage(program, info) {
+  const lines = [`[체험 안내] ${program.title}`];
+  const when = [program.date, info.time].filter(Boolean).join(" ");
+  if (when) lines.push(`📅 일시: ${when}`);
+  if (info.meetingPoint || info.meetingTime) lines.push(`🧭 모이는 곳: ${[info.meetingPoint, info.meetingTime && `${info.meetingTime}까지`].filter(Boolean).join(" · ")}`);
+  const place = info.venue || program.locationKo || program.location;
+  if (place) lines.push(`📍 장소: ${place}`);
+  const bring = splitBring(info.bring);
+  if (bring.length) lines.push(`🎒 준비물: ${bring.join(", ")}`);
+  const fee = feeText(info);
+  if (fee) lines.push(`💰 ${fee}`);
+  if (info.note) lines.push(`📝 안내: ${info.note}`);
+  lines.push("", `👉 예습은 앱에서 해 주세요: https://${APP_ADDRESS}`);
+  return lines.join("\n");
+}
+
+function InfoEditor({ program, value, onChange }) {
+  const [status, setStatus] = useState("");
+  const [fallback, setFallback] = useState("");
+  const set = (p) => onChange({ ...value, ...p });
+  const ready = !!program.title.trim();
+  const message = buildInfoMessage(program, value);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message);
+      setStatus("복사했어요 ✓ 카톡에 붙여넣기 하세요");
+      setFallback("");
+    } catch (e) {
+      setFallback(message);
+      setStatus("자동 복사가 안 돼요. 아래 글을 길게 눌러 복사해 주세요");
+    }
+  };
+  const share = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `[체험 안내] ${program.title}`, text: message });
+        setStatus("공유 창을 열었어요");
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+      }
+    }
+    await copy();
+  };
+
+  const field = "focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[13px] outline-none";
+  const fieldStyle = { background: "white", border: `1px solid ${C.beige}` };
+  const label = "f-body text-[11px] font-bold mb-1";
+  return (
+    <div className="rounded-xl p-3 mb-3 space-y-3" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
+      <p className="f-body text-[11px] text-gray-500">학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 "학부모에게 공개"를 켜고 저장하면 학부모 앱에 알림이 떠요.</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className={label} style={{ color: C.charcoal }}>⏰ 체험 시간</p>
+          <input value={value.time} onChange={(e) => set({ time: e.target.value })} placeholder="10:00 ~ 12:30" aria-label="체험 시간" className={field} style={fieldStyle} />
+        </div>
+        <div>
+          <p className={label} style={{ color: C.charcoal }}>🕘 집합 시간</p>
+          <input value={value.meetingTime} onChange={(e) => set({ meetingTime: e.target.value })} placeholder="09:50" aria-label="집합 시간" className={field} style={fieldStyle} />
+        </div>
+      </div>
+      <div>
+        <p className={label} style={{ color: C.charcoal }}>🧭 모이는 곳</p>
+        <input value={value.meetingPoint} onChange={(e) => set({ meetingPoint: e.target.value })} placeholder="예: 정문 앞 분수대" aria-label="모이는 곳" className={field} style={fieldStyle} />
+      </div>
+      <div>
+        <p className={label} style={{ color: C.charcoal }}>📍 장소 (주소)</p>
+        <input value={value.venue} onChange={(e) => set({ venue: e.target.value })} placeholder="예: 경기 수원시 권선구 …" aria-label="장소 주소" className={field} style={fieldStyle} />
+      </div>
+      <div>
+        <p className={label} style={{ color: C.charcoal }}>🎒 준비물 <span className="font-normal text-gray-400">(쉼표나 줄바꿈으로 나눠요)</span></p>
+        <textarea value={value.bring} onChange={(e) => set({ bring: e.target.value })} rows={2} placeholder="물통, 편한 신발, 모자" aria-label="준비물" className={field} style={fieldStyle} />
+      </div>
+
+      <div>
+        <p className={label} style={{ color: C.charcoal }}>💰 입장료</p>
+        <div className="flex gap-1.5">
+          {FEE_TYPES.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => set({ feeType: value.feeType === f.key ? "" : f.key })}
+              aria-pressed={value.feeType === f.key}
+              className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2"
+              style={{ background: value.feeType === f.key ? C.green : "white", color: value.feeType === f.key ? "white" : C.charcoal, border: `1px solid ${value.feeType === f.key ? C.green : C.beige}` }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {value.feeType === "parent" && (
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <input
+              value={value.feeAmount}
+              onChange={(e) => set({ feeAmount: e.target.value.replace(/[^\d]/g, "") })}
+              inputMode="numeric"
+              placeholder="금액 (숫자만)"
+              aria-label="입장료 금액"
+              className={field}
+              style={fieldStyle}
+            />
+            <input value={value.feeNote} onChange={(e) => set({ feeNote: e.target.value })} placeholder="예: 현장 결제" aria-label="입장료 메모" className={field} style={fieldStyle} />
+          </div>
+        )}
+        {value.feeType === "parent" && value.feeAmount && <p className="f-body text-[11px] text-gray-400 mt-1">→ {moneyText(value.feeAmount)}</p>}
+      </div>
+
+      <div>
+        <p className={label} style={{ color: C.charcoal }}>📝 기타 안내 <span className="font-normal text-gray-400">(주차, 우천 시 등)</span></p>
+        <textarea value={value.note} onChange={(e) => set({ note: e.target.value })} rows={2} aria-label="기타 안내" className={field} style={fieldStyle} />
+      </div>
+
+      <button onClick={() => set({ published: !value.published })} aria-pressed={value.published} className="focus-ring tap flex items-start gap-2 text-left">
+        {value.published ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
+        <span className="f-body text-[12px] font-bold" style={{ color: C.charcoal }}>
+          학부모에게 공개
+          <span className="block font-normal text-gray-400">켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 "체험 안내가 도착했어요" 알림이 떠요.</span>
+        </span>
+      </button>
+
+      <div className="pt-1">
+        <p className={label} style={{ color: C.charcoal }}>카톡으로 보내기</p>
+        <div className="flex gap-2">
+          <button onClick={share} disabled={!ready} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: "#FEE500", color: "#191919" }}>
+            📤 안내문 보내기
+          </button>
+          <button onClick={copy} disabled={!ready} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>
+            📋 안내문 복사
+          </button>
+        </div>
+        {status && <p className="f-body text-[11px] mt-1.5" style={{ color: "#1F7A44" }}>{status}</p>}
+        {fallback && <textarea readOnly value={fallback} rows={7} aria-label="안내문" className={`${field} mt-1.5`} style={fieldStyle} />}
+        {!ready && <p className="f-body text-[10px] text-gray-400 mt-1">프로그램 이름을 먼저 입력해 주세요.</p>}
+      </div>
+    </div>
+  );
+}
+
+/** What parents see: one clear page, only the rows that were filled in. */
+function ProgramInfoSheet({ program, onClose }) {
+  const info = infoFrom(program);
+  const place = info.venue || program.locationKo || program.location;
+  const bring = splitBring(info.bring);
+  const fee = feeText(info);
+  const rows = [
+    { icon: "📅", label: "일시", value: [program.date, info.time].filter(Boolean).join(" · ") },
+    { icon: "🧭", label: "모이는 곳", value: [info.meetingPoint, info.meetingTime && `${info.meetingTime}까지 모여 주세요`].filter(Boolean).join("\n") },
+    { icon: "📍", label: "장소", value: place },
+    { icon: "💰", label: "입장료", value: fee, tone: info.feeType === "parent" ? "pay" : "ok" },
+    { icon: "📝", label: "안내", value: info.note },
+  ].filter((r) => r.value);
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="체험 안내">
+      <div className="max-w-md mx-auto px-5 pt-6 pb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="f-display text-lg font-semibold" style={{ color: C.green }}>체험 안내</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
+        </div>
+        <Cover program={program} className="h-28 mb-3" />
+        <p className="f-display text-base font-semibold mb-3" style={{ color: C.green }}>{program.title}</p>
+        <div className="space-y-2.5">
+          {rows.slice(0, 3).map((r) => (
+            <InfoRow key={r.label} {...r} />
+          ))}
+          {bring.length > 0 && (
+            <div className="bg-white rounded-2xl p-4">
+              <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.orange }}>🎒 준비물</p>
+              <div className="flex flex-wrap gap-1.5">
+                {bring.map((b) => (
+                  <span key={b} className="f-body text-[13px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: C.charcoal }}>{b}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {rows.slice(3).map((r) => (
+            <InfoRow key={r.label} {...r} />
+          ))}
+        </div>
+        <p className="f-body text-[11px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+      </div>
+    </div>
+  );
+}
+function InfoRow({ icon, label, value, tone }) {
+  const pay = tone === "pay";
+  return (
+    <div className="rounded-2xl p-4" style={{ background: pay ? "#FFF1E2" : "white", border: pay ? `1px solid ${C.beige}` : "none" }}>
+      <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.orange }}>{icon} {label}</p>
+      <p className="f-body text-[14px] font-semibold whitespace-pre-line" style={{ color: C.charcoal }}>{value}</p>
+    </div>
+  );
+}
+
+function RegisterProgramPanel({ initial, defaultShowInfo, onRegister, onSave, onDelete, onCancel }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
   const [date, setDate] = useState(initial?.date || "");
@@ -3181,6 +3790,8 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
   const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null);
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [showMaterials, setShowMaterials] = useState(false);
+  const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
+  const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef(null);
 
@@ -3190,12 +3801,12 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
     if (!canSubmit) return;
     const lv = sortLevels(levels);
     const ic = sortIcons(icons);
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...buildMaterials(materials) };
+    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...buildMaterials(materials), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null); setMaterials(defaultMaterials()); setShowMaterials(false);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null); setMaterials(defaultMaterials()); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
@@ -3216,7 +3827,7 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
           onChange={(e) => setDate(e.target.value)}
           placeholder="날짜 (예: Sep 30)"
           aria-label="날짜"
-          className="focus-ring flex-1 rounded-xl p-3 f-body text-sm outline-none"
+          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-sm outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
         <input
@@ -3224,7 +3835,7 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
           onChange={(e) => setLocation(e.target.value)}
           placeholder="장소"
           aria-label="장소"
-          className="focus-ring flex-1 rounded-xl p-3 f-body text-sm outline-none"
+          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-sm outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
       </div>
@@ -3299,13 +3910,30 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
       />
 
       <button
+        onClick={() => setShowInfo((v) => !v)}
+        aria-expanded={showInfo}
+        className="focus-ring tap w-full flex items-center justify-between rounded-xl px-3 py-2.5 mb-3"
+        style={{ background: C.beige }}
+      >
+        <span className="text-left min-w-0">
+          <span className="block f-body text-[12px] font-bold" style={{ color: C.green }}>체험 전 안내</span>
+          <span className="block f-body text-[10.5px] text-gray-500">시간 · 모이는 곳 · 준비물 · 입장료</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[12px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? "접기 ▴" : "펼치기 ▾"}</span>
+      </button>
+      {showInfo && <InfoEditor program={{ title, date, location, locationKo: location }} value={noticeInfo} onChange={setNoticeInfo} />}
+
+      <button
         onClick={() => setShowMaterials((v) => !v)}
         aria-expanded={showMaterials}
         className="focus-ring tap w-full flex items-center justify-between rounded-xl px-3 py-2.5 mb-3"
         style={{ background: C.beige }}
       >
-        <span className="f-body text-[12px] font-bold" style={{ color: C.green }}>체험 자료 입력 (단어 · 질문 · 퀴즈 · 미션)</span>
-        <span className="f-body text-[12px] font-bold" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
+        <span className="text-left min-w-0">
+          <span className="block f-body text-[12px] font-bold" style={{ color: C.green }}>체험 자료 입력</span>
+          <span className="block f-body text-[10.5px] text-gray-500">단어 · 질문 · 퀴즈 · 미션</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[12px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
       </button>
       {showMaterials && <MaterialsEditor value={materials} onChange={setMaterials} />}
 
@@ -3401,6 +4029,26 @@ function summarizeRows(rows) {
   const ratings = rows.map((a) => a.reflection?.rating).filter((v) => typeof v === "number");
   const prepDays = rows.filter((a) => a.enrolledAt && a.beforeCompletedAt).map((a) => Math.max(0, daysBetween(a.enrolledAt, a.beforeCompletedAt)));
   const afterDays = rows.filter((a) => a.attendedAt && a.afterCompletedAt).map((a) => Math.max(0, daysBetween(a.attendedAt, a.afterCompletedAt)));
+  const surveys = rows.filter((a) => a.parentSurvey).map((a) => a.parentSurvey);
+  const surveyAvg = SURVEY_ITEMS.map((it) => {
+    const vals = surveys.map((sv) => sv.ratings?.[it.key]).filter((v) => typeof v === "number");
+    return { key: it.key, label: it.label, avg: avgOf(vals), n: vals.length };
+  });
+  const newest = (field) =>
+    surveys
+      .filter((sv) => sv[field])
+      .sort((x, y) => String(y.at || "").localeCompare(String(x.at || "")))
+      .map((sv) => sv[field]);
+  const survey = {
+    n: surveys.length,
+    attended: rows.filter((a) => a.attended).length,
+    avg: surveyAvg,
+    rejoin: REJOIN_OPTIONS.map((o) => ({ ...o, count: surveys.filter((sv) => sv.rejoin === o.key).length })),
+    rejoinN: surveys.filter((sv) => sv.rejoin).length,
+    good: newest("good"),
+    improve: newest("improve"),
+    wish: newest("wish"),
+  };
   const funnel = [
     { key: "enrolled", label: "체험에 등록된 아이", value: rows.length },
     { key: "prep", label: "예습 완료", value: rows.filter((a) => a.beforeCompleted).length },
@@ -3414,6 +4062,7 @@ function summarizeRows(rows) {
     challengePct: scores.length ? Math.round(avgOf(scores) * 100) : null,
     challengeN: scores.length,
     practice: wordPractice(rows),
+    survey,
     rating: { avg: avgOf(ratings), n: ratings.length },
     prepDays: avgOf(prepDays),
     afterDays: avgOf(afterDays),
@@ -3485,6 +4134,44 @@ function StatBar({ label, value, total, sub, note }) {
 }
 const NO_DATA_YET = <p className="f-body text-[12px] text-gray-400">아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.</p>;
 
+function VisitCard({ suggestions }) {
+  const v = visitStats(suggestions);
+  const max = Math.max(1, ...v.week.map((d) => d.count));
+  const dow = ["일", "월", "화", "수", "목", "금", "토"];
+  return (
+    <StatCard title="앱 방문 (학부모만)" hint="학부모가 앱에 로그인한 기록이에요. 선생님 로그인은 세지 않고, 한 가족은 하루에 한 번만 세요.">
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {[
+          { label: "오늘 방문", value: v.today },
+          { label: "누적 방문", value: v.total },
+          { label: "방문한 가족", value: v.families },
+        ].map((x) => (
+          <div key={x.label} className="rounded-xl py-3 text-center" style={{ background: C.cream }}>
+            <p className="f-display text-2xl font-bold" style={{ color: C.green }}>{x.value}</p>
+            <p className="f-body text-[11px] text-gray-500 mt-0.5">{x.label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.charcoal }}>최근 7일</p>
+      <div className="flex items-end gap-1.5" style={{ height: 72 }} role="img" aria-label="최근 7일 방문 수">
+        {v.week.map((d, i) => (
+          <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
+            <span className="f-body text-[10px] text-gray-500 mb-0.5">{d.count || ""}</span>
+            <div className="w-full rounded-t-md" style={{ height: `${Math.max(d.count ? 8 : 3, (d.count / max) * 44)}px`, background: i === v.week.length - 1 ? C.orange : "#F2C9A0" }} />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-1.5 mt-1">
+        {v.week.map((d) => (
+          <span key={d.day} className="flex-1 text-center f-body text-[10px] text-gray-400">{dow[new Date(`${d.day}T12:00:00+09:00`).getUTCDay()]}</span>
+        ))}
+      </div>
+      {v.returning > 0 && <p className="f-body text-[11px] text-gray-500 mt-3">🔁 이틀 이상 다시 찾아온 가족 {v.returning}가족</p>}
+      {v.total === 0 && <p className="f-body text-[11px] text-gray-400 mt-3">아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.</p>}
+    </StatCard>
+  );
+}
+
 function StatsPanel({ adventures, students, suggestions }) {
   const [sel, setSel] = useState("all");
   const valid = adventures.filter((a) => students.some((st) => st.id === a.studentId) && getProgram(a.programId));
@@ -3516,6 +4203,8 @@ function StatsPanel({ adventures, students, suggestions }) {
           </button>
         ))}
       </div>
+
+      {sel === "all" && <VisitCard suggestions={suggestions} />}
 
       {sum.total === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center">
@@ -3559,6 +4248,44 @@ function StatsPanel({ adventures, students, suggestions }) {
               <StatBar label="체험 별점" value={sum.rating.avg} total={5} sub={`${oneDecimal(sum.rating.avg)} / 5 · ${sum.rating.n}명`} />
             ) : (
               <p className="f-body text-[12px] text-gray-400">아직 별점이 없어요.</p>
+            )}
+          </StatCard>
+
+          <StatCard title="부모 만족도 설문" hint="체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.">
+            {sum.survey.n === 0 ? (
+              <p className="f-body text-[12px] text-gray-400">아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.</p>
+            ) : (
+              <>
+                <p className="f-body text-[12px] mb-3" style={{ color: C.charcoal }}>
+                  응답 <b>{sum.survey.n}</b>건 · 출석한 {sum.survey.attended}명 중 {pctOf(sum.survey.n, sum.survey.attended)}%
+                </p>
+                {sum.survey.avg.filter((x) => x.n > 0).map((x) => (
+                  <StatBar key={x.key} label={x.label} value={x.avg} total={5} sub={`${oneDecimal(x.avg)} / 5 · ${x.n}명`} />
+                ))}
+                {sum.survey.rejoinN > 0 && (
+                  <div className="mt-4">
+                    <p className="f-body text-[12px] font-bold mb-2" style={{ color: C.charcoal }}>다시 참여하고 싶으세요?</p>
+                    {sum.survey.rejoin.map((o) => (
+                      <StatBar key={o.key} label={o.label} value={o.count} total={sum.survey.rejoinN} />
+                    ))}
+                  </div>
+                )}
+                {[
+                  { k: "good", title: "좋았던 점", list: sum.survey.good },
+                  { k: "improve", title: "아쉬운 점·바라는 점", list: sum.survey.improve },
+                  { k: "wish", title: "가보고 싶은 체험·장소", list: sum.survey.wish },
+                ].filter((g) => g.list.length > 0).map((g) => (
+                  <div key={g.k} className="mt-4">
+                    <p className="f-body text-[12px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.title} ({g.list.length})</p>
+                    <div className="space-y-1.5">
+                      {g.list.slice(0, 5).map((t, i) => (
+                        <p key={i} className="f-body text-[12px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
+                      ))}
+                      {g.list.length > 5 && <p className="f-body text-[11px] text-gray-400">외 {g.list.length - 5}개</p>}
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
           </StatCard>
 
@@ -3654,6 +4381,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
   const [tab, setTab] = useState("manage"); // register | manage | programs | suggestions
   const [programId, setProgramId] = useState(PROGRAMS[0].id);
   const [editingProgramId, setEditingProgramId] = useState(null);
+  const [infoFocusId, setInfoFocusId] = useState(null);
   const program = getProgram(programId);
   const roster = adventures
     .filter((a) => a.programId === programId)
@@ -3663,7 +4391,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
 
   // Things waiting on the teacher (worked out from existing data, nothing extra stored)
   const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
-  const pendingOther = suggestions.filter((x) => !x.resolved && x.type !== "신청 문의" && !isWish(x));
+  const pendingOther = suggestions.filter((x) => !x.resolved && x.type !== "신청 문의" && !isSystemRow(x));
   const needReport = adventures
     .filter((a) => a.attended && !a.feedback)
     .map((a) => ({ a, student: students.find((st) => st.id === a.studentId), program: getProgram(a.programId) }))
@@ -3689,6 +4417,15 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
       onDone: () => onResolveSuggestions(pendingOther.map((x) => x.id)),
     });
   }
+  PROGRAMS.filter((p) => !p.dateReached && !p.info?.published && adventures.some((a) => a.programId === p.id)).forEach((p) => {
+    teacherNotices.push({
+      key: `info-${p.id}`,
+      icon: "📍",
+      title: "체험 안내를 보내야 해요",
+      text: p.title,
+      onClick: () => { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
+    });
+  });
   needReport.forEach((r) => {
     teacherNotices.push({
       key: `report-${r.a.studentId}-${r.a.programId}`,
@@ -3858,7 +4595,8 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
               <RegisterProgramPanel
                 key={p.id}
                 initial={p}
-                onSave={(info) => { onEditProgram(p.id, info); setEditingProgramId(null); }}
+                defaultShowInfo={infoFocusId === p.id}
+                onSave={(info) => { onEditProgram(p.id, info); setEditingProgramId(null); setInfoFocusId(null); }}
                 onDelete={() => { onDeleteProgram(p.id); setEditingProgramId(null); }}
                 onCancel={() => setEditingProgramId(null)}
               />
@@ -3887,17 +4625,17 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
 
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
-          {suggestions.filter((x) => !isWish(x)).length === 0 && <p className="f-body text-sm text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
+          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-sm text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
           {unresolvedCount > 0 && (
             <button
-              onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isWish(x)).map((x) => x.id))}
+              onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isSystemRow(x)).map((x) => x.id))}
               className="focus-ring tap w-full f-body text-[12px] font-bold rounded-xl py-2.5 text-white"
               style={{ background: C.green }}
             >
               ✓ 모두 확인함으로 표시 ({unresolvedCount}건)
             </button>
           )}
-          {suggestions.filter((x) => !isWish(x)).reverse().map((s) => {
+          {suggestions.filter((x) => !isSystemRow(x)).reverse().map((s) => {
             const family = students.filter((st) => st.familyPin === s.familyPin).map((st) => st.name).join(", ");
             return (
               <div key={s.id} className="bg-white rounded-2xl p-4">
@@ -4266,9 +5004,24 @@ export default function CarrotExplorer() {
     if (programId) enrollStudent(id, programId);
   };
 
+  // Customers only: count the first parent login of the day per family (teachers are never counted).
+  const recordVisit = (familyPin) => {
+    if (!familyPin) return;
+    const id = visitId(familyPin, kstDay());
+    if (suggestions.some((sg) => sg.id === id)) return;
+    const visit = { id, type: VISIT_TYPE, message: `${kstDay()} 방문`, familyPin, resolved: false };
+    setSuggestions((prev) => (prev.some((sg) => sg.id === id) ? prev : [...prev, visit]));
+    sync(api.createSuggestion(visit));
+  };
+  const loginAs = (sess) => {
+    setSession(sess);
+    if (sess.role === "parent") recordVisit(sess.familyPin);
+  };
+
   const selfRegisterAndLogin = (info) => {
     registerStudent(info);
     setSession({ role: "parent", familyPin: info.familyPin });
+    recordVisit(info.familyPin);
   };
 
   const editStudent = (studentId, patch) => {
@@ -4281,7 +5034,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember }) => {
+  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -4308,13 +5061,14 @@ export default function CarrotExplorer() {
       challenge: challenge || dm.challenge,
       missions: missions || dm.missions,
       remember: remember || dm.remember,
+      info: info || null,
     };
     PROGRAMS.push(newProgram);
     setProgramsVersion((v) => v + 1);
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember }) => {
+  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -4339,6 +5093,7 @@ export default function CarrotExplorer() {
     if (challenge) patch.challenge = challenge;
     if (missions) patch.missions = missions;
     if (remember) patch.remember = remember;
+    if (info) patch.info = info;
     PROGRAMS[idx] = { ...PROGRAMS[idx], ...patch };
     if (missions) {
       // Each enrolled student keeps a per-mission record; keep it in step with the edited mission list
@@ -4393,7 +5148,7 @@ export default function CarrotExplorer() {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
-        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={setSession} />
+        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} />
       </div>
     );
   }
@@ -4452,9 +5207,40 @@ export default function CarrotExplorer() {
               onAddSuggestion={addSuggestion}
               onToggleWish={toggleWish}
               onViewReport={(studentId) => setParentScreen({ type: "report", studentId })}
+              onOpenSurvey={(studentId, programId) => setParentScreen({ type: "survey", studentId, programId })}
               onStartAdventure={(studentId) => { setParentScreen({ type: "student-mode", studentId }); setSelectedProgramId(null); setStudentTab("home"); }}
               onLogout={logout}
             />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (parentScreen.type === "survey") {
+    const sStudent = students.find((x) => x.id === parentScreen.studentId);
+    const sProgram = getProgram(parentScreen.programId);
+    const sAdv = getAdventure(adventures, parentScreen.studentId, parentScreen.programId);
+    const back = () => setParentScreen({ type: "list" });
+    return (
+      <div className="min-h-screen f-body" style={{ background: C.cream }}>
+        <style>{FONTS}</style>
+        <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
+          <div className="flex-1 overflow-y-auto">
+            {sStudent && sProgram && sAdv ? (
+              <ParentSurvey
+                student={sStudent}
+                program={sProgram}
+                adv={sAdv}
+                onBack={back}
+                onSubmit={(parentSurvey) => updateAdventure(sStudent.id, sProgram.id, { parentSurvey })}
+              />
+            ) : (
+              <div className="px-5 pt-10 text-center">
+                <p className="f-body text-sm text-gray-500 mb-4">설문을 찾을 수 없어요.</p>
+                <PrimaryButton onClick={back}>돌아가기</PrimaryButton>
+              </div>
+            )}
           </div>
         </div>
       </div>

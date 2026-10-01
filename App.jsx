@@ -1116,7 +1116,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           </div>
           <div className="bg-white rounded-b-2xl p-5 pt-6">
             <p className="f-body text-[11px] font-bold uppercase tracking-wide" style={{ color: C.orange }}>
-              {next.program.date} · Level {next.program.level}
+              {next.program.date} · Level {levelLabel(next.program)}
             </p>
             <h2 className="f-display text-lg font-semibold mt-0.5 mb-3" style={{ color: C.green }}>
               {next.program.title}
@@ -1198,7 +1198,7 @@ function AdventuresList({ adventures, studentId, onOpen }) {
                 <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>
                   {program.title}
                 </p>
-                <p className="f-body text-[11px] text-gray-400">{program.date} · Level {program.level}</p>
+                <p className="f-body text-[11px] text-gray-400">{program.date} · Level {levelLabel(program)}</p>
                 <span
                   className="inline-block mt-1 text-[10px] f-body font-bold px-2 py-0.5 rounded-full"
                   style={{ background: status === "completed" ? "#DCF3E4" : C.beige, color: status === "completed" ? "#1F7A44" : C.green }}
@@ -1822,7 +1822,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
       <div className="px-5 mb-2">
         <Cover program={program} className="h-32 mb-4" />
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {program.level}</span>
+          <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
           <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
           <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
         </div>
@@ -2501,6 +2501,23 @@ const ICON_CHOICES = [
   { key: "hanbok", label: "전통문화", category: "culture", emoji: "🏺" },
 ];
 
+/* A program may have several levels / theme icons. Older programs only have
+   a single `level` / `icon` string, so these helpers read either shape. */
+function programLevels(p) {
+  if (Array.isArray(p?.levels) && p.levels.length) return p.levels;
+  return p?.level ? [p.level] : [];
+}
+function programIcons(p) {
+  if (Array.isArray(p?.icons) && p.icons.length) return p.icons;
+  return p?.icon ? [p.icon] : [];
+}
+function levelLabel(p) {
+  return programLevels(p).join(" · ");
+}
+const sortLevels = (arr) => LEVEL_CHOICES.filter((l) => arr.includes(l));
+const sortIcons = (arr) => ICON_CHOICES.map((c) => c.key).filter((k) => arr.includes(k));
+const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+
 function RegisterStudentPanel({ onRegister }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(null);
@@ -2589,24 +2606,26 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
   const [title, setTitle] = useState(initial?.title || "");
   const [date, setDate] = useState(initial?.date || "");
   const [location, setLocation] = useState(initial?.location || "서울");
-  const [level, setLevel] = useState(initial?.level || null);
-  const [icon, setIcon] = useState(initial?.icon || null);
+  const [levels, setLevels] = useState(() => (initial ? programLevels(initial) : []));
+  const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
   const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef(null);
 
-  const canSubmit = title.trim() && date.trim() && level && icon;
+  const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
 
   const submit = () => {
     if (!canSubmit) return;
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level, icon, themeKo: themeKo.trim(), dateReached, coverPhoto };
+    const lv = sortLevels(levels);
+    const ic = sortIcons(icons);
+    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto };
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
-      setTitle(""); setDate(""); setLocation("서울"); setLevel(null); setIcon(null); setThemeKo(""); setDateReached(false); setCoverPhoto(null);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null);
     }
   };
 
@@ -2640,18 +2659,18 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
         />
       </div>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>테마 아이콘</p>
+      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>테마 아이콘 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 flex-wrap mb-3">
         {ICON_CHOICES.map((opt) => (
           <button
             key={opt.key}
-            onClick={() => setIcon(opt.key)}
-            aria-pressed={icon === opt.key}
+            onClick={() => setIcons((prev) => toggleIn(prev, opt.key))}
+            aria-pressed={icons.includes(opt.key)}
             className="focus-ring tap rounded-xl px-3 py-2 flex items-center gap-1.5"
-            style={{ background: icon === opt.key ? C.green : C.cream, border: `1px solid ${icon === opt.key ? C.green : C.beige}` }}
+            style={{ background: icons.includes(opt.key) ? C.green : C.cream, border: `1px solid ${icons.includes(opt.key) ? C.green : C.beige}` }}
           >
-            <ProgramIcon kind={opt.key} size={16} color={icon === opt.key ? "white" : C.green} />
-            <span className="f-body text-[11px] font-bold" style={{ color: icon === opt.key ? "white" : C.charcoal }}>{opt.label}</span>
+            <ProgramIcon kind={opt.key} size={16} color={icons.includes(opt.key) ? "white" : C.green} />
+            <span className="f-body text-[11px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{opt.label}</span>
           </button>
         ))}
       </div>
@@ -2684,15 +2703,15 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
       />
       <p className="f-body text-[10px] text-gray-400 mb-3">사진이 없으면 아이콘으로 대신 표시돼요.</p>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
+      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 mb-3">
         {LEVEL_CHOICES.map((l) => (
           <button
             key={l}
-            onClick={() => setLevel(l)}
-            aria-pressed={level === l}
+            onClick={() => setLevels((prev) => toggleIn(prev, l))}
+            aria-pressed={levels.includes(l)}
             className="focus-ring tap flex-1 text-[12px] f-body font-bold rounded-xl py-2"
-            style={{ background: level === l ? C.green : C.cream, color: level === l ? "white" : C.charcoal, border: `1px solid ${level === l ? C.green : C.beige}` }}
+            style={{ background: levels.includes(l) ? C.green : C.cream, color: levels.includes(l) ? "white" : C.charcoal, border: `1px solid ${levels.includes(l) ? C.green : C.beige}` }}
           >
             {l}
           </button>
@@ -3260,7 +3279,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, icon, themeKo, dateReached, coverPhoto }) => {
+  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
     const newProgram = {
@@ -3271,12 +3290,14 @@ export default function CarrotExplorer() {
       location,
       locationKo: location,
       level,
+      levels,
       category: iconInfo?.category || "culture",
       isMuseum: true,
       theme: themeKo || `Explore ${title} and discover something new.`,
       themeKo: themeKo || `${title}에서 새로운 것을 탐험해보았어요.`,
       emoji: iconInfo?.emoji || "🥕",
       icon,
+      icons,
       coverPhoto: coverPhoto || null,
       vocabulary: [{ id: "explore", en: "explore", meaning: "To look around and discover new things.", emoji: "🔍" }],
       bigQuestion: "What did you discover today?",
@@ -3293,7 +3314,7 @@ export default function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, icon, themeKo, dateReached, coverPhoto }) => {
+  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -3303,7 +3324,9 @@ export default function CarrotExplorer() {
       location,
       locationKo: location,
       level,
+      levels,
       icon,
+      icons,
       category: iconInfo?.category || PROGRAMS[idx].category,
       emoji: iconInfo?.emoji || PROGRAMS[idx].emoji,
       themeKo: themeKo || PROGRAMS[idx].themeKo,

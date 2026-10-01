@@ -709,9 +709,9 @@ function StampCard({ count, fillColor = C.orange, emptyColor = C.beige, fillBg =
   );
 }
 
-function VocabularyCard({ v }) {
+function VocabularyCard({ v, onTap }) {
   return (
-    <button onClick={() => speak(v.en)} aria-label={`Play pronunciation for ${v.en}`} className="focus-ring tap bg-white rounded-2xl p-4 text-left">
+    <button onClick={() => { if (onTap) onTap(v); speak(v.en); }} aria-label={`Play pronunciation for ${v.en}`} className="focus-ring tap bg-white rounded-2xl p-4 text-left">
       <div className="flex items-start justify-between">
         <span className="text-2xl">{v.emoji}</span>
         <Volume2 size={16} color={C.orange} />
@@ -721,6 +721,32 @@ function VocabularyCard({ v }) {
       </p>
       <p className="f-body text-[12px] text-gray-500 mt-0.5">{v.meaning}</p>
     </button>
+  );
+}
+
+const FEEL_FACES = ["😣", "🙁", "😐", "🙂", "😍"];
+/** Optional 1-5 "how was it?" tap shown at the end of each Get Ready step. */
+function FeelingScale({ label, value, onChange }) {
+  return (
+    <div className="bg-white rounded-2xl p-4 mb-5">
+      <p className="f-body text-[12px] font-bold mb-2" style={{ color: C.green }}>
+        {label} <span className="font-normal text-gray-400">(optional)</span>
+      </p>
+      <div className="flex gap-1.5">
+        {FEEL_FACES.map((face, i) => (
+          <button
+            key={i}
+            onClick={() => onChange(value === i + 1 ? null : i + 1)}
+            aria-pressed={value === i + 1}
+            aria-label={`${i + 1} out of 5`}
+            className="focus-ring tap flex-1 rounded-xl py-2 text-2xl"
+            style={{ background: value === i + 1 ? C.orange : C.cream, border: `1px solid ${value === i + 1 ? C.orange : C.beige}` }}
+          >
+            {face}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1465,6 +1491,10 @@ function BeforeAdventure({ program, adv, onComplete }) {
   const [predictionCustom, setPredictionCustom] = useState(false);
   const [qIndex, setQIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
+  // usage insights collected while the child gets ready (saved with the completion)
+  const [taps, setTaps] = useState({});
+  const [results, setResults] = useState({});
+  const [feel, setFeel] = useState({});
 
   if (adv.beforeCompleted && !isReplay) {
     return (
@@ -1504,8 +1534,9 @@ function BeforeAdventure({ program, adv, onComplete }) {
         <div>
           <p className="f-body text-sm text-gray-500 mb-3">Tap a card to hear the word 🔊</p>
           <div className="grid grid-cols-2 gap-3 mb-6">
-            {program.vocabulary.map((v) => <VocabularyCard key={v.id} v={v} />)}
+            {program.vocabulary.map((v) => <VocabularyCard key={v.id} v={v} onTap={(w) => setTaps((t) => ({ ...t, [w.id]: (t[w.id] || 0) + 1 }))} />)}
           </div>
+          <FeelingScale label="How was learning the words?" value={feel.vocab} onChange={(val) => setFeel((f) => ({ ...f, vocab: val }))} />
           <PrimaryButton onClick={() => setStep("question")}>Next: Big Question</PrimaryButton>
         </div>
       )}
@@ -1537,6 +1568,7 @@ function BeforeAdventure({ program, adv, onComplete }) {
               style={{ background: C.cream, border: `1px solid ${C.beige}` }}
             />
           </div>
+          <FeelingScale label="How was the big question?" value={feel.question} onChange={(val) => setFeel((f) => ({ ...f, question: val }))} />
           <PrimaryButton onClick={() => setStep("challenge")} disabled={!prediction}>Next: Quick Challenge</PrimaryButton>
         </div>
       )}
@@ -1548,6 +1580,7 @@ function BeforeAdventure({ program, adv, onComplete }) {
             <MatchPairs
               pairs={q.pairs}
               onDone={() => {
+                setResults((r) => ({ ...r, [q.id]: true }));
                 setCorrectCount((c) => c + 1);
                 if (qIndex + 1 < program.challenge.length) setQIndex((i) => i + 1);
                 else setStep("done");
@@ -1558,6 +1591,7 @@ function BeforeAdventure({ program, adv, onComplete }) {
               key={q.id}
               q={q}
               onAnswered={(correct) => {
+                setResults((r) => ({ ...r, [q.id]: !!correct }));
                 if (correct) setCorrectCount((c) => c + 1);
                 if (qIndex + 1 < program.challenge.length) setQIndex((i) => i + 1);
                 else setStep("done");
@@ -1572,10 +1606,26 @@ function BeforeAdventure({ program, adv, onComplete }) {
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Check size={22} color={C.green} strokeWidth={3} /></div>
           <p className="f-display text-xl font-semibold mb-1" style={{ color: C.green }}>You're ready for your adventure!</p>
           <p className="f-body text-sm text-gray-500 mb-6">Great job! You got {correctCount} of {program.challenge.length}.</p>
+          <div className="text-left">
+            <FeelingScale label="How was the challenge?" value={feel.challenge} onChange={(val) => setFeel((f) => ({ ...f, challenge: val }))} />
+          </div>
           {isReplay ? (
             <PrimaryButton onClick={() => setIsReplay(false)}>Back to Adventure</PrimaryButton>
           ) : (
-            <PrimaryButton onClick={() => onComplete({ bigQuestionAnswer: prediction, bigQuestionCustom: predictionCustom, challengeScore: { correct: correctCount, total: program.challenge.length } })}>
+            <PrimaryButton
+              onClick={() =>
+                onComplete({
+                  bigQuestionAnswer: prediction,
+                  bigQuestionCustom: predictionCustom,
+                  challengeScore: { correct: correctCount, total: program.challenge.length },
+                  insights: {
+                    wordTaps: taps,
+                    challengeResults: results,
+                    feel: Object.fromEntries(Object.entries(feel).filter(([, v]) => typeof v === "number")),
+                  },
+                })
+              }
+            >
               Claim my badge
             </PrimaryButton>
           )}
@@ -2048,11 +2098,19 @@ function PhotosRow({ photos }) {
 
 const SUGGESTION_TYPES = ["건의사항", "장소 요청", "기타"];
 
+/* Wishlist ("찜") entries are stored as suggestions with a fixed id per family + program,
+   so each family counts once per program. resolved=true means the family un-saved it. */
+const WISH_TYPE = "찜";
+const KAKAO_CHAT_URL = ""; // paste the KakaoTalk channel / open-chat link here to show a "카카오톡으로 문의하기" button
+const wishId = (familyPin, programId) => `wish-${familyPin}-${programId}`;
+const isWish = (sg) => sg.type === WISH_TYPE;
+const wishesFor = (suggestions, programId) => suggestions.filter((sg) => isWish(sg) && !sg.resolved && sg.id.endsWith(`-${programId}`) && sg.id === wishId(sg.familyPin, programId));
+
 function SuggestionBox({ suggestions, familyPin, onAdd }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState(SUGGESTION_TYPES[0]);
   const [message, setMessage] = useState("");
-  const mine = suggestions.filter((s) => s.familyPin === familyPin).slice().reverse();
+  const mine = suggestions.filter((s) => s.familyPin === familyPin && !isWish(s)).slice().reverse();
 
   const submit = () => {
     if (!message.trim()) return;
@@ -2145,7 +2203,7 @@ function parentNotices(children, adventures) {
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
-function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSuggestion }) {
+function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish }) {
   const cards = PROGRAMS.map((p) => ({
     program: p,
     pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
@@ -2155,7 +2213,12 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSugg
     <div id="browse-programs">
       <div className="mb-2 mt-1">
         <p className="f-display font-semibold" style={{ color: C.green }}>체험 둘러보기</p>
-        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험을 골라 신청 문의를 보내 주세요. 선생님이 확인하고 체험에 추가해 드려요.</p>
+        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험은 ♥ 찜해 두세요. 인기 있는 체험을 파악해 다음 체험을 준비하는 데 도움이 돼요. 신청이나 궁금한 점은 카카오톡으로 문의해 주세요.</p>
+        {KAKAO_CHAT_URL && (
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[12px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#191919" }}>
+            카카오톡으로 문의하기
+          </a>
+        )}
       </div>
       {cards.length === 0 ? (
         <div className="bg-white rounded-2xl p-4 text-center">
@@ -2164,8 +2227,8 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSugg
       ) : (
         <div className="space-y-3">
           {cards.map(({ program: p, pending }) => {
-            const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 신청 문의`;
-            const sent = suggestions.some((sg) => sg.familyPin === familyPin && sg.message === message);
+            const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 찜`;
+            const liked = suggestions.some((sg) => sg.id === wishId(familyPin, p.id) && !sg.resolved);
             return (
               <div key={p.id} className="bg-white rounded-2xl overflow-hidden">
                 <Cover program={p} className="w-full h-32 rounded-b-none" />
@@ -2178,12 +2241,12 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSugg
                   </div>
                   {p.themeKo && <p className="f-body text-[12px] mt-2.5" style={{ color: C.charcoal }}>{p.themeKo}</p>}
                   <button
-                    onClick={() => !sent && onAddSuggestion({ type: "신청 문의", message, familyPin })}
-                    disabled={sent}
-                    className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-2.5 mt-3 text-white"
-                    style={{ background: sent ? "#9FD6B2" : C.orange }}
+                    onClick={() => onToggleWish({ familyPin, programId: p.id, message })}
+                    aria-pressed={liked}
+                    className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-2.5 mt-3"
+                    style={{ background: liked ? "#FFE3E0" : C.cream, color: liked ? "#C0392B" : C.charcoal, border: `1px solid ${liked ? "#F4B6AE" : C.beige}` }}
                   >
-                    {sent ? "문의를 보냈어요 ✓" : pending.length > 1 ? "신청하고 싶어요 (자녀 모두)" : "신청하고 싶어요"}
+                    {liked ? "♥ 찜했어요" : "♡ 찜하기"}
                   </button>
                 </div>
               </div>
@@ -2195,7 +2258,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSugg
   );
 }
 
-function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onViewReport, onStartAdventure, onLogout }) {
+function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onStartAdventure, onLogout }) {
   const myChildren = students.filter((s) => s.familyPin === familyPin);
   const notices = parentNotices(myChildren, adventures);
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2289,7 +2352,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         })}
 
         {myChildren.length > 0 && (
-          <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onAddSuggestion={onAddSuggestion} />
+          <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} />
         )}
 
         <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
@@ -3271,6 +3334,251 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
   );
 }
 
+/* ================================================================== */
+/*  USAGE STATISTICS (teacher / HQ)                                    */
+/*  Everything here is worked out from the saved records, nothing is   */
+/*  stored separately. "insights" only exists for adventures finished  */
+/*  after this feature was added.                                      */
+/* ================================================================== */
+const avgOf = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+const pctOf = (n, d) => (d ? Math.round((n / d) * 100) : 0);
+const daysBetween = (a, b) => (new Date(b) - new Date(a)) / 86400000;
+const oneDecimal = (n) => (Math.round(n * 10) / 10).toFixed(1);
+
+function summarizeRows(rows) {
+  const feelAvg = (k) => {
+    const vals = rows.map((a) => a.insights?.feel?.[k]).filter((v) => typeof v === "number");
+    return { avg: avgOf(vals), n: vals.length };
+  };
+  const scores = rows.filter((a) => a.challengeScore && a.challengeScore.total).map((a) => a.challengeScore.correct / a.challengeScore.total);
+  const ratings = rows.map((a) => a.reflection?.rating).filter((v) => typeof v === "number");
+  const prepDays = rows.filter((a) => a.enrolledAt && a.beforeCompletedAt).map((a) => Math.max(0, daysBetween(a.enrolledAt, a.beforeCompletedAt)));
+  const afterDays = rows.filter((a) => a.attendedAt && a.afterCompletedAt).map((a) => Math.max(0, daysBetween(a.attendedAt, a.afterCompletedAt)));
+  const funnel = [
+    { key: "enrolled", label: "체험에 등록된 아이", value: rows.length },
+    { key: "prep", label: "예습 완료", value: rows.filter((a) => a.beforeCompleted).length },
+    { key: "attended", label: "현장 출석", value: rows.filter((a) => a.attended).length },
+    { key: "after", label: "체험 후 기록 완료", value: rows.filter((a) => a.afterCompleted).length },
+    { key: "report", label: "선생님 리포트 작성", value: rows.filter((a) => a.feedback).length },
+  ];
+  return {
+    total: rows.length,
+    funnel,
+    challengePct: scores.length ? Math.round(avgOf(scores) * 100) : null,
+    challengeN: scores.length,
+    feel: { vocab: feelAvg("vocab"), question: feelAvg("question"), challenge: feelAvg("challenge") },
+    rating: { avg: avgOf(ratings), n: ratings.length },
+    prepDays: avgOf(prepDays),
+    afterDays: avgOf(afterDays),
+  };
+}
+
+function programDetail(program, rows) {
+  const withInsights = rows.filter((a) => a.insights);
+  const words = (program.vocabulary || []).map((v) => {
+    const taps = withInsights.map((a) => a.insights.wordTaps?.[v.id] || 0);
+    return { id: v.id, en: v.en, emoji: v.emoji, avgTaps: avgOf(taps), n: taps.length };
+  });
+  const questions = (program.challenge || []).map((q) => {
+    const answered = withInsights.map((a) => a.insights.challengeResults?.[q.id]).filter((v) => typeof v === "boolean");
+    return { id: q.id, prompt: q.prompt, correct: answered.filter(Boolean).length, n: answered.length };
+  });
+  const missions = (program.missions || []).map((m) => {
+    const entries = rows.map((a) => a.missionsCompleted.find((x) => x.missionId === m.id)).filter(Boolean);
+    return { id: m.id, text: m.text, done: entries.filter((x) => x.done).length, n: entries.length };
+  });
+  const bigQ = {};
+  rows.forEach((a) => {
+    if (!a.bigQuestionAnswer) return;
+    const key = a.bigQuestionCustom ? "(직접 쓴 답)" : a.bigQuestionAnswer;
+    bigQ[key] = (bigQ[key] || 0) + 1;
+  });
+  return { words, questions, missions, bigQ: Object.entries(bigQ).sort((x, y) => y[1] - x[1]), insightN: withInsights.length };
+}
+
+function StatCard({ title, hint, children }) {
+  return (
+    <div className="bg-white rounded-2xl p-4">
+      <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{title}</p>
+      {hint && <p className="f-body text-[11px] text-gray-400 mt-0.5 mb-3">{hint}</p>}
+      {!hint && <div className="mb-3" />}
+      {children}
+    </div>
+  );
+}
+function StatBar({ label, value, total, sub }) {
+  const p = total ? Math.min(100, Math.round((value / total) * 100)) : 0;
+  return (
+    <div className="mb-2.5 last:mb-0">
+      <div className="flex items-baseline justify-between gap-2 mb-1">
+        <span className="f-body text-[12px] font-bold min-w-0 truncate" style={{ color: C.charcoal }}>{label}</span>
+        <span className="f-body text-[11px] text-gray-500 shrink-0">{sub ?? `${value}명 · ${p}%`}</span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
+        <div className="h-full rounded-full" style={{ width: `${p}%`, background: C.orange }} />
+      </div>
+    </div>
+  );
+}
+const NO_DATA_YET = <p className="f-body text-[12px] text-gray-400">아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.</p>;
+
+function StatsPanel({ adventures, students, suggestions }) {
+  const [sel, setSel] = useState("all");
+  const valid = adventures.filter((a) => students.some((st) => st.id === a.studentId) && getProgram(a.programId));
+  const program = sel === "all" ? null : getProgram(sel);
+  const rows = sel === "all" ? valid : valid.filter((a) => a.programId === sel);
+  const sum = summarizeRows(rows);
+  const detail = program ? programDetail(program, rows) : null;
+  const wishCount = (p) => wishesFor(suggestions, p.id).length;
+
+  // plain-language pointer to the biggest drop-off
+  let drop = null;
+  for (let i = 1; i < sum.funnel.length; i++) {
+    const from = sum.funnel[i - 1].value;
+    const to = sum.funnel[i].value;
+    if (from > 0 && from - to > 0 && (!drop || (from - to) / from > drop.rate)) drop = { rate: (from - to) / from, from: sum.funnel[i - 1], to: sum.funnel[i] };
+  }
+
+  return (
+    <div className="px-5 space-y-3">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
+        {[{ id: "all", label: "전체" }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji} ${p.title.split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
+          <button
+            key={o.id}
+            onClick={() => setSel(o.id)}
+            className="focus-ring tap shrink-0 text-[12px] f-body font-bold px-3.5 py-2 rounded-full"
+            style={{ background: sel === o.id ? C.green : "white", color: sel === o.id ? "white" : C.charcoal }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+
+      {sum.total === 0 ? (
+        <div className="bg-white rounded-2xl p-6 text-center">
+          <p className="f-body text-sm text-gray-400">아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.</p>
+        </div>
+      ) : (
+        <>
+          <StatCard title="아이들은 어디까지 오나요?" hint="신청한 아이 중 단계마다 몇 명이 다음으로 넘어갔는지 보여요.">
+            {sum.funnel.map((f) => (
+              <StatBar key={f.key} label={f.label} value={f.value} total={sum.total} />
+            ))}
+            {drop && (
+              <p className="f-body text-[11px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>
+                💡 "{drop.from.label}" → "{drop.to.label}" 단계에서 가장 많이 줄어요 ({drop.from.value}명 → {drop.to.value}명).
+              </p>
+            )}
+            {(sum.prepDays !== null || sum.afterDays !== null) && (
+              <p className="f-body text-[11px] text-gray-500 mt-2">
+                {sum.prepDays !== null && <>등록 후 예습을 끝내기까지 평균 {oneDecimal(sum.prepDays)}일 </>}
+                {sum.afterDays !== null && <>· 출석 후 기록까지 평균 {oneDecimal(sum.afterDays)}일</>}
+              </p>
+            )}
+          </StatCard>
+
+          <StatCard title="예습 자료는 어땠나요?" hint="아이들이 단계마다 눌러 준 재미 점수예요 (5점 만점).">
+            {[
+              { k: "vocab", label: "단어 카드" },
+              { k: "question", label: "큰 질문" },
+              { k: "challenge", label: "챌린지 퀴즈" },
+            ].every((x) => sum.feel[x.k].n === 0)
+              ? NO_DATA_YET
+              : [
+                  { k: "vocab", label: "단어 카드" },
+                  { k: "question", label: "큰 질문" },
+                  { k: "challenge", label: "챌린지 퀴즈" },
+                ].map((x) => (
+                  <StatBar
+                    key={x.k}
+                    label={x.label}
+                    value={sum.feel[x.k].avg || 0}
+                    total={5}
+                    sub={sum.feel[x.k].n ? `${oneDecimal(sum.feel[x.k].avg)} / 5 · ${sum.feel[x.k].n}명` : "응답 없음"}
+                  />
+                ))}
+            {sum.challengePct !== null && (
+              <p className="f-body text-[11px] text-gray-500 mt-3">챌린지 평균 정답률 {sum.challengePct}% ({sum.challengeN}명)</p>
+            )}
+          </StatCard>
+
+          <StatCard title="체험 후 만족도" hint="체험을 마친 아이들이 직접 준 별점이에요 (5점 만점).">
+            {sum.rating.n ? (
+              <StatBar label="체험 별점" value={sum.rating.avg} total={5} sub={`${oneDecimal(sum.rating.avg)} / 5 · ${sum.rating.n}명`} />
+            ) : (
+              <p className="f-body text-[12px] text-gray-400">아직 별점이 없어요.</p>
+            )}
+          </StatCard>
+
+          {!program && (
+            <StatCard title="프로그램별 비교" hint="어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.">
+              <div className="space-y-2">
+                {PROGRAMS.map((p) => {
+                  const r = valid.filter((a) => a.programId === p.id);
+                  const sm = summarizeRows(r);
+                  return (
+                    <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left rounded-xl p-3" style={{ background: C.cream }}>
+                      <p className="f-body text-[13px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
+                      <p className="f-body text-[11px] text-gray-500 mt-0.5">
+                        등록 {sm.total}명 · 예습 {pctOf(sm.funnel[1].value, sm.total)}% · 출석 {pctOf(sm.funnel[2].value, sm.total)}% · 기록 {pctOf(sm.funnel[3].value, sm.total)}%
+                        {sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : ""}
+                        {wishCount(p) ? ` · ♥${wishCount(p)}` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </StatCard>
+          )}
+
+          {program && detail && (
+            <>
+              <StatCard title="단어별 반응" hint="아이가 카드를 눌러 발음을 들은 평균 횟수예요. 많이 누를수록 관심이 있거나 어려운 단어예요.">
+                {detail.insightN === 0 ? NO_DATA_YET : (
+                  detail.words
+                    .slice()
+                    .sort((x, y) => (y.avgTaps || 0) - (x.avgTaps || 0))
+                    .map((w) => (
+                      <StatBar key={w.id} label={`${w.emoji} ${w.en}`} value={w.avgTaps || 0} total={Math.max(1, ...detail.words.map((x) => x.avgTaps || 0))} sub={`평균 ${oneDecimal(w.avgTaps || 0)}번`} />
+                    ))
+                )}
+              </StatCard>
+
+              <StatCard title="문제별 정답률" hint="낮은 문제부터 보여요. 너무 어려운 문제는 고쳐 보세요.">
+                {detail.questions.every((q) => q.n === 0) ? NO_DATA_YET : (
+                  detail.questions
+                    .filter((q) => q.n > 0)
+                    .sort((x, y) => x.correct / x.n - y.correct / y.n)
+                    .map((q) => <StatBar key={q.id} label={q.prompt} value={q.correct} total={q.n} sub={`${pctOf(q.correct, q.n)}% · ${q.n}명`} />)
+                )}
+              </StatCard>
+
+              <StatCard title="현장 미션 달성률" hint="미션마다 몇 명이 해냈는지 보여요.">
+                {detail.missions.map((m) => (
+                  <StatBar key={m.id} label={m.text} value={m.done} total={m.n} sub={m.n ? `${m.done}/${m.n}명 · ${pctOf(m.done, m.n)}%` : "대상 없음"} />
+                ))}
+              </StatCard>
+
+              <StatCard title="큰 질문에 아이들은 뭐라고 답했나요?" hint="예습에서 고른 답이에요.">
+                {detail.bigQ.length === 0 ? (
+                  <p className="f-body text-[12px] text-gray-400">아직 답이 없어요.</p>
+                ) : (
+                  detail.bigQ.map(([answer, count]) => <StatBar key={answer} label={answer} value={count} total={sum.total} />)
+                )}
+              </StatCard>
+
+              <StatCard title="관심">
+                <p className="f-body text-[13px]" style={{ color: C.charcoal }}>♥ {wishCount(program)}가족이 이 체험을 찜했어요.</p>
+              </StatCard>
+            </>
+          )}
+        </>
+      )}
+      <p className="f-body text-[10px] text-gray-400 text-center pb-2">통계는 아이 개인이 아닌 전체 숫자만 보여줘요.</p>
+    </div>
+  );
+}
+
 function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTab] = useState("manage"); // register | manage | programs | suggestions
   const [programId, setProgramId] = useState(PROGRAMS[0].id);
@@ -3282,23 +3590,79 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
     .filter((r) => r.student);
   const unenrolled = students.filter((s) => !roster.some((r) => r.student.id === s.id));
 
+  // Things waiting on the teacher (worked out from existing data, nothing extra stored)
+  const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
+  const pendingOther = suggestions.filter((x) => !x.resolved && x.type !== "신청 문의" && !isWish(x));
+  const needReport = adventures
+    .filter((a) => a.attended && !a.feedback)
+    .map((a) => ({ a, student: students.find((st) => st.id === a.studentId), program: getProgram(a.programId) }))
+    .filter((r) => r.student && r.program);
+  const teacherNotices = [];
+  if (pendingInquiries.length) {
+    teacherNotices.push({
+      key: "inquiries",
+      icon: "🙋",
+      title: `새 신청 문의 ${pendingInquiries.length}건`,
+      text: pendingInquiries.slice(-2).map((x) => x.message).join(" / "),
+      onClick: () => setTab("suggestions"),
+    });
+  }
+  if (pendingOther.length) {
+    teacherNotices.push({ key: "other", icon: "💬", title: `학부모 의견 ${pendingOther.length}건`, text: pendingOther.slice(-1)[0].message, onClick: () => setTab("suggestions") });
+  }
+  needReport.forEach((r) => {
+    teacherNotices.push({
+      key: `report-${r.a.studentId}-${r.a.programId}`,
+      icon: "📝",
+      title: "리포트 작성이 필요해요",
+      text: `${r.student.name} · ${r.program.title}`,
+      onClick: () => { setProgramId(r.program.id); setTab("manage"); },
+    });
+  });
+  const unresolvedCount = pendingInquiries.length + pendingOther.length;
+
   const TABS = [
     { key: "register", label: "현장등록" },
-    { key: "manage", label: "학생관리" },
+    { key: "manage", label: needReport.length ? `학생관리 ${needReport.length}` : "학생관리" },
     { key: "programs", label: "프로그램등록" },
-    { key: "suggestions", label: suggestions.some((x) => !x.resolved) ? `학부모의견 ${suggestions.filter((x) => !x.resolved).length}` : "학부모의견" },
+    { key: "suggestions", label: unresolvedCount ? `학부모의견 ${unresolvedCount}` : "학부모의견" },
+    { key: "stats", label: "통계" },
   ];
 
   return (
     <div className="pb-6">
       <ScreenHeader title="Teacher View" />
+
+      {teacherNotices.length > 0 && (
+        <div className="px-5 mb-4">
+          <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.orange }}>🔔 확인이 필요해요 {teacherNotices.length}</p>
+          <div className="space-y-2">
+            {teacherNotices.slice(0, 5).map((n) => (
+              <button
+                key={n.key}
+                onClick={n.onClick}
+                className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
+                style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
+              >
+                <span className="text-2xl">{n.icon}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block f-body text-[13px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                  <span className="block f-body text-[11px] text-gray-500 truncate">{n.text}</span>
+                </span>
+                <ChevronRight size={16} color="#C9BFA8" />
+              </button>
+            ))}
+            {teacherNotices.length > 5 && <p className="f-body text-[11px] text-gray-400 text-center">외 {teacherNotices.length - 5}건</p>}
+          </div>
+        </div>
+      )}
       <div className="px-5 mb-4">
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className="focus-ring tap flex-1 text-[10.5px] f-body font-bold py-2 rounded-xl"
+              className="focus-ring tap flex-1 shrink-0 whitespace-nowrap px-2.5 text-[10.5px] f-body font-bold py-2 rounded-xl"
               style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}
             >
               {t.label}
@@ -3341,6 +3705,9 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
           <div className="px-5 mb-3 flex items-center gap-2 text-gray-500">
             <Users size={15} />
             <p className="f-body text-xs">{roster.length} students enrolled in {program.title}</p>
+            {wishesFor(suggestions, programId).length > 0 && (
+              <span className="f-body text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
+            )}
           </div>
 
           <div className="px-5 mb-3">
@@ -3385,7 +3752,10 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
                   {unenrolled.map((s) => (
                     <div key={s.id} className="flex items-center gap-3">
                       <span className="text-xl">{s.avatar}</span>
-                      <span className="flex-1 f-body text-sm font-semibold" style={{ color: C.charcoal }}>{s.name}</span>
+                      <span className="flex-1 f-body text-sm font-semibold" style={{ color: C.charcoal }}>
+                        {s.name}
+                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "#C0392B" }}>♥ 관심</span>}
+                      </span>
                       <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[11px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
                         + 추가
                       </button>
@@ -3421,6 +3791,9 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
                 <div className="flex-1 min-w-0">
                   <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>{p.title}</p>
                   <p className="f-body text-[11px] text-gray-400">{p.date} · {p.locationKo || p.location}</p>
+                  {wishesFor(suggestions, p.id).length > 0 && (
+                    <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
+                  )}
                 </div>
                 <ChevronRight size={16} color="#C9BFA8" />
               </button>
@@ -3429,10 +3802,12 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
         </div>
       )}
 
+      {tab === "stats" && <StatsPanel adventures={adventures} students={students} suggestions={suggestions} />}
+
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
-          {suggestions.length === 0 && <p className="f-body text-sm text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
-          {suggestions.slice().reverse().map((s) => {
+          {suggestions.filter((x) => !isWish(x)).length === 0 && <p className="f-body text-sm text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
+          {suggestions.filter((x) => !isWish(x)).reverse().map((s) => {
             const family = students.filter((st) => st.familyPin === s.familyPin).map((st) => st.name).join(", ");
             return (
               <div key={s.id} className="bg-white rounded-2xl p-4">
@@ -3738,13 +4113,34 @@ export default function CarrotExplorer() {
     setSuggestions((prev) => [...prev, suggestion]);
     sync(api.createSuggestion(suggestion));
   };
+  const toggleWish = ({ familyPin, programId, message }) => {
+    const id = wishId(familyPin, programId);
+    const existing = suggestions.find((sg) => sg.id === id);
+    if (existing) {
+      const next = !existing.resolved;
+      setSuggestions((prev) => prev.map((sg) => (sg.id === id ? { ...sg, resolved: next, message } : sg)));
+      sync(api.updateSuggestion(id, { resolved: next }));
+    } else {
+      const wish = { id, type: WISH_TYPE, message, familyPin, resolved: false };
+      setSuggestions((prev) => [...prev, wish]);
+      sync(api.createSuggestion(wish));
+    }
+  };
   const toggleSuggestion = (id) => {
     let nextResolved;
     setSuggestions((prev) => prev.map((s) => (s.id === id ? ((nextResolved = !s.resolved), { ...s, resolved: nextResolved }) : s)));
     sync(api.updateSuggestion(id, { resolved: nextResolved }));
   };
 
-  const updateAdventure = (studentId, programId, patch) => {
+  const updateAdventure = (studentId, programId, rawPatch) => {
+    // Record when each stage first happened (used by the statistics tab)
+    const current = adventures.find((a) => a.studentId === studentId && a.programId === programId);
+    const now = new Date().toISOString();
+    const patch = { ...rawPatch };
+    if (rawPatch.beforeCompleted === true && !current?.beforeCompletedAt) patch.beforeCompletedAt = now;
+    if (rawPatch.attended === true && !current?.attendedAt) patch.attendedAt = now;
+    if (rawPatch.afterCompleted === true && !current?.afterCompletedAt) patch.afterCompletedAt = now;
+    if (rawPatch.feedback && !current?.reportedAt) patch.reportedAt = now;
     let updated;
     setAdventures((prev) => {
       updated = prev.map((a) => (a.studentId === studentId && a.programId === programId ? { ...a, ...patch } : a));
@@ -3758,7 +4154,7 @@ export default function CarrotExplorer() {
     let created = null;
     setAdventures((prev) => {
       if (prev.some((a) => a.studentId === studentId && a.programId === programId)) return prev;
-      created = blankAdventure(studentId, getProgram(programId));
+      created = { ...blankAdventure(studentId, getProgram(programId)), enrolledAt: new Date().toISOString() };
       return [...prev, created];
     });
     if (created) sync(api.createAdventure(created));
@@ -3955,6 +4351,7 @@ export default function CarrotExplorer() {
               familyPin={session.familyPin}
               suggestions={suggestions}
               onAddSuggestion={addSuggestion}
+              onToggleWish={toggleWish}
               onViewReport={(studentId) => setParentScreen({ type: "report", studentId })}
               onStartAdventure={(studentId) => { setParentScreen({ type: "student-mode", studentId }); setSelectedProgramId(null); setStudentTab("home"); }}
               onLogout={logout}

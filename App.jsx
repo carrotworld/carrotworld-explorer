@@ -1060,6 +1060,20 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
   const upcoming = withProgram.filter(({ a }) => getStatus(a) !== "completed");
   const completed = withProgram.filter(({ a }) => getStatus(a) === "completed");
 
+  if (withProgram.length === 0) {
+    return (
+      <div className="px-5 pt-7 pb-6">
+        <h1 className="f-display text-2xl font-semibold" style={{ color: C.green }}>Hi, Explorer</h1>
+        <div className="bg-white rounded-2xl p-6 text-center mt-5">
+          <div className="text-4xl mb-3">🌱</div>
+          <p className="f-display font-semibold" style={{ color: C.green }}>No adventures yet</p>
+          <p className="f-body text-sm text-gray-500 mt-2">아직 신청한 체험이 없어요. 부모님과 함께 체험을 골라 보세요!</p>
+          <p className="f-body text-[11px] text-gray-400 mt-3">위쪽 "Exit to Parent"를 누르면 부모님 화면으로 돌아가요.</p>
+        </div>
+      </div>
+    );
+  }
+
   const count = attendedCount(adventures, studentId);
   const { rank } = rankFor(count);
   const { before, trip, after } = stageState(next.a, next.program);
@@ -2104,8 +2118,87 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
   );
 }
 
+/** In-app notices for a parent, worked out from what already exists (nothing extra is stored). */
+function parentNotices(children, adventures) {
+  const list = [];
+  children.forEach((child) => {
+    adventures
+      .filter((a) => a.studentId === child.id)
+      .forEach((a) => {
+        const program = getProgram(a.programId);
+        if (!program) return;
+        const base = `${child.name} · ${program.title}`;
+        if (a.feedback) {
+          list.push({ key: `${base}-report`, icon: "📝", title: "선생님 리포트가 도착했어요", text: base, action: "리포트 보기", kind: "report", childId: child.id });
+        }
+        if (getStatus(a) === "completed") return;
+        if (program.dateReached && !a.attended) {
+          list.push({ key: `${base}-today`, icon: "🎒", title: "오늘은 체험 날이에요!", text: `${base} · 현장 단계가 열렸어요`, action: "시작하기", kind: "adventure", childId: child.id });
+        } else if (a.attended && !a.afterCompleted) {
+          list.push({ key: `${base}-remember`, icon: "📸", title: "체험 기록을 남겨 주세요", text: base, action: "기록하기", kind: "adventure", childId: child.id });
+        } else if (!a.beforeCompleted) {
+          list.push({ key: `${base}-prep`, icon: "📚", title: "예습이 기다리고 있어요", text: `${base} · ${program.date}`, action: "예습하기", kind: "adventure", childId: child.id });
+        }
+      });
+  });
+  const priority = { "🎒": 0, "📝": 1, "📸": 2, "📚": 3 };
+  return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
+}
+
+function ProgramBrowse({ children, adventures, suggestions, familyPin, onAddSuggestion }) {
+  const cards = PROGRAMS.map((p) => ({
+    program: p,
+    pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
+  })).filter((x) => x.pending.length > 0);
+
+  return (
+    <div id="browse-programs">
+      <div className="mb-2 mt-1">
+        <p className="f-display font-semibold" style={{ color: C.green }}>체험 둘러보기</p>
+        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험을 골라 신청 문의를 보내 주세요. 선생님이 확인하고 체험에 추가해 드려요.</p>
+      </div>
+      {cards.length === 0 ? (
+        <div className="bg-white rounded-2xl p-4 text-center">
+          <p className="f-body text-sm text-gray-400">지금 신청할 수 있는 새 체험이 없어요. 새 체험이 열리면 여기에 나타나요.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {cards.map(({ program: p, pending }) => {
+            const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 신청 문의`;
+            const sent = suggestions.some((sg) => sg.familyPin === familyPin && sg.message === message);
+            return (
+              <div key={p.id} className="bg-white rounded-2xl overflow-hidden">
+                <Cover program={p} className="w-full h-32 rounded-b-none" />
+                <div className="p-4">
+                  <p className="f-display font-semibold" style={{ color: C.green }}>{p.title}</p>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(p)}</span>
+                    {p.date && <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>{p.date}</span>}
+                    {(p.locationKo || p.location) && <span className="f-body text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>{p.locationKo || p.location}</span>}
+                  </div>
+                  {p.themeKo && <p className="f-body text-[12px] mt-2.5" style={{ color: C.charcoal }}>{p.themeKo}</p>}
+                  <button
+                    onClick={() => !sent && onAddSuggestion({ type: "신청 문의", message, familyPin })}
+                    disabled={sent}
+                    className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-2.5 mt-3 text-white"
+                    style={{ background: sent ? "#9FD6B2" : C.orange }}
+                  >
+                    {sent ? "문의를 보냈어요 ✓" : pending.length > 1 ? "신청하고 싶어요 (자녀 모두)" : "신청하고 싶어요"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onViewReport, onStartAdventure, onLogout }) {
   const myChildren = students.filter((s) => s.familyPin === familyPin);
+  const notices = parentNotices(myChildren, adventures);
+  const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <div className="pb-6">
       <ScreenHeader
@@ -2120,6 +2213,37 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         {myChildren.length === 0 && (
           <p className="f-body text-sm text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
         )}
+
+        {notices.length > 0 && (
+          <div>
+            <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.orange }}>🔔 알림 {notices.length}</p>
+            <div className="space-y-2">
+              {notices.map((n) => (
+                <button
+                  key={n.key}
+                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : onStartAdventure(n.childId))}
+                  className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
+                  style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
+                >
+                  <span className="text-2xl">{n.icon}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block f-body text-[13px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                    <span className="block f-body text-[11px] text-gray-500 truncate">{n.text}</span>
+                  </span>
+                  <span className="f-body text-[11px] font-bold shrink-0" style={{ color: C.orange }}>{n.action} →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {myChildren.length > 0 && !adventures.some((a) => myChildren.some((c) => c.id === a.studentId)) && (
+          <div className="rounded-2xl p-4 text-center" style={{ background: "#FFF1E2" }}>
+            <p className="f-display font-semibold text-sm" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
+            <p className="f-body text-[12px] text-gray-500 mt-1">아래 "체험 둘러보기"에서 마음에 드는 체험을 골라 보세요.</p>
+          </div>
+        )}
+
         {myChildren.map((s) => {
           const count = attendedCount(adventures, s.id);
           const { rank, nextRank } = rankFor(count);
@@ -2150,13 +2274,23 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 <button onClick={() => onViewReport(s.id)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
                   리포트 보기
                 </button>
-                <button onClick={() => onStartAdventure(s.id)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
-                  모험 시작하기
-                </button>
+                {adventures.some((a) => a.studentId === s.id) ? (
+                  <button onClick={() => onStartAdventure(s.id)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
+                    모험 시작하기
+                  </button>
+                ) : (
+                  <button onClick={goBrowse} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
+                    체험 고르기
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
+
+        {myChildren.length > 0 && (
+          <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onAddSuggestion={onAddSuggestion} />
+        )}
 
         <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
       </div>
@@ -2205,7 +2339,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 /* ================================================================== */
 /*  TEACHER VIEW                                                        */
 /* ================================================================== */
-function TeacherStudentCard({ student, adv, program, adventures, participationCount, onUpdate, onEditStudent, onDeleteStudent }) {
+function TeacherStudentCard({ student, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -2252,7 +2386,12 @@ function TeacherStudentCard({ student, adv, program, adventures, participationCo
           </p>
         </div>
         <button
-          onClick={() => onUpdate({ attended: !adv.attended })}
+          onClick={() => {
+            const next = !adv.attended;
+            onUpdate({ attended: next });
+            // Marking someone present means the trip is happening today, so open the field stage too.
+            if (next && !program.dateReached) onOpenToday();
+          }}
           aria-pressed={adv.attended}
           className="focus-ring tap text-[11px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
           style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}
@@ -3132,7 +3271,7 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
   );
 }
 
-function TeacherDashboard({ adventures, students, updateAdventure, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTab] = useState("manage"); // register | manage | programs | suggestions
   const [programId, setProgramId] = useState(PROGRAMS[0].id);
   const [editingProgramId, setEditingProgramId] = useState(null);
@@ -3147,7 +3286,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onRegisterStu
     { key: "register", label: "현장등록" },
     { key: "manage", label: "학생관리" },
     { key: "programs", label: "프로그램등록" },
-    { key: "suggestions", label: "학부모의견" },
+    { key: "suggestions", label: suggestions.some((x) => !x.resolved) ? `학부모의견 ${suggestions.filter((x) => !x.resolved).length}` : "학부모의견" },
   ];
 
   return (
@@ -3204,6 +3343,25 @@ function TeacherDashboard({ adventures, students, updateAdventure, onRegisterStu
             <p className="f-body text-xs">{roster.length} students enrolled in {program.title}</p>
           </div>
 
+          <div className="px-5 mb-3">
+            <button
+              onClick={() => onSetProgramToday(programId, !program.dateReached)}
+              aria-pressed={!!program.dateReached}
+              className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
+              style={{ background: program.dateReached ? "#DCF3E4" : "white", border: `1px solid ${program.dateReached ? "#9FD6B2" : C.beige}` }}
+            >
+              {program.dateReached ? <CheckCircle2 size={22} color="#1F7A44" /> : <Circle size={22} color="#D8CEB8" />}
+              <span className="flex-1 min-w-0">
+                <span className="block f-body text-[13px] font-bold" style={{ color: program.dateReached ? "#1F7A44" : C.charcoal }}>
+                  {program.dateReached ? "오늘 진행 중" : "오늘 진행 켜기"}
+                </span>
+                <span className="block f-body text-[11px] text-gray-500">
+                  {program.dateReached ? "아이들이 현장 미션을 시작할 수 있어요. 누르면 다시 잠겨요." : "누르면 아이 화면의 현장 단계가 바로 열려요."}
+                </span>
+              </span>
+            </button>
+          </div>
+
           <div className="px-5 space-y-3">
             {roster.map(({ student, adv }) => (
               <TeacherStudentCard
@@ -3214,6 +3372,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onRegisterStu
                 adventures={adventures}
                 participationCount={attendedCount(adventures, student.id)}
                 onUpdate={(patch) => updateAdventure(student.id, programId, patch)}
+                onOpenToday={() => onSetProgramToday(programId, true)}
                 onEditStudent={(patch) => onEditStudent(student.id, patch)}
                 onDeleteStudent={() => onDeleteStudent(student.id)}
               />
@@ -3711,6 +3870,14 @@ export default function CarrotExplorer() {
     sync(api.updateProgram(programId, patch));
   };
 
+  const setProgramToday = (programId, value) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value };
+    setProgramsVersion((v) => v + 1);
+    sync(api.updateProgram(programId, { dateReached: !!value }));
+  };
+
   const deleteProgram = (programId) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx !== -1) PROGRAMS.splice(idx, 1);
@@ -3763,6 +3930,7 @@ export default function CarrotExplorer() {
               onEditProgram={editProgram}
               onDeleteProgram={deleteProgram}
               onEnrollStudent={enrollStudent}
+              onSetProgramToday={setProgramToday}
               onEditStudent={editStudent}
               onDeleteStudent={deleteStudent}
               suggestions={suggestions}

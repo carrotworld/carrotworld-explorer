@@ -1602,7 +1602,7 @@ function FieldTripMode({ program, adv, onToggleMission, onCapturePhoto, onFinish
       <p className="f-display text-sm font-semibold mb-2" style={{ color: C.green }}>Today's Missions</p>
       <div className="space-y-2 mb-6">
         {program.missions.map((m, i) => {
-          const state = adv.missionsCompleted[i];
+          const state = adv.missionsCompleted[i] || { done: false, photo: null };
           return (
             <MissionCard
               key={m.id}
@@ -2373,8 +2373,8 @@ function TeacherStudentCard({ student, adv, program, adventures, participationCo
             <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Mission participation</p>
             <div className="space-y-1.5">
               {program.missions.map((m, i) => (
-                <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={adv.missionsCompleted[i].done} className="focus-ring tap w-full flex items-center gap-2 text-left">
-                  {adv.missionsCompleted[i].done ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
+                <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={!!adv.missionsCompleted[i]?.done} className="focus-ring tap w-full flex items-center gap-2 text-left">
+                  {adv.missionsCompleted[i]?.done ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
                   <span className="f-body text-[13px]" style={{ color: C.charcoal }}>{m.text}</span>
                 </button>
               ))}
@@ -2601,6 +2601,342 @@ function RegisterStudentPanel({ onRegister }) {
   );
 }
 
+/* ================================================================== */
+/*  PROGRAM MATERIAL EDITOR (Get Ready words, big question, quizzes,   */
+/*  missions). Everything is plain data on the program object.         */
+/* ================================================================== */
+const DEFAULT_EMOJI = "📖";
+function newId(prefix) {
+  return `${prefix}${Math.random().toString(36).slice(2, 7)}`;
+}
+function defaultMaterials() {
+  return {
+    vocabulary: [{ id: "explore", en: "explore", meaning: "To look around and discover new things.", emoji: "🔍" }],
+    bigQuestion: "What did you discover today?",
+    bigQuestionOptions: ["I discovered something new", "It was fun", "I'm not sure yet"],
+    challenge: [{ id: "q1", type: "tf", prompt: "I explored a new place today.", answer: true }],
+    missions: [
+      { id: "m1", text: "Find something interesting." },
+      { id: "m2", text: "Take a photo of your favorite exhibit.", isPhoto: true },
+    ],
+    remember: [{ id: "r1", type: "tf", prompt: "I had a fun adventure today.", answer: true }],
+    autoMatch: false,
+  };
+}
+function materialsFrom(program) {
+  if (!program) return defaultMaterials();
+  const d = defaultMaterials();
+  const challenge = program.challenge || d.challenge;
+  return {
+    vocabulary: (program.vocabulary || d.vocabulary).map((v) => ({ ...v })),
+    bigQuestion: program.bigQuestion || d.bigQuestion,
+    bigQuestionOptions: [...(program.bigQuestionOptions || d.bigQuestionOptions)],
+    challenge: challenge.map((q) => ({ ...q, options: q.options ? [...q.options] : q.options })),
+    missions: (program.missions || d.missions).map((m) => ({ ...m })),
+    remember: (program.remember || d.remember).map((q) => ({ ...q, options: q.options ? [...q.options] : q.options })),
+    autoMatch: challenge.some((q) => q.id === "match-auto"),
+  };
+}
+function cleanQuiz(list) {
+  const out = [];
+  list.forEach((q) => {
+    if (q.type === "mc") {
+      const opts = (q.options || []).map((o, i) => ({ text: (o || "").trim(), correct: i === q.answer })).filter((o) => o.text);
+      if (!(q.prompt || "").trim() || opts.length < 2) return;
+      const ai = opts.findIndex((o) => o.correct);
+      out.push({ ...q, prompt: q.prompt.trim(), options: opts.map((o) => o.text), answer: ai === -1 ? 0 : ai });
+    } else if (q.type === "tf") {
+      if (!(q.prompt || "").trim()) return;
+      out.push({ ...q, prompt: q.prompt.trim(), answer: !!q.answer });
+    } else if (q.id !== "match-auto") {
+      out.push(q); // e.g. picture-matching questions are kept as they are
+    }
+  });
+  return out;
+}
+/** Turns the editor state into the fields stored on the program. Empty parts fall back to defaults. */
+function buildMaterials(m) {
+  const d = defaultMaterials();
+  const vocabRaw = m.vocabulary.filter((v) => (v.en || "").trim());
+  const vocabulary = vocabRaw.map((v) => ({
+    ...v,
+    id: v.id || newId("v"),
+    en: v.en.trim(),
+    meaning: (v.meaning || "").trim(),
+    emoji: (v.emoji || "").trim() || DEFAULT_EMOJI,
+  }));
+  let challenge = cleanQuiz(m.challenge);
+  if (m.autoMatch) {
+    const seen = new Set();
+    const pairs = [];
+    vocabRaw.forEach((v) => {
+      const e = (v.emoji || "").trim();
+      if (e && !seen.has(e) && pairs.length < 4) {
+        seen.add(e);
+        pairs.push({ key: v.id || v.en.trim(), word: v.en.trim(), emoji: e });
+      }
+    });
+    if (pairs.length >= 3) challenge.push({ id: "match-auto", type: "match", prompt: "Match each word to its picture!", pairs });
+  }
+  const missions = m.missions
+    .filter((x) => (x.text || "").trim())
+    .map((x) => ({ ...x, id: x.id || newId("m"), text: x.text.trim() }));
+  const options = m.bigQuestionOptions.map((o) => (o || "").trim()).filter(Boolean);
+  const remember = cleanQuiz(m.remember);
+  return {
+    vocabulary: vocabulary.length ? vocabulary : d.vocabulary,
+    bigQuestion: m.bigQuestion.trim() || d.bigQuestion,
+    bigQuestionOptions: options.length >= 2 ? options : d.bigQuestionOptions,
+    challenge: challenge.length ? challenge : d.challenge,
+    missions: missions.length ? missions : d.missions,
+    remember: remember.length ? remember : d.remember,
+  };
+}
+
+const editorFieldStyle = { background: C.cream, border: `1px solid ${C.beige}` };
+function MiniInput({ value, onChange, placeholder, label, className = "" }) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      aria-label={label || placeholder}
+      className={`focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[13px] outline-none ${className}`}
+      style={{ ...editorFieldStyle, background: "white" }}
+    />
+  );
+}
+function EditorHeading({ children, hint }) {
+  return (
+    <div className="mb-1.5">
+      <p className="f-body text-xs font-bold" style={{ color: C.green }}>{children}</p>
+      {hint && <p className="f-body text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+    </div>
+  );
+}
+function AddButton({ onClick, children }) {
+  return (
+    <button onClick={onClick} className="focus-ring tap f-body text-[12px] font-bold rounded-lg px-3 py-1.5" style={{ background: C.beige, color: C.green }}>
+      {children}
+    </button>
+  );
+}
+function RemoveButton({ onClick }) {
+  return (
+    <button onClick={onClick} aria-label="삭제" className="focus-ring tap f-body text-[11px] font-bold px-2 py-1 rounded-lg" style={{ color: "#C0674A" }}>
+      삭제
+    </button>
+  );
+}
+
+function VocabEditor({ items, onChange }) {
+  const [bulk, setBulk] = useState("");
+  const update = (i, p) => onChange(items.map((v, idx) => (idx === i ? { ...v, ...p } : v)));
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
+  const add = () => onChange([...items, { id: newId("v"), en: "", meaning: "", emoji: "" }]);
+  const addBulk = () => {
+    const rows = bulk
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [en, meaning, emoji] = line.split(/\s+[-–—]\s+|\t/).map((p) => (p || "").trim());
+        return { id: newId("v"), en: en || "", meaning: meaning || "", emoji: emoji || "" };
+      })
+      .filter((v) => v.en);
+    if (!rows.length) return;
+    const existing = items.filter((v) => (v.en || "").trim() || (v.meaning || "").trim());
+    onChange([...existing, ...rows]);
+    setBulk("");
+  };
+  return (
+    <div>
+      <div className="space-y-2 mb-2">
+        {items.map((v, i) => (
+          <div key={v.id || i} className="rounded-xl p-2.5 space-y-1.5" style={editorFieldStyle}>
+            <div className="flex gap-2 items-center">
+              <input
+                value={v.emoji || ""}
+                onChange={(e) => update(i, { emoji: e.target.value })}
+                placeholder="🙂"
+                aria-label="이모지"
+                className="focus-ring rounded-lg py-2 f-body text-lg outline-none text-center"
+                style={{ width: 52, background: "white", border: `1px solid ${C.beige}` }}
+              />
+              <MiniInput value={v.en || ""} onChange={(val) => update(i, { en: val })} placeholder="영어 단어 (예: airplane)" />
+              <RemoveButton onClick={() => remove(i)} />
+            </div>
+            <MiniInput value={v.meaning || ""} onChange={(val) => update(i, { meaning: val })} placeholder="영어 뜻 (예: A machine that flies.)" />
+          </div>
+        ))}
+      </div>
+      <AddButton onClick={add}>+ 단어 추가</AddButton>
+      <div className="mt-3">
+        <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.charcoal }}>한꺼번에 붙여넣기</p>
+        <textarea
+          value={bulk}
+          onChange={(e) => setBulk(e.target.value)}
+          rows={3}
+          placeholder={"한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️"}
+          aria-label="단어 한꺼번에 붙여넣기"
+          className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[12px] outline-none"
+          style={{ ...editorFieldStyle, background: "white" }}
+        />
+        <p className="f-body text-[10px] text-gray-400 mt-1">형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 " - " 앞뒤에 띄어쓰기)</p>
+        <div className="mt-1.5"><AddButton onClick={addBulk}>붙여넣은 단어 추가</AddButton></div>
+      </div>
+    </div>
+  );
+}
+
+function QuizEditor({ items, onChange }) {
+  const patch = (i, p) => onChange(items.map((q, idx) => (idx === i ? { ...q, ...p } : q)));
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
+  return (
+    <div>
+      <div className="space-y-2 mb-2">
+        {items.map((q, i) => {
+          if (q.type !== "mc" && q.type !== "tf") {
+            if (q.id === "match-auto") return null;
+            return <p key={q.id || i} className="f-body text-[11px] text-gray-400">🧩 그림 맞추기 문제는 그대로 유지돼요.</p>;
+          }
+          const opts = q.type === "mc" ? (q.options && q.options.length >= 3 ? q.options : [...(q.options || []), "", "", ""].slice(0, 3)) : [];
+          return (
+            <div key={q.id || i} className="rounded-xl p-2.5 space-y-1.5" style={editorFieldStyle}>
+              <div className="flex items-center">
+                <span className="f-body text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+                  {q.type === "mc" ? "객관식" : "O/X"}
+                </span>
+                <div className="flex-1" />
+                <RemoveButton onClick={() => remove(i)} />
+              </div>
+              <MiniInput value={q.prompt || ""} onChange={(val) => patch(i, { prompt: val })} placeholder="문제 (영어)" />
+              {q.type === "mc" ? (
+                <div className="space-y-1.5">
+                  {opts.map((o, oi) => (
+                    <div key={oi} className="flex items-center gap-2">
+                      <button
+                        onClick={() => patch(i, { options: opts, answer: oi })}
+                        aria-pressed={q.answer === oi}
+                        aria-label={`보기 ${oi + 1}을 정답으로`}
+                        className="focus-ring tap shrink-0"
+                      >
+                        {q.answer === oi ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
+                      </button>
+                      <MiniInput
+                        value={o}
+                        onChange={(val) => patch(i, { options: opts.map((x, k) => (k === oi ? val : x)), answer: q.answer })}
+                        placeholder={`보기 ${oi + 1}`}
+                      />
+                    </div>
+                  ))}
+                  <p className="f-body text-[10px] text-gray-400">동그라미를 눌러 정답을 골라 주세요.</p>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  {[
+                    { v: true, label: "O 맞아요" },
+                    { v: false, label: "X 아니에요" },
+                  ].map((b) => (
+                    <button
+                      key={String(b.v)}
+                      onClick={() => patch(i, { answer: b.v })}
+                      aria-pressed={q.answer === b.v}
+                      className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2"
+                      style={{ background: q.answer === b.v ? C.green : "white", color: q.answer === b.v ? "white" : C.charcoal, border: `1px solid ${q.answer === b.v ? C.green : C.beige}` }}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "mc", prompt: "", options: ["", "", ""], answer: 0 }])}>+ 객관식 문제</AddButton>
+        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "tf", prompt: "", answer: true }])}>+ O/X 문제</AddButton>
+      </div>
+    </div>
+  );
+}
+
+function MaterialsEditor({ value, onChange }) {
+  const set = (p) => onChange({ ...value, ...p });
+  const bqOpts = value.bigQuestionOptions.length >= 3 ? value.bigQuestionOptions : [...value.bigQuestionOptions, "", "", ""].slice(0, 3);
+  return (
+    <div className="rounded-xl p-3 mb-3 space-y-5" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
+      <p className="f-body text-[11px] text-gray-500">
+        아이 화면에 <b>영어</b>로 나오는 자료예요. 비워 두면 기본 내용이 들어가요. 프로그램을 등록(저장)해야 반영돼요.
+      </p>
+
+      <div>
+        <EditorHeading hint="Get Ready 단계에서 아이가 눌러 발음을 들어요.">단어 카드</EditorHeading>
+        <VocabEditor items={value.vocabulary} onChange={(vocabulary) => set({ vocabulary })} />
+      </div>
+
+      <div>
+        <EditorHeading hint="Get Ready 마지막에 아이가 하나를 골라요.">큰 질문</EditorHeading>
+        <div className="space-y-1.5">
+          <MiniInput value={value.bigQuestion} onChange={(bigQuestion) => set({ bigQuestion })} placeholder="질문 (예: How can an airplane fly?)" />
+          {bqOpts.map((o, i) => (
+            <MiniInput
+              key={i}
+              value={o}
+              onChange={(val) => set({ bigQuestionOptions: bqOpts.map((x, k) => (k === i ? val : x)) })}
+              placeholder={`보기 ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <EditorHeading hint="체험 전에 푸는 퀴즈예요.">챌린지 퀴즈 (체험 전)</EditorHeading>
+        <QuizEditor items={value.challenge} onChange={(challenge) => set({ challenge })} />
+        <button onClick={() => set({ autoMatch: !value.autoMatch })} aria-pressed={value.autoMatch} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
+          {value.autoMatch ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
+          <span className="f-body text-[11px] font-bold" style={{ color: C.charcoal }}>
+            단어-그림 맞추기 퀴즈 자동 추가
+            <span className="block font-normal text-gray-400">서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.</span>
+          </span>
+        </button>
+      </div>
+
+      <div>
+        <EditorHeading hint="현장에서 아이가 찾아보는 미션이에요.">현장 미션</EditorHeading>
+        <div className="space-y-2 mb-2">
+          {value.missions.map((m, i) => (
+            <div key={m.id || i} className="flex items-center gap-2">
+              <MiniInput
+                value={m.text || ""}
+                onChange={(val) => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, text: val } : x)) })}
+                placeholder="미션 (예: Find the oldest airplane.)"
+              />
+              <button
+                onClick={() => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, isPhoto: !x.isPhoto } : x)) })}
+                aria-pressed={!!m.isPhoto}
+                className="focus-ring tap shrink-0 f-body text-[11px] font-bold rounded-lg px-2 py-2"
+                style={{ background: m.isPhoto ? C.green : "white", color: m.isPhoto ? "white" : C.charcoal, border: `1px solid ${m.isPhoto ? C.green : C.beige}` }}
+              >
+                📷 사진
+              </button>
+              <RemoveButton onClick={() => set({ missions: value.missions.filter((_, k) => k !== i) })} />
+            </div>
+          ))}
+        </div>
+        <AddButton onClick={() => set({ missions: [...value.missions, { id: newId("m"), text: "" }] })}>+ 미션 추가</AddButton>
+        <p className="f-body text-[10px] text-gray-400 mt-1.5">이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.</p>
+      </div>
+
+      <div>
+        <EditorHeading hint="체험 후 Remember 단계에서 푸는 퀴즈예요.">체험 후 퀴즈</EditorHeading>
+        <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
+      </div>
+    </div>
+  );
+}
+
 function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
@@ -2611,6 +2947,8 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
   const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null);
+  const [materials, setMaterials] = useState(() => materialsFrom(initial));
+  const [showMaterials, setShowMaterials] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef(null);
 
@@ -2620,12 +2958,12 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
     if (!canSubmit) return;
     const lv = sortLevels(levels);
     const ic = sortIcons(icons);
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto };
+    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...buildMaterials(materials) };
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null); setMaterials(defaultMaterials()); setShowMaterials(false);
     }
   };
 
@@ -2727,6 +3065,17 @@ function RegisterProgramPanel({ initial, onRegister, onSave, onDelete, onCancel 
         className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
+
+      <button
+        onClick={() => setShowMaterials((v) => !v)}
+        aria-expanded={showMaterials}
+        className="focus-ring tap w-full flex items-center justify-between rounded-xl px-3 py-2.5 mb-3"
+        style={{ background: C.beige }}
+      >
+        <span className="f-body text-[12px] font-bold" style={{ color: C.green }}>체험 자료 입력 (단어 · 질문 · 퀴즈 · 미션)</span>
+        <span className="f-body text-[12px] font-bold" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
+      </button>
+      {showMaterials && <MaterialsEditor value={materials} onChange={setMaterials} />}
 
       <button onClick={() => setDateReached((d) => !d)} aria-pressed={dateReached} className="focus-ring tap flex items-center gap-2 mb-4">
         {dateReached ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
@@ -3279,7 +3628,8 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto }) => {
+  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember }) => {
+    const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
     const newProgram = {
@@ -3299,22 +3649,19 @@ export default function CarrotExplorer() {
       icon,
       icons,
       coverPhoto: coverPhoto || null,
-      vocabulary: [{ id: "explore", en: "explore", meaning: "To look around and discover new things.", emoji: "🔍" }],
-      bigQuestion: "What did you discover today?",
-      bigQuestionOptions: ["I discovered something new", "It was fun", "I'm not sure yet"],
-      challenge: [{ id: "q1", type: "tf", prompt: "I explored a new place today.", answer: true }],
-      missions: [
-        { id: "m1", text: "Find something interesting." },
-        { id: "m2", text: "Take a photo of your favorite exhibit.", isPhoto: true },
-      ],
-      remember: [{ id: "r1", type: "tf", prompt: "I had a fun adventure today.", answer: true }],
+      vocabulary: vocabulary || dm.vocabulary,
+      bigQuestion: bigQuestion || dm.bigQuestion,
+      bigQuestionOptions: bigQuestionOptions || dm.bigQuestionOptions,
+      challenge: challenge || dm.challenge,
+      missions: missions || dm.missions,
+      remember: remember || dm.remember,
     };
     PROGRAMS.push(newProgram);
     setProgramsVersion((v) => v + 1);
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto }) => {
+  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -3333,7 +3680,33 @@ export default function CarrotExplorer() {
       dateReached: !!dateReached,
       coverPhoto: coverPhoto || null,
     };
+    if (vocabulary) patch.vocabulary = vocabulary;
+    if (bigQuestion) patch.bigQuestion = bigQuestion;
+    if (bigQuestionOptions) patch.bigQuestionOptions = bigQuestionOptions;
+    if (challenge) patch.challenge = challenge;
+    if (missions) patch.missions = missions;
+    if (remember) patch.remember = remember;
     PROGRAMS[idx] = { ...PROGRAMS[idx], ...patch };
+    if (missions) {
+      // Each enrolled student keeps a per-mission record; keep it in step with the edited mission list
+      // (existing ticks and photos are kept by mission id, new missions start empty).
+      const fixes = [];
+      adventures.forEach((a) => {
+        if (a.programId !== programId) return;
+        const next = missions.map((m) => a.missionsCompleted.find((x) => x.missionId === m.id) || { missionId: m.id, done: false, photo: null });
+        const same = next.length === a.missionsCompleted.length && next.every((x, i) => x === a.missionsCompleted[i]);
+        if (!same) fixes.push({ studentId: a.studentId, missionsCompleted: next });
+      });
+      if (fixes.length) {
+        setAdventures((prev) =>
+          prev.map((a) => {
+            const f = a.programId === programId ? fixes.find((x) => x.studentId === a.studentId) : null;
+            return f ? { ...a, missionsCompleted: f.missionsCompleted } : a;
+          })
+        );
+        fixes.forEach((f) => sync(api.updateAdventure(f.studentId, programId, { missionsCompleted: f.missionsCompleted })));
+      }
+    }
     setProgramsVersion((v) => v + 1);
     sync(api.updateProgram(programId, patch));
   };

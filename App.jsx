@@ -46,6 +46,7 @@ const FONTS = `
 @keyframes burstIn { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 .burst-in { animation: burstIn 0.6s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) { .confetti-piece { display: none; } .burst-in { animation: none; } }
+@supports (-webkit-touch-callout: none) { input, textarea, select { font-size: 16px !important; } }
 .focus-ring:focus-visible { outline: 3px solid ${C.orange}; outline-offset: 2px; }
 `;
 
@@ -62,7 +63,7 @@ const INITIAL_STUDENTS = [
   { id: "mia", name: "Mia", avatar: "🐥", level: "Pre-A1", familyPin: "1111" }, // different family
 ];
 const PRIMARY_STUDENT_ID = "ella"; // fallback used only for demo-data seeding, not for login
-const TEACHER_PIN = "0000";
+const TEACHER_PIN = "0815";
 
 const TEACHER_TAGS = ["Curious", "Great Speaker", "Team Player", "Active Explorer", "Good Listener", "Asked Great Questions"];
 const TAG_KO = {
@@ -1153,7 +1154,7 @@ function NavBadgeIcon({ size = 20, color = "currentColor" }) {
 
 function BottomNavigation({ items, active, onSelect }) {
   return (
-    <div className="sticky bottom-0 bg-white flex items-center justify-around py-2.5 px-2 border-t" style={{ borderColor: C.beige }}>
+    <div className="sticky bottom-0 bg-white flex items-center justify-around pt-2.5 px-2 border-t" style={{ borderColor: C.beige, paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom, 0px))" }}>
       {items.map((it) => {
         const isActive = active === it.key;
         return (

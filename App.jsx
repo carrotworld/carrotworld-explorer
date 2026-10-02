@@ -774,6 +774,7 @@ function StampCard({ count, fillColor = C.orange, emptyColor = C.beige, fillBg =
 }
 
 const WORD_PRACTICE_GOAL = 5;
+const TYPED_KEYS = ["feedback", "teacherNote", "insights"]; // saved after a short pause, see App
 /** Five boxes: tap the next empty one after practising the word; tap the last ticked one to undo. */
 function PracticeBoxes({ word, count, onChange }) {
   const press = (i) => {
@@ -2459,7 +2460,11 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
   const [improve, setImprove] = useState("");
   const [wish, setWish] = useState("");
   const [done, setDone] = useState(!!adv?.parentSurvey);
+  const [leaving, setLeaving] = useState(false);
   const canSubmit = !!ratings.overall;
+  const typed = Object.keys(ratings).length > 0 || !!rejoin || good.trim() !== "" || improve.trim() !== "" || wish.trim() !== "";
+  useUnloadWarning(typed && !done);
+  const back = () => (typed && !done ? setLeaving(true) : onBack());
 
   if (done) {
     return (
@@ -2498,7 +2503,18 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
   const fieldStyle = { background: "white", border: `1px solid ${C.beige}` };
   return (
     <div className="pb-10">
-      <ScreenHeader title="체험 후 설문" subtitle={`${student.name} · ${program.title}`} onBack={onBack} />
+      <ScreenHeader title="체험 후 설문" subtitle={`${student.name} · ${program.title}`} onBack={back} />
+      {leaving && (
+        <ConfirmDialog
+          title="설문을 마치지 않았어요"
+          actions={[
+            { label: "계속 작성하기", tone: "primary", onClick: () => setLeaving(false) },
+            { label: "그냥 나가기", tone: "danger", onClick: () => { setLeaving(false); onBack(); } },
+          ]}
+        >
+          지금 나가면 쓰신 내용이 사라져요.
+        </ConfirmDialog>
+      )}
       <div className="px-5 space-y-3">
         <p className="f-body text-[12px] text-gray-500">1~2분이면 끝나요. 별을 눌러 점수를 남겨 주세요. <b>전체 만족도</b>만 꼭 남겨 주시면 돼요.</p>
 
@@ -2986,16 +3002,22 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                     저장
                   </button>
                 </div>
-                {!confirmDelete ? (
-                  <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
-                    학생 삭제
-                  </button>
-                ) : (
-                  <div className="flex gap-2 items-center justify-center">
-                    <span className="f-body text-[11px]" style={{ color: "#C0674A" }}>정말 삭제할까요?</span>
-                    <button onClick={() => setConfirmDelete(false)} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: C.charcoal }}>아니요</button>
-                    <button onClick={onDeleteStudent} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: "#C0674A" }}>삭제</button>
-                  </div>
+                <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
+                  학생 삭제
+                </button>
+                {confirmDelete && (
+                  <ConfirmDialog
+                    title={`${student.name} 학생을 삭제할까요?`}
+                    actions={[
+                      { label: "삭제", tone: "danger", onClick: () => { setConfirmDelete(false); onDeleteStudent(); } },
+                      { label: "취소", tone: "plain", onClick: () => setConfirmDelete(false) },
+                    ]}
+                  >
+                    {adventures.some((a) => a.studentId === student.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended))
+                      ? "이 아이의 피드백·복습 기록도 함께 삭제돼요. 삭제하기 전에 백업 파일이 자동으로 내려받아져요. "
+                      : ""}
+                    정말 삭제할까요?
+                  </ConfirmDialog>
                 )}
               </div>
             ) : (
@@ -3174,6 +3196,66 @@ const PIN_WEAK_MSG = "너무 쉬운 번호예요 (예: 1111, 1234). 다른 번�
  * mode "teacher": the number may belong to an existing family (siblings) - the teacher is told who it is.
  * mode "sibling": a logged-in parent adds another child; the family number is fixed.
  */
+/** A centered pop-up question. actions: [{ label, tone: "primary" | "danger" | "plain", onClick }] */
+function ConfirmDialog({ title, children, actions }) {
+  const tones = {
+    primary: { background: C.orange, color: "white" },
+    danger: { background: "#C0674A", color: "white" },
+    plain: { background: C.cream, color: C.charcoal },
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: "rgba(23,76,53,0.55)" }} role="alertdialog" aria-modal="true" aria-label={title}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm screen-in">
+        <p className="f-display text-base font-semibold mb-2 text-center" style={{ color: C.green }}>{title}</p>
+        <div className="f-body text-[13px] text-gray-600 text-center mb-5">{children}</div>
+        <div className="space-y-2">
+          {actions.map((a) => (
+            <button key={a.label} onClick={a.onClick} className="focus-ring tap w-full f-body text-sm font-bold rounded-xl py-3" style={tones[a.tone || "plain"]}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Drafts: what you typed in a long form is kept on this phone, so a back swipe, a crash or a closed tab loses nothing. */
+const draftGet = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+};
+const draftSet = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    /* storage full or blocked: the on-screen warning still protects the work */
+  }
+};
+const draftClear = (key) => {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    /* nothing to clear */
+  }
+};
+/** While `active`, closing or reloading the page asks first (desktop browsers; phones may skip it, drafts cover that). */
+function useUnloadWarning(active) {
+  useEffect(() => {
+    if (!active) return;
+    const onUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [active]);
+}
+
 function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onLookupPin, fixedPin, onCancel }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(null);
@@ -3898,7 +3980,7 @@ function InfoRow({ icon, label, value, tone }) {
   );
 }
 
-function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, onRegister, onSave, onDelete, onCancel }) {
+function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
   const [date, setDate] = useState(initial?.date || "");
@@ -3913,11 +3995,46 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
+  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, noticeInfo };
+  const snap = stableJson(formState);
+  const startSnap = useRef(null);
+  if (startSnap.current === null) startSnap.current = snap;
+  const dirty = snap !== startSnap.current;
+  const [draft, setDraft] = useState(() => {
+    const d = draftGet(draftKey);
+    return d && d.state && stableJson(d.state) !== snap ? d : null;
+  });
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
 
+  // keep what is being typed on this phone (after a short pause), and tell the screen whether there is unsaved work
+  useEffect(() => {
+    if (onDirtyChange) onDirtyChange(dirty);
+  }, [dirty]);
+  useEffect(() => () => { if (onDirtyChange) onDirtyChange(false); }, []);
+  useEffect(() => {
+    if (!dirty || draft) return;
+    const t = setTimeout(() => draftSet(draftKey, { at: new Date().toISOString(), state: formState }), 500);
+    return () => clearTimeout(t);
+  }, [snap, draft]);
+  useUnloadWarning(dirty);
+  const restoreDraft = () => {
+    const d = draft.state;
+    setTitle(d.title); setDate(d.date); setLocation(d.location); setLevels(d.levels); setIcons(d.icons); setThemeKo(d.themeKo);
+    setDateReached(d.dateReached); setMaterials(d.materials); setNoticeInfo(d.noticeInfo);
+    setShowMaterials(true);
+    setDraft(null);
+  };
+  const dropDraft = () => {
+    draftClear(draftKey);
+    setDraft(null);
+  };
+
   const submit = () => {
     if (!canSubmit) return;
+    draftClear(draftKey);
     const lv = sortLevels(levels);
     const ic = sortIcons(icons);
     const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...buildMaterials(materials), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
@@ -3925,13 +4042,40 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
       onSave(info);
     } else {
       onRegister(info);
+      startSnap.current = null; // the cleared form below becomes the new "nothing typed yet"
       setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
+  if (apiRef) apiRef.current = { canSave: !!canSubmit, save: submit, discard: () => draftClear(draftKey) };
+
+  const askLeave = () => (dirty ? setLeaving(true) : onCancel && onCancel());
+
   return (
     <div className="bg-white rounded-2xl p-4">
       <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{isEdit ? "프로그램 수정" : "새 프로그램 등록"}</p>
+      {draft && (
+        <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+          <p className="f-body text-[12px] font-bold" style={{ color: C.green }}>저장하지 않고 나간 작성 내용이 있어요</p>
+          <p className="f-body text-[11px] text-gray-500 mb-2">이 폰에 임시로 보관돼 있어요.</p>
+          <div className="flex gap-2">
+            <button onClick={restoreDraft} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>이어서 작성</button>
+            <button onClick={dropDraft} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>버리기</button>
+          </div>
+        </div>
+      )}
+      {leaving && (
+        <ConfirmDialog
+          title="저장하지 않은 내용이 있어요"
+          actions={[
+            ...(canSubmit ? [{ label: "저장하고 나가기", tone: "primary", onClick: () => { setLeaving(false); submit(); } }] : []),
+            { label: "저장 안 하고 나가기", tone: "danger", onClick: () => { setLeaving(false); draftClear(draftKey); if (onCancel) onCancel(); } },
+            { label: "계속 작성하기", tone: "plain", onClick: () => setLeaving(false) },
+          ]}
+        >
+          {canSubmit ? "저장할까요?" : "이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요."}
+        </ConfirmDialog>
+      )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -4039,7 +4183,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
 
       {isEdit ? (
         <div className="flex gap-2 mb-2">
-          <button onClick={onCancel} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
+          <button onClick={askLeave} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
             취소
           </button>
           <button
@@ -4062,25 +4206,22 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         </button>
       )}
 
-      {isEdit &&
-        (!confirmDelete ? (
-          <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
-            프로그램 삭제
-          </button>
-        ) : (
-          <div className="flex gap-2 items-center justify-center py-1">
-            <span className="f-body text-[11px]" style={{ color: "#C0674A" }}>학생 기록도 함께 삭제돼요. 정말 삭제할까요?</span>
-          </div>
-        ))}
+      {isEdit && (
+        <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
+          프로그램 삭제
+        </button>
+      )}
       {isEdit && confirmDelete && (
-        <div className="flex gap-2">
-          <button onClick={() => setConfirmDelete(false)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2" style={{ background: C.cream, color: C.charcoal }}>
-            아니요
-          </button>
-          <button onClick={onDelete} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2 text-white" style={{ background: "#C0674A" }}>
-            삭제
-          </button>
-        </div>
+        <ConfirmDialog
+          title="프로그램을 삭제할까요?"
+          actions={[
+            { label: "삭제", tone: "danger", onClick: () => { setConfirmDelete(false); draftClear(draftKey); onDelete(); } },
+            { label: "취소", tone: "plain", onClick: () => setConfirmDelete(false) },
+          ]}
+        >
+          {deleteNote || "학생 기록도 함께 삭제돼요."} 정말 삭제할까요?
+          {deleteNote && <span className="block mt-1 text-gray-500">삭제하기 전에 백업 파일이 자동으로 내려받아져요.</span>}
+        </ConfirmDialog>
       )}
       {!isEdit && <p className="f-body text-[10px] text-gray-400 mt-2">단어·미션·질문은 기본 내용으로 채워져요.</p>}
     </div>
@@ -4599,12 +4740,34 @@ function StatsPanel({ adventures, students, suggestions }) {
   );
 }
 
-function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onSetProgramReview, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
-  const [tab, setTab] = useState("manage"); // register | manage | programs | suggestions
-  const [programId, setProgramId] = useState(PROGRAMS[0].id);
+// remembered outside the screen so it survives the screen being rebuilt after a save or delete
+const teacherUi = { tab: "manage", programId: null };
+
+function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+  const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
+  const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
+  const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
+  const setProgramId = (id) => { teacherUi.programId = id; setProgramIdState(id); };
   const [editingProgramId, setEditingProgramId] = useState(null);
   const [infoFocusId, setInfoFocusId] = useState(null);
   const [materialsFocusId, setMaterialsFocusId] = useState(null);
+  const [editorTick, setEditorTick] = useState(0);
+  // unsaved work in the program forms: ask before moving elsewhere
+  const [dirtyNew, setDirtyNew] = useState(false);
+  const [dirtyEdit, setDirtyEdit] = useState(false);
+  const newApi = useRef(null);
+  const editApi = useRef(null);
+  const [pendingNav, setPendingNav] = useState(null);
+  const go = (fn) => ((dirtyNew || dirtyEdit) ? setPendingNav(() => fn) : fn());
+  // opening a program to edit: first load what the server has now; reopen the form only if it changed
+  useEffect(() => {
+    if (!editingProgramId || !onRefresh) return;
+    let alive = true;
+    onRefresh(editingProgramId)
+      .then((changed) => { if (alive && changed) setEditorTick((t) => t + 1); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [editingProgramId]);
   const program = getProgram(programId);
   const roster = adventures
     .filter((a) => a.programId === programId)
@@ -4680,6 +4843,23 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
   return (
     <div className="pb-6">
       <ScreenHeader title="Teacher View" />
+      {pendingNav && (() => {
+        const dirtyApis = [dirtyNew && newApi.current, dirtyEdit && editApi.current].filter(Boolean);
+        const canSaveAll = dirtyApis.length > 0 && dirtyApis.every((a) => a.canSave);
+        const proceed = () => { const fn = pendingNav; setPendingNav(null); fn(); };
+        return (
+          <ConfirmDialog
+            title="저장하지 않은 내용이 있어요"
+            actions={[
+              ...(canSaveAll ? [{ label: "저장하고 이동", tone: "primary", onClick: () => { dirtyApis.forEach((a) => a.save()); proceed(); } }] : []),
+              { label: "저장 안 하고 이동", tone: "danger", onClick: () => { dirtyApis.forEach((a) => a.discard()); proceed(); } },
+              { label: "계속 작성하기", tone: "plain", onClick: () => setPendingNav(null) },
+            ]}
+          >
+            {canSaveAll ? "저장할까요?" : "이름·날짜·레벨·아이콘이 비어 있어 저장할 수 없어요."}
+          </ConfirmDialog>
+        );
+      })()}
 
       {teacherNotices.length > 0 && (
         <div className="px-5 mb-4">
@@ -4687,7 +4867,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
           <div className="space-y-2">
             {teacherNotices.slice(0, 5).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-                <button onClick={n.onClick} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
+                <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                   <span className="text-2xl">{n.icon}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block f-body text-[13px] font-bold" style={{ color: C.green }}>{n.title}</span>
@@ -4711,7 +4891,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => go(() => setTab(t.key))}
               className="focus-ring tap flex-1 shrink-0 whitespace-nowrap px-2.5 text-[10.5px] f-body font-bold py-2 rounded-xl"
               style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}
             >
@@ -4839,23 +5019,29 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
 
       {tab === "programs" && (
         <div className="px-5 space-y-3">
-          <RegisterProgramPanel onRegister={onRegisterProgram} />
+          <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} />
           <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 pt-2">등록된 프로그램</p>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
-                key={p.id}
+                key={`${p.id}-${editorTick}`}
                 initial={p}
+                onDirtyChange={setDirtyEdit}
+                apiRef={editApi}
                 defaultShowInfo={infoFocusId === p.id}
                 defaultShowMaterials={materialsFocusId === p.id}
                 onSave={(info) => { onEditProgram(p.id, info); setEditingProgramId(null); setInfoFocusId(null); setMaterialsFocusId(null); }}
+                deleteNote={(() => {
+                  const n = adventures.filter((a) => a.programId === p.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended)).length;
+                  return n > 0 ? `아이 ${n}명의 피드백·복습·점수 기록이 함께 삭제돼요.` : "";
+                })()}
                 onDelete={() => { onDeleteProgram(p.id); setEditingProgramId(null); }}
                 onCancel={() => setEditingProgramId(null)}
               />
             ) : (
               <button
                 key={p.id}
-                onClick={() => setEditingProgramId(p.id)}
+                onClick={() => go(() => setEditingProgramId(p.id))}
                 className="focus-ring tap w-full flex items-center gap-3 bg-white rounded-2xl p-3 text-left"
               >
                 <Cover program={p} className="w-11 h-11 shrink-0" />
@@ -5187,6 +5373,7 @@ export default function CarrotExplorer() {
   const [students, setStudents] = useState(INITIAL_STUDENTS);
   const [adventures, setAdventures] = useState(() => buildInitialAdventures());
   const [programsVersion, setProgramsVersion] = useState(0);
+  const [, rerender] = useState(0); // plain re-render (no screen rebuild)
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
@@ -5213,6 +5400,27 @@ export default function CarrotExplorer() {
       cancelled = true;
     };
   }, []);
+
+  // Pull the server's current data (used before editing, so an old copy on this phone never overwrites
+  // what another teacher saved). Returns true when that program has changed.
+  const refreshState = async (programId) => {
+    if (Object.keys(pendingSaves.current).length) {
+      flushSaves();
+      await new Promise((r) => setTimeout(r, 600));
+    }
+    const before = stableJson(PROGRAMS.find((p) => p.id === programId) || null);
+    const data = await api.fetchState();
+    // (no programsVersion bump here: that key remounts the whole screen and would close the editor being opened;
+    //  setting the lists below already re-renders, and the screens read PROGRAMS while rendering)
+    if (data.programs && data.programs.length) {
+      PROGRAMS.length = 0;
+      PROGRAMS.push(...data.programs);
+    }
+    if (data.students && data.students.length) setStudents(data.students);
+    if (data.adventures) setAdventures(data.adventures);
+    if (data.suggestions) setSuggestions(data.suggestions);
+    return stableJson(PROGRAMS.find((p) => p.id === programId) || null) !== before;
+  };
 
   const addSuggestion = ({ type, message, familyPin }) => {
     const suggestion = { id: `${Date.now()}-${Math.random()}`, type, message, familyPin, resolved: false };
@@ -5246,6 +5454,26 @@ export default function CarrotExplorer() {
     targets.forEach((sg) => sync(api.updateSuggestion(sg.id, { resolved: true })));
   };
 
+  // Text typed into a report is saved 0.7s after you stop typing (always the latest text), not once per keystroke:
+  // many tiny requests can arrive out of order and leave an older, shorter version on the server.
+  const pendingSaves = useRef({});
+  const flushSaves = () => {
+    Object.values(pendingSaves.current).forEach((p) => {
+      clearTimeout(p.timer);
+      sync(api.updateAdventure(p.studentId, p.programId, p.patch));
+    });
+    pendingSaves.current = {};
+  };
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushSaves(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushSaves);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flushSaves);
+    };
+  }, []);
+
   const updateAdventure = (studentId, programId, rawPatch) => {
     // Record when each stage first happened (used by the statistics tab)
     const current = adventures.find((a) => a.studentId === studentId && a.programId === programId);
@@ -5260,7 +5488,21 @@ export default function CarrotExplorer() {
       updated = prev.map((a) => (a.studentId === studentId && a.programId === programId ? { ...a, ...patch } : a));
       return updated;
     });
-    sync(api.updateAdventure(studentId, programId, patch));
+    const typed = {};
+    const now2 = {};
+    Object.keys(patch).forEach((k) => (TYPED_KEYS.includes(k) ? (typed[k] = patch[k]) : (now2[k] = patch[k])));
+    if (Object.keys(now2).length) sync(api.updateAdventure(studentId, programId, now2));
+    if (Object.keys(typed).length) {
+      const key = `${studentId}|${programId}`;
+      const cur = pendingSaves.current[key] || { studentId, programId, patch: {} };
+      clearTimeout(cur.timer);
+      cur.patch = { ...cur.patch, ...typed };
+      cur.timer = setTimeout(() => {
+        delete pendingSaves.current[key];
+        sync(api.updateAdventure(studentId, programId, cur.patch));
+      }, 700);
+      pendingSaves.current[key] = cur;
+    }
     return updated;
   };
 
@@ -5319,6 +5561,8 @@ export default function CarrotExplorer() {
     sync(api.updateStudent(studentId, patch));
   };
   const deleteStudent = (studentId) => {
+    flushSaves();
+    if (adventures.some((a) => a.studentId === studentId && hasRecords(a))) exportData();
     setStudents((prev) => prev.filter((s) => s.id !== studentId));
     setAdventures((prev) => prev.filter((a) => a.studentId !== studentId));
     sync(api.deleteStudent(studentId));
@@ -5417,11 +5661,12 @@ export default function CarrotExplorer() {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
     PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value };
-    setProgramsVersion((v) => v + 1);
+    rerender((v) => v + 1);
     sync(api.updateProgram(programId, { dateReached: !!value }));
   };
 
   const checkServerSave = async () => {
+    flushSaves();
     await new Promise((r) => setTimeout(r, 800)); // let the last saves finish first
     const fresh = await api.fetchState();
     return compareWithServer({ programs: PROGRAMS, adventures, suggestions }, fresh);
@@ -5434,11 +5679,15 @@ export default function CarrotExplorer() {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
     PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value };
-    setProgramsVersion((v) => v + 1);
+    rerender((v) => v + 1);
     sync(api.updateProgram(programId, { reviewOpen: !!value }));
   };
 
+  const hasRecords = (a) => !!(a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended);
   const deleteProgram = (programId) => {
+    flushSaves();
+    // children's reports, reviews and scores go with the program: save a copy to this phone first
+    if (adventures.some((a) => a.programId === programId && hasRecords(a))) exportData();
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx !== -1) PROGRAMS.splice(idx, 1);
     setAdventures((prev) => prev.filter((a) => a.programId !== programId));
@@ -5493,6 +5742,7 @@ export default function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onCheckSave={checkServerSave}
+              onRefresh={refreshState}
               onExportData={exportData}
               onResolveSuggestions={resolveSuggestions}
               onEditStudent={editStudent}

@@ -2661,10 +2661,11 @@ function ParentGuide({ onClose }) {
   );
 }
 
-function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onLogout }) {
+function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [infoId, setInfoId] = useState(null);
+  const [addingChild, setAddingChild] = useState(false);
   const closeGuide = () => {
     markGuideSeen();
     setShowGuide(false);
@@ -2769,6 +2770,22 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           );
         })}
 
+        {myChildren.length > 0 && onAddChild && (
+          addingChild ? (
+            <RegisterStudentPanel
+              mode="sibling"
+              fixedPin={familyPin}
+              students={students}
+              onCancel={() => setAddingChild(false)}
+              onRegister={(info) => { onAddChild(info); setAddingChild(false); }}
+            />
+          ) : (
+            <button onClick={() => setAddingChild(true)} className="focus-ring tap w-full text-center f-body text-[12px] font-bold py-2" style={{ color: C.orange }}>
+              + 자녀 추가
+            </button>
+          )
+        )}
+
         {myChildren.length > 0 && (
           <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} />
         )}
@@ -2820,7 +2837,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 /* ================================================================== */
 /*  TEACHER VIEW                                                        */
 /* ================================================================== */
-function TeacherStudentCard({ student, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
+function TeacherStudentCard({ student, allStudents, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -2943,12 +2960,18 @@ function TeacherStudentCard({ student, adv, program, adventures, participationCo
                 <input
                   value={editPin}
                   onChange={(e) => setEditPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="부모님 휴대폰 뒷자리 4자리"
+                  placeholder="가족 로그인 번호 4자리"
                   inputMode="numeric"
-                  aria-label="부모님 휴대폰 번호 뒷자리 4자리 수정"
-                  className="focus-ring w-full rounded-xl p-2.5 f-body text-sm outline-none mb-3 text-center tracking-[0.3em]"
+                  aria-label="가족 로그인 번호 4자리 수정"
+                  className="focus-ring w-full rounded-xl p-2.5 f-body text-sm outline-none mb-1.5 text-center tracking-[0.3em]"
                   style={{ background: "white", border: `1px solid ${C.beige}` }}
                 />
+                {editPin.length === 4 && editPin !== student.familyPin && familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).length > 0 && (
+                  <p className="f-body text-[11px] font-bold mb-3" style={{ color: "#B08A3E" }}>
+                    이미 쓰는 번호예요. {familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).join(", ")}와(과) 같은 가족으로 묶여요.
+                  </p>
+                )}
+                <div className="mb-2" />
                 <div className="flex gap-2 mb-2">
                   <button onClick={() => setEditing(false)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal }}>
                     취소
@@ -2975,7 +2998,7 @@ function TeacherStudentCard({ student, adv, program, adventures, participationCo
                 )}
               </div>
             ) : (
-              <p className="f-body text-sm" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 부모님 {student.familyPin}</p>
+              <p className="f-body text-sm" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
             )}
           </div>
 
@@ -3138,27 +3161,65 @@ const sortLevels = (arr) => LEVEL_CHOICES.filter((l) => arr.includes(l));
 const sortIcons = (arr) => ICON_CHOICES.map((c) => c.key).filter((k) => arr.includes(k));
 const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
-function RegisterStudentPanel({ onRegister }) {
+/* A family is identified by a login number (4 digits) that the parent picks. Two families must never share one. */
+const COMMON_PINS = ["1234", "2345", "3456", "4567", "5678", "6789", "0123", "4321", "3210", "9876", "8765", "7654", "6543", "5432"];
+const isWeakPin = (pin) => /^(\d)\1{3}$/.test(pin) || COMMON_PINS.includes(pin);
+const familyNamesFor = (students, pin) => students.filter((st) => st.familyPin === pin).map((st) => st.name);
+const PIN_TAKEN_MSG = "이미 사용 중인 번호예요. 다른 번호를 정해 주세요.";
+const PIN_WEAK_MSG = "너무 쉬운 번호예요 (예: 1111, 1234). 다른 번호를 정해 주세요.";
+
+/**
+ * mode "parent":  a new family picks its own number; a number that already exists is refused.
+ * mode "teacher": the number may belong to an existing family (siblings) - the teacher is told who it is.
+ * mode "sibling": a logged-in parent adds another child; the family number is fixed.
+ */
+function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onLookupPin, fixedPin, onCancel }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(null);
   const [level, setLevel] = useState(null);
-  const [familyPin, setFamilyPin] = useState("");
+  const [typedPin, setTypedPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState("");
+  const familyPin = mode === "sibling" ? fixedPin : typedPin;
 
-  const canSubmit = name.trim() && avatar && level && /^\d{4}$/.test(familyPin);
-  const reset = () => { setName(""); setAvatar(null); setLevel(null); setFamilyPin(""); };
-  const submit = () => {
+  const sameFamily = familyPin.length === 4 ? familyNamesFor(students, familyPin) : [];
+  const pinStatus =
+    mode === "sibling" || familyPin.length < 4
+      ? null
+      : sameFamily.length > 0
+        ? mode === "parent" ? "taken" : "joins"
+        : isWeakPin(familyPin) ? "weak" : "free";
+
+  const canSubmit = name.trim() && avatar && level && /^\d{4}$/.test(familyPin) && pinStatus !== "taken" && pinStatus !== "weak" && !busy;
+  const reset = () => { setName(""); setAvatar(null); setLevel(null); setTypedPin(""); setRefused(""); };
+  const submit = async () => {
     if (!canSubmit) return;
+    if (mode === "parent") {
+      // look at the server's list right now: someone may have registered this number a minute ago
+      setBusy(true);
+      let taken = [];
+      try {
+        taken = onLookupPin ? await onLookupPin(familyPin) : familyNamesFor(students, familyPin);
+      } catch (e) {
+        taken = familyNamesFor(students, familyPin);
+      }
+      setBusy(false);
+      if (taken.length) {
+        setRefused(PIN_TAKEN_MSG);
+        return;
+      }
+    }
     onRegister({ name: name.trim(), avatar, level, familyPin });
     reset();
   };
 
   return (
     <div className="bg-white rounded-2xl p-4 mb-3">
-      <p className="f-display font-semibold mb-3" style={{ color: C.green }}>새 학생 등록</p>
+      {mode !== "parent" && <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{mode === "sibling" ? "자녀 추가" : "새 학생 등록"}</p>}
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="학생 이름"
+        placeholder={mode === "teacher" ? "학생 이름" : "자녀 이름"}
         aria-label="학생 이름"
         className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
@@ -3191,22 +3252,37 @@ function RegisterStudentPanel({ onRegister }) {
           </button>
         ))}
       </div>
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>부모님 휴대폰 번호 뒷자리 4자리</p>
-      <input
-        value={familyPin}
-        onChange={(e) => setFamilyPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-        placeholder="예: 5678"
-        inputMode="numeric"
-        aria-label="부모님 휴대폰 번호 뒷자리 4자리"
-        className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-1.5 text-center tracking-[0.3em]"
-        style={{ background: C.cream, border: `1px solid ${C.beige}` }}
-      />
-      <p className="f-body text-[10px] text-gray-400 mb-4">
-        이 번호로 부모님이 로그인해요. 형제자매는 같은 부모님 번호라 자동으로 함께 보여요.
-      </p>
+
+      {mode !== "sibling" && (
+        <>
+          <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>
+            {mode === "parent" ? "로그인 번호 (기억할 숫자 4자리)" : "가족 로그인 번호 (숫자 4자리)"}
+          </p>
+          <input
+            value={typedPin}
+            onChange={(e) => { setTypedPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setRefused(""); }}
+            placeholder="예: 7391"
+            inputMode="numeric"
+            aria-label="가족 로그인 번호 4자리"
+            className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-1.5 text-center tracking-[0.3em]"
+            style={{ background: C.cream, border: `1px solid ${pinStatus === "taken" || pinStatus === "weak" || refused ? "#E0A19A" : C.beige}` }}
+          />
+          <div aria-live="polite" className="mb-3 min-h-[16px]">
+            {(pinStatus === "taken" || refused) && <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{PIN_TAKEN_MSG}{mode === "parent" && " 이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요."}</p>}
+            {pinStatus === "weak" && <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{PIN_WEAK_MSG}</p>}
+            {pinStatus === "free" && <p className="f-body text-[11px] font-bold" style={{ color: "#1F7A44" }}>사용할 수 있는 번호예요 ✓</p>}
+            {pinStatus === "joins" && <p className="f-body text-[11px] font-bold" style={{ color: "#B08A3E" }}>이미 쓰는 번호예요. {sameFamily.join(", ")}와(과) 같은 가족(형제자매)으로 묶여요.</p>}
+          </div>
+          <p className="f-body text-[10px] text-gray-400 mb-4">
+            {mode === "parent"
+              ? "이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요."
+              : "이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요."}
+          </p>
+        </>
+      )}
       <div className="flex gap-2">
-        <button onClick={reset} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
-          초기화
+        <button onClick={mode === "sibling" && onCancel ? onCancel : reset} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
+          {mode === "sibling" ? "취소" : "초기화"}
         </button>
         <button
           onClick={submit}
@@ -3214,7 +3290,7 @@ function RegisterStudentPanel({ onRegister }) {
           className="focus-ring tap flex-1 f-display text-sm font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
         >
-          등록 완료
+          {busy ? "확인 중..." : mode === "sibling" ? "추가하기" : "등록 완료"}
         </button>
       </div>
     </div>
@@ -4646,7 +4722,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
 
       {tab === "register" && (
         <div className="px-5">
-          <RegisterStudentPanel onRegister={(info) => onRegisterStudent(info)} />
+          <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
           <p className="f-body text-[11px] text-gray-400 mt-2">보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 "학생관리" 탭에서 프로그램에 추가해주세요.</p>
         </div>
       )}
@@ -4725,6 +4801,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
               <TeacherStudentCard
                 key={student.id}
                 student={student}
+                allStudents={students}
                 adv={adv}
                 program={program}
                 adventures={adventures}
@@ -4896,7 +4973,7 @@ function PinPad({ length = 4, validate, onSuccess }) {
 
 /** Links opened from a KakaoTalk chat run inside KakaoTalk's own browser, which is limited. */
 const isKakaoBrowser = () => typeof navigator !== "undefined" && /KAKAOTALK/i.test(navigator.userAgent || "");
-function LoginScreen({ students, onSelfRegister, onLogin }) {
+function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin }) {
   const inKakao = isKakaoBrowser();
   const [hideKakaoTip, setHideKakaoTip] = useState(false);
   const openInBrowser = () => {
@@ -4965,7 +5042,7 @@ function LoginScreen({ students, onSelfRegister, onLogin }) {
               Enter PIN
             </h1>
             <p className="f-body text-sm text-gray-500 text-center mb-8">
-              {role === "parent" ? "휴대폰 번호 뒷자리 4자리" : "Teacher access"}
+              {role === "parent" ? "로그인 번호 4자리" : "Teacher access"}
             </p>
             <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null })} />
             {role === "parent" && (
@@ -4987,7 +5064,7 @@ function LoginScreen({ students, onSelfRegister, onLogin }) {
             <p className="f-body text-sm text-gray-500 text-center mb-6">
               등록하면 바로 로그인돼요
             </p>
-            <RegisterStudentPanel onRegister={onSelfRegister} />
+            <RegisterStudentPanel mode="parent" students={students} onLookupPin={onLookupPin} onRegister={onSelfRegister} />
           </>
         )}
       </div>
@@ -5204,6 +5281,18 @@ export default function CarrotExplorer() {
     if (programId) enrollStudent(id, programId);
   };
 
+  // Is this family number already taken? Looks at the server's list right now (plus anything just registered here).
+  const lookupFamily = async (pin) => {
+    const byId = new Map(students.map((st) => [st.id, st]));
+    try {
+      const fresh = await api.fetchState();
+      (fresh?.students || []).forEach((st) => byId.set(st.id, st));
+    } catch (e) {
+      /* offline: the local list is all we have */
+    }
+    return familyNamesFor([...byId.values()], pin);
+  };
+
   // Customers only: count the first parent login of the day per family (teachers are never counted).
   const recordVisit = (familyPin) => {
     if (!familyPin) return;
@@ -5369,7 +5458,7 @@ export default function CarrotExplorer() {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
-        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} />
+        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} />
       </div>
     );
   }
@@ -5432,6 +5521,7 @@ export default function CarrotExplorer() {
               onToggleWish={toggleWish}
               onViewReport={(studentId) => setParentScreen({ type: "report", studentId })}
               onOpenSurvey={(studentId, programId) => setParentScreen({ type: "survey", studentId, programId })}
+              onAddChild={(info) => registerStudent(info)}
               onStartAdventure={(studentId) => { setParentScreen({ type: "student-mode", studentId }); setSelectedProgramId(null); setStudentTab("home"); }}
               onLogout={logout}
             />

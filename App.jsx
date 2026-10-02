@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api, sync } from "./api";
 import {
-  ArrowLeft, Lock, CheckCircle2, Circle, Camera,
-  Star, Volume2, ChevronRight, Image as ImageIcon,
+  ArrowLeft, Lock, CheckCircle2, Circle,
+  Star, Volume2, ChevronRight,
   MessageCircle, Check, MapPin, Users, ClipboardCheck, RotateCcw,
   Calendar, Target, TrendingUp, ArrowUpRight,
 } from "lucide-react";
@@ -470,7 +470,7 @@ const BADGE_DEFS = [
       }),
   },
   { id: "curious", name: "Curious Thinker", emoji: "💡", check: (advs) => advs.filter((a) => a.bigQuestionCustom).length >= 2 },
-  { id: "photographer", name: "Adventure Photographer", emoji: "📷", check: (advs) => advs.some((a) => a.reflection?.photo) },
+  { id: "photographer", name: "Adventure Photographer", emoji: "📷", retired: true, check: (advs) => advs.some((a) => a.reflection?.photo) },
   { id: "missionmaster", name: "Mission Master", emoji: "🧭", check: (advs) => advs.filter((a) => missionsAllDone(a)).length >= 2 },
   { id: "stamp10", name: "도장판 완성 (10회)", emoji: "🎟️", check: (advs) => advs.filter((a) => a.attended).length >= 10 },
   { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
@@ -480,7 +480,8 @@ const BADGE_DEFS = [
 ];
 function computeBadges(adventures, studentId) {
   const mine = adventures.filter((a) => a.studentId === studentId);
-  return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) }));
+  // retired badges (photos are no longer taken in the app) only show for children who already earned one
+  return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) })).filter((b) => !b.retired || b.earned);
 }
 
 function speak(word) {
@@ -494,17 +495,6 @@ function speak(word) {
     /* speech synthesis unavailable — fail silently, it's a nice-to-have */
   }
 }
-function readFileAsDataUrl(file, cb) {
-  try {
-    const reader = new FileReader();
-    reader.onload = () => cb(reader.result);
-    reader.onerror = () => console.warn("Could not read the selected photo.");
-    reader.readAsDataURL(file);
-  } catch (e) {
-    console.warn("Photo upload failed", e);
-  }
-}
-
 /* ================================================================== */
 /*  SHARED UI ATOMS                                                     */
 /* ================================================================== */
@@ -552,17 +542,41 @@ function ProgramIcon({ kind, size = 24, color = C.cream }) {
   return null;
 }
 
-function Cover({ program, className = "" }) {
-  if (program.coverPhoto) {
-    return (
-      <div className={`overflow-hidden rounded-2xl ${className}`}>
-        <img src={program.coverPhoto} alt={program.title} className="w-full h-full object-cover" />
-      </div>
-    );
-  }
+const COVER_COLORS = {
+  culture: ["#D9650F", "#F59A3B"],
+  science: ["#174C35", "#2F7A58"],
+  nature: ["#2F7A58", "#7DBB94"],
+  history: ["#7A4E22", "#C28A4E"],
+};
+const coverGradient = (program) => {
+  const cat = program.category || ICON_CHOICES.find((i) => i.key === program.icon)?.category;
+  const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
+  return `linear-gradient(135deg, ${from}, ${to})`;
+};
+const splitTitle = (title) => {
+  const [main, ...rest] = String(title || "").split(/[:：]\s*/);
+  return [main.trim(), rest.join(": ").trim()];
+};
+/** Photo-free cover: the program title (large covers) or its icon (small thumbnails) on a themed colour. */
+function Cover({ program, className = "", showTitle = false }) {
+  const [main, sub] = splitTitle(program.title);
   return (
-    <div className={`flex items-center justify-center rounded-2xl ${className}`} style={{ background: C.green }}>
-      <ProgramIcon kind={program.icon} size={30} color={C.cream} />
+    <div className={`relative overflow-hidden rounded-2xl ${className}`} style={{ background: coverGradient(program) }} role="img" aria-label={program.title || "Program cover"}>
+      {showTitle ? (
+        <>
+          <div className="absolute pointer-events-none" style={{ right: -16, bottom: -20, opacity: 0.16 }}>
+            <ProgramIcon kind={program.icon} size={120} color="white" />
+          </div>
+          <div className="relative h-full flex flex-col justify-end p-4">
+            <p className="f-display font-bold text-white leading-tight" style={{ fontSize: 21 }}>{main || "프로그램 이름"}</p>
+            {sub && <p className="f-body text-[12px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}>{sub}</p>}
+          </div>
+        </>
+      ) : (
+        <div className="relative h-full w-full flex items-center justify-center">
+          <ProgramIcon kind={program.icon} size={28} color="white" />
+        </div>
+      )}
     </div>
   );
 }
@@ -808,7 +822,7 @@ function VocabularyCard({ v, onTap, checks, onCheck }) {
   );
 }
 
-function MissionCard({ mission, done, photo, onToggle, onCapture }) {
+function MissionCard({ mission, done, onToggle }) {
   return (
     <div className="w-full flex items-center gap-3 bg-white rounded-2xl p-4">
       <button onClick={onToggle} aria-pressed={done} aria-label={done ? "Mark mission not done" : "Mark mission done"} className="focus-ring tap shrink-0">
@@ -820,16 +834,6 @@ function MissionCard({ mission, done, photo, onToggle, onCapture }) {
       >
         {mission.text}
       </span>
-      {mission.isPhoto &&
-        (photo ? (
-          <button onClick={onCapture} aria-label="Change mission photo" className="focus-ring tap shrink-0">
-            <img src={photo} alt="" className="w-10 h-10 rounded-lg object-cover" />
-          </button>
-        ) : (
-          <button onClick={onCapture} aria-label="Take a photo for this mission" className="focus-ring tap shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: C.cream }}>
-            <Camera size={17} color={C.orange} />
-          </button>
-        ))}
     </div>
   );
 }
@@ -1237,18 +1241,12 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(next.program.id)}
           className="focus-ring tap w-full text-left cursor-pointer relative"
         >
-          <div className="relative h-32 rounded-t-2xl overflow-hidden flex items-center justify-center" style={{ background: C.green }}>
-            {next.program.coverPhoto ? (
-              <img src={next.program.coverPhoto} alt={next.program.title} className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <>
-                <div
-                  className="absolute inset-0"
-                  style={{ backgroundImage: `repeating-linear-gradient(135deg, rgba(255,248,237,0.07) 0px, rgba(255,248,237,0.07) 1px, transparent 1px, transparent 11px)` }}
-                />
-                <ProgramIcon kind={next.program.icon} size={46} color={C.cream} />
-              </>
-            )}
+          <div className="relative h-32 rounded-t-2xl overflow-hidden flex items-center justify-center" style={{ background: coverGradient(next.program) }}>
+            <div
+              className="absolute inset-0"
+              style={{ backgroundImage: `repeating-linear-gradient(135deg, rgba(255,248,237,0.10) 0px, rgba(255,248,237,0.10) 1px, transparent 1px, transparent 11px)` }}
+            />
+            <ProgramIcon kind={next.program.icon} size={46} color="white" />
           </div>
           <div className="relative h-0">
             <div className="absolute rounded-full" style={{ left: -10, top: -10, width: 20, height: 20, background: C.cream }} />
@@ -1648,9 +1646,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
 /* ================================================================== */
 /*  EXPLORE  (Field Trip Mode)                                          */
 /* ================================================================== */
-function FieldTripMode({ program, adv, onToggleMission, onCapturePhoto, onFinish }) {
-  const fileRef = useRef(null);
-  const captureRef = useRef(null);
+function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
   const doneCount = missionsDoneCount(adv);
   const allDone = doneCount === adv.missionsCompleted.length;
 
@@ -1689,31 +1685,10 @@ function FieldTripMode({ program, adv, onToggleMission, onCapturePhoto, onFinish
         {program.missions.map((m, i) => {
           const state = adv.missionsCompleted[i] || { done: false, photo: null };
           return (
-            <MissionCard
-              key={m.id}
-              mission={m}
-              done={state.done}
-              photo={state.photo}
-              onToggle={() => onToggleMission(i)}
-              onCapture={() => { captureRef.current = i; fileRef.current?.click(); }}
-            />
+            <MissionCard key={m.id} mission={m} done={state.done} onToggle={() => onToggleMission(i)} />
           );
         })}
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && captureRef.current !== null) {
-            readFileAsDataUrl(file, (dataUrl) => onCapturePhoto(captureRef.current, dataUrl));
-          }
-          e.target.value = "";
-        }}
-      />
-
       {allDone ? (
         <div className="text-center">
           <p className="f-display font-semibold mb-3" style={{ color: C.green }}>Adventure Complete!</p>
@@ -1760,10 +1735,8 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
   const [predictionCustom, setPredictionCustom] = useState(false);
   const [favoriteText, setFavoriteText] = useState("");
   const [favoriteReason, setFavoriteReason] = useState("");
-  const [photo, setPhoto] = useState(null);
   const [discovery, setDiscovery] = useState("");
   const [rating, setRating] = useState(0);
-  const fileRef = useRef(null);
   const insRef = useRef({ ...(adv.insights || {}) });
   const qStart = useRef(Date.now());
   const saveIns = (patch) => {
@@ -1908,21 +1881,6 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
             because{" "}
             <input value={favoriteReason} onChange={(e) => setFavoriteReason(e.target.value)} placeholder="___" aria-label="Why it was your favorite" className="focus-ring inline-block w-40 border-b-2 outline-none bg-transparent px-1" style={{ borderColor: C.orange }} />
           </div>
-          <button onClick={() => fileRef.current?.click()} className="focus-ring tap w-full bg-white rounded-2xl p-4 flex items-center justify-center gap-2 mb-5 border-2 border-dashed" style={{ borderColor: C.beige }}>
-            {photo ? <img src={photo} alt="" className="w-10 h-10 rounded-lg object-cover" /> : <ImageIcon size={18} color={C.orange} />}
-            <span className="f-body text-sm font-bold" style={{ color: C.orange }}>{photo ? "Change photo" : "Add a photo"}</span>
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) readFileAsDataUrl(file, setPhoto);
-              e.target.value = "";
-            }}
-          />
           <PrimaryButton onClick={() => setStep("share")} disabled={!favoriteText || !favoriteReason}>Next</PrimaryButton>
         </div>
       )}
@@ -1944,7 +1902,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
           </div>
           <PrimaryButton
             onClick={() => {
-              const reflection = { rememberScore: score ? { correct: score.correct, total: score.total } : { correct: 0, total: 0 }, favoriteText, favoriteReason, photo, discovery, rating };
+              const reflection = { rememberScore: score ? { correct: score.correct, total: score.total } : { correct: 0, total: 0 }, favoriteText, favoriteReason, photo: null, discovery, rating };
               const extra = { insights: insRef.current };
               if (score) extra.reviewScore = score;
               if (prediction) {
@@ -1976,7 +1934,6 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
           <div className="relative bg-white rounded-2xl p-5 text-left mb-4">
             <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
             <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
-            {photo && <img src={photo} alt="Favorite moment" className="w-full h-36 object-cover rounded-xl mb-3" />}
             <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
             <p className="f-body text-sm" style={{ color: C.charcoal }}>Today I discovered that {discovery}.</p>
           </div>
@@ -2028,7 +1985,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         </button>
         {showAbout && (
           <div className="mt-2">
-            <Cover program={program} className="h-28 mb-3" />
+            <Cover program={program} showTitle className="h-28 mb-3" />
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
               <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
@@ -2057,16 +2014,6 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
           adv={adv}
           onToggleMission={(i) => {
             const missionsCompleted = adv.missionsCompleted.map((m, idx) => (idx === i ? { ...m, done: !m.done } : m));
-            const nowAttended = missionsCompleted.every((m) => m.done);
-            const wasAttended = adv.attended;
-            const updated = update({ missionsCompleted, attended: nowAttended });
-            if (nowAttended && !wasAttended) {
-              const earned = newlyEarned(updated);
-              if (earned.length) setCelebration({ praise: "Level Up!", title: "You filled a stamp card!", badge: earned[0] });
-            }
-          }}
-          onCapturePhoto={(i, dataUrl) => {
-            const missionsCompleted = adv.missionsCompleted.map((m, idx) => (idx === i ? { ...m, photo: dataUrl, done: true } : m));
             const nowAttended = missionsCompleted.every((m) => m.done);
             const wasAttended = adv.attended;
             const updated = update({ missionsCompleted, attended: nowAttended });
@@ -3290,7 +3237,7 @@ function defaultMaterials() {
     challenge: [], // the old "before" quiz is no longer used; the review quiz lives in `remember`
     missions: [
       { id: "m1", text: "Find something interesting." },
-      { id: "m2", text: "Take a photo of your favorite exhibit.", isPhoto: true },
+      { id: "m2", text: "Learn one new English word today." },
     ],
     remember: [], // review quiz: written by the teacher after the trip
     focus: [],
@@ -3570,14 +3517,6 @@ function MaterialsEditor({ value, onChange }) {
                 onChange={(val) => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, text: val } : x)) })}
                 placeholder="미션 (예: Find the oldest airplane.)"
               />
-              <button
-                onClick={() => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, isPhoto: !x.isPhoto } : x)) })}
-                aria-pressed={!!m.isPhoto}
-                className="focus-ring tap shrink-0 f-body text-[11px] font-bold rounded-lg px-2 py-2"
-                style={{ background: m.isPhoto ? C.green : "white", color: m.isPhoto ? "white" : C.charcoal, border: `1px solid ${m.isPhoto ? C.green : C.beige}` }}
-              >
-                📷 사진
-              </button>
               <RemoveButton onClick={() => set({ missions: value.missions.filter((_, k) => k !== i) })} />
             </div>
           ))}
@@ -3691,7 +3630,7 @@ function buildInfoMessage(program, info) {
   if (fee) lines.push(`💰 ${fee}`);
   if ((program.focus || []).length) lines.push(`🔍 오늘의 집중 포인트: ${program.focus.join(" / ")}`);
   if (info.note) lines.push(`📝 안내: ${info.note}`);
-  lines.push("", `👉 예습은 앱에서 해 주세요: https://${APP_ADDRESS}`);
+  lines.push("", `👉 예습은 앱에서 해 주세요: https://${APP_ADDRESS}`, "(카톡 안에서 열면 일부 기능이 제한돼요. 크롬이나 사파리로 열어 주세요)");
   return lines.join("\n");
 }
 
@@ -3838,8 +3777,7 @@ function ProgramInfoSheet({ program, onClose }) {
           <h2 className="f-display text-lg font-semibold" style={{ color: C.green }}>체험 안내</h2>
           <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
         </div>
-        <Cover program={program} className="h-28 mb-3" />
-        <p className="f-display text-base font-semibold mb-3" style={{ color: C.green }}>{program.title}</p>
+        <Cover program={program} showTitle className="h-36 mb-4" />
         <div className="space-y-2.5">
           {rows.slice(0, 3).map((r) => (
             <InfoRow key={r.label} {...r} />
@@ -3892,13 +3830,12 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
-  const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null);
+  const coverPhoto = initial?.coverPhoto || null; // old uploads stay saved but are no longer shown or changed
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const fileRef = useRef(null);
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
 
@@ -3911,7 +3848,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
       onSave(info);
     } else {
       onRegister(info);
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setCoverPhoto(null); setMaterials(defaultMaterials()); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
@@ -3961,33 +3898,9 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         ))}
       </div>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>대표 사진 (선택)</p>
-      <button
-        onClick={() => fileRef.current?.click()}
-        className="focus-ring tap w-full rounded-xl overflow-hidden flex items-center justify-center mb-3 border-2 border-dashed"
-        style={{ height: 90, borderColor: C.beige, background: coverPhoto ? "transparent" : C.cream }}
-      >
-        {coverPhoto ? (
-          <img src={coverPhoto} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="flex flex-col items-center gap-1">
-            <ImageIcon size={18} color={C.orange} />
-            <span className="f-body text-[11px] font-bold" style={{ color: C.orange }}>사진 추가</span>
-          </div>
-        )}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) readFileAsDataUrl(file, setCoverPhoto);
-          e.target.value = "";
-        }}
-      />
-      <p className="f-body text-[10px] text-gray-400 mb-3">사진이 없으면 아이콘으로 대신 표시돼요.</p>
+      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>대표 이미지 미리보기</p>
+      <Cover program={{ title, icon: icons[0], category: ICON_CHOICES.find((i) => i.key === icons[0])?.category }} showTitle className="h-28 mb-1" />
+      <p className="f-body text-[10px] text-gray-400 mb-3">사진 없이, 이름과 아이콘으로 자동으로 만들어져요.</p>
 
       <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 mb-3">
@@ -4093,6 +4006,128 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         </div>
       )}
       {!isEdit && <p className="f-body text-[10px] text-gray-400 mt-2">단어·미션·질문은 기본 내용으로 채워져요.</p>}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  DATA TOOLS: "does the server really keep it?" check and a backup file  */
+/* ================================================================== */
+const stableJson = (v) =>
+  JSON.stringify(v, (k, val) =>
+    val && typeof val === "object" && !Array.isArray(val)
+      ? Object.keys(val).sort().reduce((o, key) => ((o[key] = val[key]), o), {})
+      : val
+  );
+const hasValue = (v) => (Array.isArray(v) ? v.length > 0 : v && typeof v === "object" ? Object.keys(v).length > 0 : v === true || (typeof v === "string" && v.trim() !== "") || (typeof v === "number"));
+const PROGRAM_CHECKS = [
+  ["levels", "레벨 여러 개"],
+  ["icons", "테마 아이콘 여러 개"],
+  ["vocabulary", "단어 카드"],
+  ["missions", "현장 미션"],
+  ["focus", "집중 포인트"],
+  ["remember", "복습 퀴즈"],
+  ["dateReached", "오늘 진행"],
+  ["reviewOpen", "복습 열기"],
+  ["info", "체험 전 안내"],
+];
+const ADVENTURE_CHECKS = [
+  ["insights", "단어 연습·답 기록"],
+  ["reviewScore", "복습 점수"],
+  ["parentSurvey", "부모 설문"],
+  ["enrolledAt", "등록 시각"],
+  ["beforeCompletedAt", "예습 완료 시각"],
+  ["attendedAt", "출석 시각"],
+  ["afterCompletedAt", "복습 완료 시각"],
+];
+/** Compares what the screen holds with what the server returns right now. */
+function compareWithServer(local, fresh) {
+  const rows = [];
+  const freshPrograms = new Map((fresh.programs || []).map((p) => [p.id, p]));
+  PROGRAM_CHECKS.forEach(([key, label]) => {
+    const targets = local.programs.filter((p) => hasValue(p[key]));
+    const saved = targets.filter((p) => freshPrograms.has(p.id) && stableJson(freshPrograms.get(p.id)[key]) === stableJson(p[key])).length;
+    rows.push({ key: `program-${key}`, label, total: targets.length, saved });
+  });
+  const freshAdv = new Map((fresh.adventures || []).map((a) => [`${a.studentId}|${a.programId}`, a]));
+  ADVENTURE_CHECKS.forEach(([key, label]) => {
+    const targets = local.adventures.filter((a) => hasValue(a[key]));
+    const saved = targets.filter((a) => {
+      const f = freshAdv.get(`${a.studentId}|${a.programId}`);
+      return f && stableJson(f[key]) === stableJson(a[key]);
+    }).length;
+    rows.push({ key: `adv-${key}`, label, total: targets.length, saved });
+  });
+  const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
+  [[WISH_TYPE, "찜"], [VISIT_TYPE, "방문 기록"]].forEach(([type, label]) => {
+    const targets = (local.suggestions || []).filter((x) => x.type === type);
+    const saved = targets.filter((x) => freshSug.has(x.id)).length;
+    rows.push({ key: `sug-${type}`, label, total: targets.length, saved });
+  });
+  const missing = rows.filter((r) => r.total > 0 && r.saved < r.total);
+  return { rows, missing, checked: rows.filter((r) => r.total > 0).length };
+}
+function buildBackup({ students, programs, adventures, suggestions }) {
+  return { app: "carrot-explorer", exportedAt: new Date().toISOString(), version: 1, students, programs, adventures, suggestions };
+}
+function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function DataTools({ onCheck, onExport }) {
+  const [state, setState] = useState({ phase: "idle" });
+  const run = async () => {
+    setState({ phase: "running" });
+    try {
+      setState({ phase: "done", result: await onCheck() });
+    } catch (e) {
+      setState({ phase: "error" });
+    }
+  };
+  const r = state.result;
+  return (
+    <div className="px-5 mt-3 pb-8">
+      <StatCard title="데이터 관리" hint="서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.">
+        <button onClick={run} disabled={state.phase === "running"} className="focus-ring tap w-full f-body text-[13px] font-bold rounded-xl py-2.5 mb-2 text-white disabled:opacity-60" style={{ background: C.green }}>
+          {state.phase === "running" ? "확인하는 중..." : "서버 저장 점검"}
+        </button>
+        <p className="f-body text-[10.5px] text-gray-400 mb-3">단어·퀴즈·안내 등을 입력한 <b>직후, 새로고침하기 전에</b> 눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.</p>
+        {state.phase === "error" && <p className="f-body text-[12px] mb-3" style={{ color: "#C0392B" }}>서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.</p>}
+        {r && (
+          <div className="mb-4">
+            <p className="f-body text-[12px] font-bold mb-2" style={{ color: r.missing.length ? "#C0392B" : "#1F7A44" }}>
+              {r.checked === 0
+                ? "아직 비교할 데이터가 없어요. 입력하고 저장한 뒤 다시 눌러 보세요."
+                : r.missing.length
+                  ? `서버가 저장하지 않는 항목이 ${r.missing.length}개 있어요`
+                  : `확인한 ${r.checked}개 항목이 모두 서버에 저장돼 있어요 ✓`}
+            </p>
+            <div className="space-y-1">
+              {r.rows.map((x) => (
+                <div key={x.key} className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: x.total === 0 ? "transparent" : x.saved === x.total ? "#EAF7EF" : "#FDECEA" }}>
+                  <span className="f-body text-[12px]" style={{ color: x.total === 0 ? "#B9AE99" : C.charcoal }}>{x.label}</span>
+                  <span className="f-body text-[11px] font-bold" style={{ color: x.total === 0 ? "#B9AE99" : x.saved === x.total ? "#1F7A44" : "#C0392B" }}>
+                    {x.total === 0 ? "비교할 데이터 없음" : x.saved === x.total ? `✓ ${x.saved}/${x.total} 저장됨` : `✗ ${x.saved}/${x.total} 저장 안 됨`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {r.missing.length > 0 && <p className="f-body text-[11px] text-gray-500 mt-2">✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(<code>api.js</code>, <code>functions/api</code>)을 보내 주시면 고칠게요.</p>}
+          </div>
+        )}
+        <button onClick={onExport} className="focus-ring tap w-full f-body text-[13px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
+          전체 자료 내려받기 (백업)
+        </button>
+        <p className="f-body text-[10.5px] text-gray-400 mt-2">아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.</p>
+      </StatCard>
     </div>
   );
 }
@@ -4409,7 +4444,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                     <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left rounded-xl p-3" style={{ background: C.cream }}>
                       <p className="f-body text-[13px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
                       <p className="f-body text-[11px] text-gray-500 mt-0.5">
-                        등록 {sm.total}명 · 예습 {pctOf(sm.funnel[1].value, sm.total)}% · 출석 {pctOf(sm.funnel[2].value, sm.total)}% · 기록 {pctOf(sm.funnel[3].value, sm.total)}%
+                        등록 {sm.total}명 · 예습 {pctOf(sm.funnel[1].value, sm.total)}% · 출석 {pctOf(sm.funnel[2].value, sm.total)}% · 복습 {pctOf(sm.funnel[3].value, sm.total)}%
                         {sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : ""}
                         {wishCount(p) ? ` · ♥${wishCount(p)}` : ""}
                       </p>
@@ -4487,7 +4522,7 @@ function StatsPanel({ adventures, students, suggestions }) {
   );
 }
 
-function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onSetProgramReview, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onSetProgramReview, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTab] = useState("manage"); // register | manage | programs | suggestions
   const [programId, setProgramId] = useState(PROGRAMS[0].id);
   const [editingProgramId, setEditingProgramId] = useState(null);
@@ -4760,7 +4795,12 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
         </div>
       )}
 
-      {tab === "stats" && <StatsPanel adventures={adventures} students={students} suggestions={suggestions} />}
+      {tab === "stats" && (
+        <>
+          <StatsPanel adventures={adventures} students={students} suggestions={suggestions} />
+          <DataTools onCheck={onCheckSave || (async () => ({ rows: [], missing: [], checked: 0 }))} onExport={onExportData || (() => {})} />
+        </>
+      )}
 
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
@@ -4854,7 +4894,14 @@ function PinPad({ length = 4, validate, onSuccess }) {
   );
 }
 
+/** Links opened from a KakaoTalk chat run inside KakaoTalk's own browser, which is limited. */
+const isKakaoBrowser = () => typeof navigator !== "undefined" && /KAKAOTALK/i.test(navigator.userAgent || "");
 function LoginScreen({ students, onSelfRegister, onLogin }) {
+  const inKakao = isKakaoBrowser();
+  const [hideKakaoTip, setHideKakaoTip] = useState(false);
+  const openInBrowser = () => {
+    window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(window.location.href)}`;
+  };
   const [step, setStep] = useState("role"); // role -> pin | register
   const [role, setRole] = useState(null);
 
@@ -4865,6 +4912,20 @@ function LoginScreen({ students, onSelfRegister, onLogin }) {
       <div className="w-full max-w-xs">
         {step === "role" && (
           <>
+            {inKakao && !hideKakaoTip && (
+              <div className="rounded-2xl p-3 mb-6" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+                <p className="f-body text-[12px] font-bold mb-1" style={{ color: C.green }}>카카오톡 안에서 열었어요</p>
+                <p className="f-body text-[11px] text-gray-600 mb-2">이 화면에서는 홈 화면 추가나 공유가 안 될 수 있어요. 크롬이나 사파리로 열면 더 편해요.</p>
+                <div className="flex gap-2">
+                  <button onClick={openInBrowser} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
+                    브라우저로 열기
+                  </button>
+                  <button onClick={() => setHideKakaoTip(true)} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>
+                    그냥 쓸게요
+                  </button>
+                </div>
+              </div>
+            )}
             <p className="f-display text-lg font-bold text-center mb-1" style={{ color: C.orange }}>
               CarrotWorld
             </p>
@@ -5270,6 +5331,15 @@ export default function CarrotExplorer() {
     sync(api.updateProgram(programId, { dateReached: !!value }));
   };
 
+  const checkServerSave = async () => {
+    await new Promise((r) => setTimeout(r, 800)); // let the last saves finish first
+    const fresh = await api.fetchState();
+    return compareWithServer({ programs: PROGRAMS, adventures, suggestions }, fresh);
+  };
+  const exportData = () => {
+    downloadJson(`carrot-explorer-backup-${kstDay()}.json`, buildBackup({ students, programs: PROGRAMS, adventures, suggestions }));
+  };
+
   const setProgramReview = (programId, value) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -5332,6 +5402,8 @@ export default function CarrotExplorer() {
               onEnrollStudent={enrollStudent}
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
+              onCheckSave={checkServerSave}
+              onExportData={exportData}
               onResolveSuggestions={resolveSuggestions}
               onEditStudent={editStudent}
               onDeleteStudent={deleteStudent}

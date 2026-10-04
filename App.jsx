@@ -2678,6 +2678,55 @@ function ParentGuide({ onClose }) {
   );
 }
 
+/** What a family sees until staff accept the registration: no programs, no learning material. */
+function ParentWaiting({ students, familyPin, onRefresh, onLogout }) {
+  const kids = students.filter((st) => st.familyPin === familyPin);
+  const [checking, setChecking] = useState(false);
+  const [msg, setMsg] = useState("");
+  const check = async (quiet) => {
+    setChecking(true);
+    try {
+      await onRefresh();
+      if (!quiet) setMsg("아직 확인 중이에요. 조금만 기다려 주세요.");
+    } catch (e) {
+      if (!quiet) setMsg("확인하지 못했어요. 인터넷을 확인해 주세요.");
+    }
+    setChecking(false);
+  };
+  // while waiting, look again every so often so the screen opens by itself once staff accept
+  useEffect(() => {
+    const t = setInterval(() => check(true), 20000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="min-h-screen f-body flex flex-col items-center justify-center px-6" style={{ background: C.cream }}>
+      <style>{FONTS}</style>
+      <div className="w-full max-w-sm text-center">
+        <div className="text-5xl mb-3" aria-hidden="true">🌱</div>
+        <h1 className="f-display text-xl font-semibold mb-2" style={{ color: C.green }}>신청이 접수됐어요</h1>
+        <p className="f-body text-sm text-gray-600 mb-1">선생님이 신청 내역을 확인하고 있어요.</p>
+        <p className="f-body text-sm text-gray-600 mb-5">확인이 끝나면 바로 시작할 수 있어요. 보통 하루 안에 확인해요.</p>
+        <div className="bg-white rounded-2xl p-4 mb-5 text-left">
+          <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.orange }}>등록한 아이</p>
+          {kids.map((k) => (
+            <p key={k.id} className="f-body text-sm" style={{ color: C.charcoal }}><span aria-hidden="true">{k.avatar}</span> {k.name} · Level {k.level}</p>
+          ))}
+        </div>
+        <button onClick={() => check(false)} disabled={checking} className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-3 text-white mb-2 disabled:opacity-60" style={{ background: C.orange }}>
+          {checking ? "확인하는 중..." : "확인됐는지 보기"}
+        </button>
+        <div aria-live="polite" className="min-h-[18px] mb-2">{msg && <p className="f-body text-[12px] text-gray-500">{msg}</p>}</div>
+        {KAKAO_CHAT_URL && (
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[12px] font-bold px-4 py-2 rounded-full mb-2" style={{ background: "#FEE500", color: "#191919" }}>카카오톡으로 문의하기</a>
+        )}
+        <div>
+          <button onClick={onLogout} className="focus-ring tap f-body text-[12px] font-bold py-2" style={{ color: "#9C927D" }}>나가기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
@@ -3021,7 +3070,10 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                 )}
               </div>
             ) : (
-              <p className="f-body text-sm" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
+              <div>
+                <p className="f-body text-sm" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
+                {student.phoneLast4 && <p className="f-body text-[11px] mt-1" style={{ color: "#9C927D" }}>신청 번호 뒷자리 {student.phoneLast4}</p>}
+              </div>
             )}
           </div>
 
@@ -3184,6 +3236,62 @@ const sortLevels = (arr) => LEVEL_CHOICES.filter((l) => arr.includes(l));
 const sortIcons = (arr) => ICON_CHOICES.map((c) => c.key).filter((k) => arr.includes(k));
 const toggleIn = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
+/* ================================================================== */
+/*  JOIN APPROVAL (가입 수락)                                          */
+/*  A new family leaves a phone number when registering. The number is  */
+/*  NOT stored: only its last 4 digits and a one-way code (to spot the   */
+/*  same number registering twice, or to check a number staff paste).    */
+/*  Staff compare with the application form and tap "수락". Until then   */
+/*  the family sees a waiting screen and none of the learning material.  */
+/* ================================================================== */
+const toB64 = (buf) => {
+  const b = new Uint8Array(buf);
+  let out = "";
+  for (let i = 0; i < b.length; i++) out += String.fromCharCode(b[i]);
+  return btoa(out);
+};
+const utf8 = (t) => new TextEncoder().encode(t);
+/** 010-1234-5678, 01012345678, +82 10 1234 5678  ->  01012345678 */
+const normalizePhone = (v) => {
+  let d = String(v || "").replace(/\D/g, "");
+  if (d.startsWith("82") && d.length >= 11) d = `0${d.slice(2)}`;
+  return d;
+};
+const phoneValid = (v) => /^0\d{9,10}$/.test(normalizePhone(v));
+const PHONE_SALT = "carrotworld-explorer-join-v1";
+const PHONE_ITER = 120000;
+/** One-way code of a phone number (slow on purpose, so guessing numbers one by one is costly). */
+async function phoneCode(phone) {
+  const base = await crypto.subtle.importKey("raw", utf8(normalizePhone(phone)), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: utf8(PHONE_SALT), iterations: PHONE_ITER, hash: "SHA-256" }, base, 192);
+  return toB64(bits);
+}
+/** A family waits for approval while any of its children is marked "pending" (older records have no status = accepted). */
+const isPendingStudent = (st) => st.status === "pending";
+const familyPending = (students, pin) => students.some((st) => st.familyPin === pin && isPendingStudent(st));
+const pendingFamilies = (students) => {
+  const pins = [...new Set(students.filter(isPendingStudent).map((st) => st.familyPin))];
+  return pins.map((pin) => {
+    const kids = students.filter((st) => st.familyPin === pin);
+    const first = kids.find((k) => k.phoneLast4) || kids[0];
+    const registeredAt = kids.map((k) => k.registeredAt).filter(Boolean).sort()[0] || null;
+    // the same number already used by another family?
+    const code = kids.find((k) => k.phoneCode)?.phoneCode;
+    const sameNumber = code ? students.filter((st) => st.phoneCode === code && st.familyPin !== pin).map((st) => st.name) : [];
+    return { pin, kids, phoneLast4: first?.phoneLast4 || "", phoneCode: code || "", registeredAt, sameNumber: [...new Set(sameNumber)] };
+  });
+};
+// a few wrong numbers in a row lock the number pad for a while (a deterrent on this phone, not a server rule)
+const LOGIN_LOCK = "cw-login-fails";
+const lockState = (key) => draftGet(key) || { count: 0, until: 0 };
+const lockedForMs = (key) => Math.max(0, (lockState(key).until || 0) - Date.now());
+const recordFailure = (key, limit = 5, minutes = 10) => {
+  const count = (lockState(key).count || 0) + 1;
+  draftSet(key, count >= limit ? { count: 0, until: Date.now() + minutes * 60000 } : { count, until: 0 });
+};
+const clearFailures = (key) => draftClear(key);
+const LOCKED_MSG = "시도가 너무 많아요. 10분 뒤에 다시 해 주세요.";
+
 /* A family is identified by a login number (4 digits) that the parent picks. Two families must never share one. */
 const COMMON_PINS = ["1234", "2345", "3456", "4567", "5678", "6789", "0123", "4321", "3210", "9876", "8765", "7654", "6543", "5432"];
 const isWeakPin = (pin) => /^(\d)\1{3}$/.test(pin) || COMMON_PINS.includes(pin);
@@ -3256,14 +3364,17 @@ function useUnloadWarning(active) {
   }, [active]);
 }
 
-function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onLookupPin, fixedPin, onCancel }) {
+function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onLookupPin, onLookupPhone, fixedPin, onCancel }) {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState(null);
   const [level, setLevel] = useState(null);
   const [typedPin, setTypedPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState("");
+  const [phone, setPhone] = useState("");
+  const [verifyError, setVerifyError] = useState("");
   const familyPin = mode === "sibling" ? fixedPin : typedPin;
+  const needsPhone = mode === "parent"; // a new family leaves the phone number from the application form
 
   const sameFamily = familyPin.length === 4 ? familyNamesFor(students, familyPin) : [];
   const pinStatus =
@@ -3273,8 +3384,8 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
         ? mode === "parent" ? "taken" : "joins"
         : isWeakPin(familyPin) ? "weak" : "free";
 
-  const canSubmit = name.trim() && avatar && level && /^\d{4}$/.test(familyPin) && pinStatus !== "taken" && pinStatus !== "weak" && !busy;
-  const reset = () => { setName(""); setAvatar(null); setLevel(null); setTypedPin(""); setRefused(""); };
+  const canSubmit = name.trim() && avatar && level && /^\d{4}$/.test(familyPin) && pinStatus !== "taken" && pinStatus !== "weak" && (!needsPhone || phoneValid(phone)) && !busy;
+  const reset = () => { setName(""); setAvatar(null); setLevel(null); setTypedPin(""); setRefused(""); setPhone(""); setVerifyError(""); };
   const submit = async () => {
     if (!canSubmit) return;
     if (mode === "parent") {
@@ -3292,7 +3403,25 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
         return;
       }
     }
-    onRegister({ name: name.trim(), avatar, level, familyPin });
+    let contact;
+    if (needsPhone) {
+      setBusy(true);
+      let code = "";
+      let sameNumber = [];
+      try {
+        code = await phoneCode(phone);
+        sameNumber = onLookupPhone ? await onLookupPhone(code, familyPin) : [];
+      } catch (e) {
+        sameNumber = [];
+      }
+      setBusy(false);
+      if (sameNumber.length) {
+        setVerifyError("이미 이 번호로 등록돼 있어요. 로그인 번호를 잊으셨다면 선생님께 문의해 주세요.");
+        return;
+      }
+      contact = { phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code };
+    }
+    onRegister({ name: name.trim(), avatar, level, familyPin, ...(contact ? { contact } : {}) });
     reset();
   };
 
@@ -3361,6 +3490,24 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
               ? "이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요."
               : "이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요."}
           </p>
+          {needsPhone && (
+            <div className="mb-4">
+              <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>보호자 전화번호 (신청서에 적은 번호)</p>
+              <input
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 16)); setVerifyError(""); }}
+                placeholder="010-0000-0000"
+                inputMode="tel"
+                aria-label="보호자 전화번호"
+                className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-1.5"
+                style={{ background: C.cream, border: `1px solid ${verifyError || (phone && !phoneValid(phone)) ? "#E0A19A" : C.beige}` }}
+              />
+              <p className="f-body text-[10px] text-gray-400">체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.</p>
+              <div aria-live="polite" className="min-h-[16px] mt-1">
+                {verifyError ? <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요.</p> : null}
+              </div>
+            </div>
+          )}
         </>
       )}
       <div className="flex gap-2">
@@ -4276,6 +4423,12 @@ function compareWithServer(local, fresh) {
     }).length;
     rows.push({ key: `adv-${key}`, label, total: targets.length, saved });
   });
+  const freshStudents = new Map((fresh.students || []).map((st) => [st.id, st]));
+  [["status", "가입 수락 상태"], ["phoneCode", "신청 번호 확인 코드"], ["phoneLast4", "신청 번호 뒷자리"]].forEach(([key, label]) => {
+    const targets = (local.students || []).filter((st) => hasValue(st[key]));
+    const saved = targets.filter((st) => freshStudents.has(st.id) && stableJson(freshStudents.get(st.id)[key]) === stableJson(st[key])).length;
+    rows.push({ key: `student-${key}`, label, total: targets.length, saved });
+  });
   const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
   [[WISH_TYPE, "찜"], [VISIT_TYPE, "방문 기록"]].forEach(([type, label]) => {
     const targets = (local.suggestions || []).filter((x) => x.type === type);
@@ -4743,7 +4896,91 @@ function StatsPanel({ adventures, students, suggestions }) {
 // remembered outside the screen so it survives the screen being rebuilt after a save or delete
 const teacherUi = { tab: "manage", programId: null };
 
-function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+const timeAgoKo = (iso) => {
+  if (!iso) return "";
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  if (mins < 1) return "방금";
+  if (mins < 60) return `${mins}분 전`;
+  if (mins < 60 * 24) return `${Math.floor(mins / 60)}시간 전`;
+  return `${Math.floor(mins / (60 * 24))}일 전`;
+};
+
+/** Staff: new families waiting for approval. Compare with the application form, then accept or decline. */
+function ApprovalPanel({ students, onAccept, onReject }) {
+  const families = pendingFamilies(students);
+  const [declining, setDeclining] = useState(null);
+  const [typed, setTyped] = useState({}); // pin -> number staff pasted from the form
+  const [verdict, setVerdict] = useState({}); // pin -> "match" | "differ"
+  const check = async (f) => {
+    const t = typed[f.pin] || "";
+    if (!phoneValid(t)) return setVerdict((v) => ({ ...v, [f.pin]: "bad" }));
+    const code = await phoneCode(t);
+    setVerdict((v) => ({ ...v, [f.pin]: code === f.phoneCode ? "match" : "differ" }));
+  };
+  if (!families.length) {
+    return <div className="px-5"><div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-sm text-gray-400">수락을 기다리는 가입이 없어요.</p></div></div>;
+  }
+  return (
+    <div className="px-5 space-y-3">
+      <p className="f-body text-[11px] text-gray-500">신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.</p>
+      {families.map((f) => (
+        <div key={f.pin} className="bg-white rounded-2xl p-4">
+          <div className="space-y-1.5 mb-2">
+            {f.kids.map((k) => (
+              <div key={k.id} className="flex items-center gap-2">
+                <span className="text-xl" aria-hidden="true">{k.avatar}</span>
+                <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{k.name} <span className="f-body font-normal text-[11px] text-gray-400">· Level {k.level}</span></p>
+              </div>
+            ))}
+          </div>
+          <p className="f-body text-[12px]" style={{ color: C.charcoal }}>
+            신청 번호 뒷자리 <b>{f.phoneLast4 || "—"}</b>
+            {f.registeredAt && <span className="text-gray-400"> · {timeAgoKo(f.registeredAt)} 신청</span>}
+          </p>
+          {f.sameNumber.length > 0 && (
+            <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>⚠️ 같은 번호로 이미 가입한 가족이 있어요: {f.sameNumber.join(", ")}</p>
+          )}
+          {f.phoneCode && (
+            <div className="mt-2">
+              <div className="flex gap-2">
+                <input
+                  value={typed[f.pin] || ""}
+                  onChange={(e) => { setTyped((t) => ({ ...t, [f.pin]: e.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 16) })); setVerdict((v) => ({ ...v, [f.pin]: null })); }}
+                  placeholder="신청서 번호를 붙여넣어 확인 (선택)"
+                  inputMode="tel"
+                  aria-label={`신청서 번호 확인 ${f.kids[0].name}`}
+                  className="focus-ring flex-1 min-w-0 rounded-lg px-2.5 py-2 f-body text-[12px] outline-none"
+                  style={{ background: C.cream, border: `1px solid ${C.beige}` }}
+                />
+                <button onClick={() => check(f)} disabled={!typed[f.pin]} className="focus-ring tap shrink-0 f-body text-[12px] font-bold rounded-lg px-3 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>확인</button>
+              </div>
+              {verdict[f.pin] === "match" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#1F7A44" }}>✓ 가입할 때 입력한 번호와 같아요</p>}
+              {verdict[f.pin] === "differ" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>✗ 가입할 때 입력한 번호와 달라요</p>}
+              {verdict[f.pin] === "bad" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요</p>}
+            </div>
+          )}
+          <div className="flex gap-2 mt-3">
+            <button onClick={() => setDeclining(f.pin)} className="focus-ring tap flex-1 f-body text-[13px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#C0674A" }}>거절</button>
+            <button onClick={() => onAccept(f.pin)} className="focus-ring tap flex-[2] f-display text-[13px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>수락</button>
+          </div>
+        </div>
+      ))}
+      {declining && (
+        <ConfirmDialog
+          title="가입을 거절할까요?"
+          actions={[
+            { label: "거절하고 삭제", tone: "danger", onClick: () => { onReject(declining); setDeclining(null); } },
+            { label: "취소", tone: "plain", onClick: () => setDeclining(null) },
+          ]}
+        >
+          거절하면 이 가입 신청이 삭제돼요. 신청이 맞다면 부모님이 다시 등록할 수 있어요.
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -4783,6 +5020,16 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
     .map((a) => ({ a, student: students.find((st) => st.id === a.studentId), program: getProgram(a.programId) }))
     .filter((r) => r.student && r.program);
   const teacherNotices = [];
+  const waitingFamilies = pendingFamilies(students).length;
+  if (waitingFamilies) {
+    teacherNotices.push({
+      key: "approvals",
+      icon: "🙌",
+      title: `가입 수락 대기 ${waitingFamilies}건`,
+      text: "신청서와 맞는지 확인하고 수락해 주세요",
+      onClick: () => setTab("approve"),
+    });
+  }
   if (pendingInquiries.length) {
     teacherNotices.push({
       key: "inquiries",
@@ -4832,7 +5079,9 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
   });
   const unresolvedCount = pendingInquiries.length + pendingOther.length;
 
+  const pendingCount = pendingFamilies(students).length;
   const TABS = [
+    ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? `수락 ${pendingCount}` : "수락" }] : []),
     { key: "register", label: "현장등록" },
     { key: "manage", label: needReport.length ? `학생관리 ${needReport.length}` : "학생관리" },
     { key: "programs", label: "프로그램등록" },
@@ -4901,6 +5150,8 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
         </div>
       </div>
 
+      {tab === "approve" && <ApprovalPanel students={students} onAccept={onAcceptFamily || (() => {})} onReject={onRejectFamily || (() => {})} />}
+
       {tab === "register" && (
         <div className="px-5">
           <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
@@ -4932,49 +5183,43 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
             </div>
           </div>
 
-          <div className="px-5 mb-3 flex items-center gap-2 text-gray-500">
-            <Users size={15} />
-            <p className="f-body text-xs">{roster.length} students enrolled in {program.title}</p>
-            {wishesFor(suggestions, programId).length > 0 && (
-              <span className="f-body text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
-            )}
-          </div>
-
           <div className="px-5 mb-3">
-            <button
-              onClick={() => onSetProgramToday(programId, !program.dateReached)}
-              aria-pressed={!!program.dateReached}
-              className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
-              style={{ background: program.dateReached ? "#DCF3E4" : "white", border: `1px solid ${program.dateReached ? "#9FD6B2" : C.beige}` }}
-            >
-              {program.dateReached ? <CheckCircle2 size={22} color="#1F7A44" /> : <Circle size={22} color="#D8CEB8" />}
-              <span className="flex-1 min-w-0">
-                <span className="block f-body text-[13px] font-bold" style={{ color: program.dateReached ? "#1F7A44" : C.charcoal }}>
-                  {program.dateReached ? "오늘 진행 중" : "오늘 진행 켜기"}
-                </span>
-                <span className="block f-body text-[11px] text-gray-500">
-                  {program.dateReached ? "아이들이 현장 미션을 시작할 수 있어요. 누르면 다시 잠겨요." : "누르면 아이 화면의 현장 단계가 바로 열려요."}
-                </span>
-              </span>
-            </button>
-          </div>
-          <div className="px-5 mb-3">
-            <button
-              onClick={() => onSetProgramReview(programId, !program.reviewOpen)}
-              aria-pressed={!!program.reviewOpen}
-              className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
-              style={{ background: program.reviewOpen ? "#DCF3E4" : "white", border: `1px solid ${program.reviewOpen ? "#9FD6B2" : C.beige}` }}
-            >
-              {program.reviewOpen ? <CheckCircle2 size={22} color="#1F7A44" /> : <Circle size={22} color="#D8CEB8" />}
-              <span className="flex-1 min-w-0">
-                <span className="block f-body text-[13px] font-bold" style={{ color: program.reviewOpen ? "#1F7A44" : C.charcoal }}>
-                  {program.reviewOpen ? "복습 열림" : "복습 열기"}
-                </span>
-                <span className="block f-body text-[11px] text-gray-500">
-                  {program.reviewOpen ? "체험에 다녀온 아이들이 복습 퀴즈를 풀 수 있어요. 누르면 다시 잠겨요." : "복습 퀴즈를 만든 뒤 누르면 아이들이 복습을 시작할 수 있어요."}
-                </span>
-              </span>
-            </button>
+            <div className="bg-white rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Cover program={program} className="w-11 h-11 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>{program.title}</p>
+                  <p className="f-body text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+                    <Users size={12} /> 신청한 아이 {roster.length}명
+                    {wishesFor(suggestions, programId).length > 0 && (
+                      <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { on: !!program.dateReached, label: "오늘 진행", onLabel: "진행 중", onClick: () => onSetProgramToday(programId, !program.dateReached) },
+                  { on: !!program.reviewOpen, label: "복습", onLabel: "열림", onClick: () => onSetProgramReview(programId, !program.reviewOpen) },
+                ].map((sw) => (
+                  <button
+                    key={sw.label}
+                    onClick={sw.onClick}
+                    aria-pressed={sw.on}
+                    aria-label={`${sw.label} ${sw.on ? "켜짐" : "꺼짐"}`}
+                    className="focus-ring tap flex items-center gap-2 rounded-xl px-3 py-2.5 text-left"
+                    style={{ background: sw.on ? "#DCF3E4" : C.cream, border: `1px solid ${sw.on ? "#9FD6B2" : C.beige}` }}
+                  >
+                    {sw.on ? <CheckCircle2 size={18} color="#1F7A44" /> : <Circle size={18} color="#D8CEB8" />}
+                    <span className="min-w-0">
+                      <span className="block f-body text-[12px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.label}</span>
+                      <span className="block f-body text-[10px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onLabel : "꺼짐"}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="f-body text-[10.5px] text-gray-400 mt-2">한 번 누르면 이 프로그램에 신청한 아이 {roster.length}명 모두에게 바로 적용돼요.</p>
+            </div>
           </div>
 
           <div className="px-5 space-y-3">
@@ -5048,6 +5293,9 @@ function TeacherDashboard({ adventures, students, updateAdventure, onSetProgramT
                 <div className="flex-1 min-w-0">
                   <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>{p.title}</p>
                   <p className="f-body text-[11px] text-gray-400">{p.date} · {p.locationKo || p.location}</p>
+                  {(p.dateReached || p.reviewOpen) && (
+                    <p className="f-body text-[11px] font-bold" style={{ color: "#1F7A44" }}>{[p.dateReached && "오늘 진행 중", p.reviewOpen && "복습 열림"].filter(Boolean).join(" · ")}</p>
+                  )}
                   {wishesFor(suggestions, p.id).length > 0 && (
                     <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
                   )}
@@ -5160,7 +5408,7 @@ function PinPad({ length = 4, validate, onSuccess }) {
 
 /** Links opened from a KakaoTalk chat run inside KakaoTalk's own browser, which is limited. */
 const isKakaoBrowser = () => typeof navigator !== "undefined" && /KAKAOTALK/i.test(navigator.userAgent || "");
-function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin }) {
+function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin, onLookupPhone }) {
   const inKakao = isKakaoBrowser();
   const [hideKakaoTip, setHideKakaoTip] = useState(false);
   const openInBrowser = () => {
@@ -5169,7 +5417,22 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin }) {
   const [step, setStep] = useState("role"); // role -> pin | register
   const [role, setRole] = useState(null);
 
-  const validate = role === "teacher" ? (pin) => pin === TEACHER_PIN : (pin) => students.some((s) => s.familyPin === pin);
+  const [pinLocked, setPinLocked] = useState(false);
+  const baseValidate = role === "teacher" ? (pin) => pin === TEACHER_PIN : (pin) => students.some((s) => s.familyPin === pin);
+  // a few wrong numbers in a row lock the number pad for a while (on this phone)
+  const validate = (pin) => {
+    if (lockedForMs(LOGIN_LOCK) > 0) {
+      setPinLocked(true);
+      return false;
+    }
+    const ok = baseValidate(pin);
+    if (ok) clearFailures(LOGIN_LOCK);
+    else {
+      recordFailure(LOGIN_LOCK);
+      if (lockedForMs(LOGIN_LOCK) > 0) setPinLocked(true);
+    }
+    return ok;
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: C.cream }}>
@@ -5232,6 +5495,7 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin }) {
               {role === "parent" ? "로그인 번호 4자리" : "Teacher access"}
             </p>
             <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null })} />
+            {pinLocked && <p role="alert" className="text-center f-body text-xs mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
             {role === "parent" && (
               <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[12px] font-bold py-4" style={{ color: C.orange }}>
                 처음이신가요? 자녀 등록하기
@@ -5251,7 +5515,7 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin }) {
             <p className="f-body text-sm text-gray-500 text-center mb-6">
               등록하면 바로 로그인돼요
             </p>
-            <RegisterStudentPanel mode="parent" students={students} onLookupPin={onLookupPin} onRegister={onSelfRegister} />
+            <RegisterStudentPanel mode="parent" students={students} onLookupPin={onLookupPin} onLookupPhone={onLookupPhone} onRegister={onSelfRegister} />
           </>
         )}
       </div>
@@ -5507,21 +5771,48 @@ export default function CarrotExplorer() {
   };
 
   const enrollStudent = (studentId, programId) => {
-    let created = null;
-    setAdventures((prev) => {
-      if (prev.some((a) => a.studentId === studentId && a.programId === programId)) return prev;
-      created = { ...blankAdventure(studentId, getProgram(programId)), enrolledAt: new Date().toISOString() };
-      return [...prev, created];
-    });
-    if (created) sync(api.createAdventure(created));
+    // decided from the current list, not inside the state update: when several updates happen together
+    // (e.g. registering a child and enrolling them at once) the update runs later and nothing would be sent to the server
+    if (adventures.some((a) => a.studentId === studentId && a.programId === programId)) return;
+    if (!getProgram(programId)) return;
+    const created = { ...blankAdventure(studentId, getProgram(programId)), enrolledAt: new Date().toISOString() };
+    setAdventures((prev) => (prev.some((a) => a.studentId === studentId && a.programId === programId) ? prev : [...prev, created]));
+    sync(api.createAdventure(created));
   };
 
-  const registerStudent = ({ name, avatar, level, familyPin }, programId) => {
+  const registerStudent = ({ name, avatar, level, familyPin, contact, pending }, programId) => {
     const id = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`;
-    const student = { id, name, avatar, level, familyPin };
+    // a new family waits for approval; a child added to a family inherits that family's state (waiting or accepted)
+    const waiting = pending || familyPending(students, familyPin);
+    const student = {
+      id, name, avatar, level, familyPin,
+      ...(contact ? { phoneLast4: contact.phoneLast4, phoneCode: contact.phoneCode } : {}),
+      ...(waiting ? { status: "pending", registeredAt: new Date().toISOString() } : {}),
+    };
     setStudents((prev) => [...prev, student]);
     sync(api.createStudent(student));
     if (programId) enrollStudent(id, programId);
+    return id;
+  };
+
+  // Same phone number already used by another family? (looks at the server's list right now)
+  const lookupPhone = async (code, pin) => {
+    const byId = new Map(students.map((st) => [st.id, st]));
+    try {
+      const fresh = await api.fetchState();
+      (fresh?.students || []).forEach((st) => byId.set(st.id, st));
+    } catch (e) {
+      /* offline: this phone's list is all we have */
+    }
+    return [...byId.values()].filter((st) => st.phoneCode === code && st.familyPin !== pin).map((st) => st.name);
+  };
+  // Staff decision on a new family: accept (all its children) or decline (the registration is removed).
+  const acceptFamily = (pin) => {
+    const at = new Date().toISOString();
+    students.filter((st) => st.familyPin === pin && isPendingStudent(st)).forEach((st) => editStudent(st.id, { status: "accepted", acceptedAt: at }));
+  };
+  const rejectFamily = (pin) => {
+    students.filter((st) => st.familyPin === pin && isPendingStudent(st)).forEach((st) => deleteStudent(st.id));
   };
 
   // Is this family number already taken? Looks at the server's list right now (plus anything just registered here).
@@ -5547,13 +5838,12 @@ export default function CarrotExplorer() {
   };
   const loginAs = (sess) => {
     setSession(sess);
-    if (sess.role === "parent") recordVisit(sess.familyPin);
+    if (sess.role === "parent" && !familyPending(students, sess.familyPin)) recordVisit(sess.familyPin);
   };
 
   const selfRegisterAndLogin = (info) => {
-    registerStudent(info);
-    setSession({ role: "parent", familyPin: info.familyPin });
-    recordVisit(info.familyPin);
+    registerStudent({ ...info, pending: true });
+    setSession({ role: "parent", familyPin: info.familyPin }); // waits for approval, so no visit is counted yet
   };
 
   const editStudent = (studentId, patch) => {
@@ -5669,7 +5959,7 @@ export default function CarrotExplorer() {
     flushSaves();
     await new Promise((r) => setTimeout(r, 800)); // let the last saves finish first
     const fresh = await api.fetchState();
-    return compareWithServer({ programs: PROGRAMS, adventures, suggestions }, fresh);
+    return compareWithServer({ programs: PROGRAMS, adventures, suggestions, students }, fresh);
   };
   const exportData = () => {
     downloadJson(`carrot-explorer-backup-${kstDay()}.json`, buildBackup({ students, programs: PROGRAMS, adventures, suggestions }));
@@ -5708,7 +5998,7 @@ export default function CarrotExplorer() {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
-        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} />
+        <LoginScreen students={students} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} onLookupPhone={lookupPhone} />
       </div>
     );
   }
@@ -5742,6 +6032,8 @@ export default function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onCheckSave={checkServerSave}
+              onAcceptFamily={acceptFamily}
+              onRejectFamily={rejectFamily}
               onRefresh={refreshState}
               onExportData={exportData}
               onResolveSuggestions={resolveSuggestions}
@@ -5757,6 +6049,10 @@ export default function CarrotExplorer() {
   }
 
   // role === "parent"
+  // a new family sees only a waiting screen until staff accept it: no programs and no learning material
+  if (familyPending(students, session.familyPin)) {
+    return <ParentWaiting students={students} familyPin={session.familyPin} onRefresh={() => refreshState()} onLogout={logout} />;
+  }
   if (parentScreen.type === "list") {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>

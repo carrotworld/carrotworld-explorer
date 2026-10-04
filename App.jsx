@@ -27,10 +27,13 @@ const C = {
 };
 
 const FONTS = `
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Jua&display=swap');
 .f-display { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .f-body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .f-display, .f-body { word-break: keep-all; overflow-wrap: break-word; }
+/* program names: a friendly, heavy rounded headline face. Jua has one (already heavy) weight, so fake bold is switched off;
+   if the font cannot load, the fallback font is shown in real bold instead of thin */
+.f-headline { font-family: 'Jua', 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 700; font-synthesis-weight: none; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; }
 @keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes riseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pop-in { animation: screenIn 0.2s ease both; }
@@ -556,11 +559,6 @@ const COVER_COLORS = {
   nature: ["#2F7A58", "#7DBB94"],
   history: ["#7A4E22", "#C28A4E"],
 };
-const coverGradient = (program) => {
-  const cat = program.category || ICON_CHOICES.find((i) => i.key === program.icon)?.category;
-  const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
-  return `linear-gradient(135deg, ${from}, ${to})`;
-};
 const themeBar = (program) => {
   const cat = program.category || ICON_CHOICES.find((i) => i.key === program.icon)?.category;
   const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
@@ -571,40 +569,26 @@ const splitTitle = (title) => {
   return [main.trim(), rest.join(": ").trim()];
 };
 /** Program name as it appears everywhere in lists: big main name, English line under it. */
-function ProgramTitle({ program, size = 20 }) {
+function ProgramTitle({ program, size = 22 }) {
   const [main, sub] = splitTitle(program.title);
   return (
     <>
-      <p className="f-display font-bold leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}</p>
+      <p className="f-headline leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}</p>
       {sub && <p className="f-body text-[15px] text-gray-500 leading-snug">{sub}</p>}
     </>
   );
 }
-const TitleBar = ({ program }) => <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(program) }} aria-hidden="true" />;
-
-/** Photo-free cover: the program title (large covers) or its icon (small thumbnails) on a themed colour. */
-function Cover({ program, className = "", showTitle = false }) {
+/** The big version, for the top of a screen: just the name, nothing around it. */
+function ProgramHeadline({ program, size = 34 }) {
   const [main, sub] = splitTitle(program.title);
   return (
-    <div className={`relative overflow-hidden rounded-2xl ${className}`} style={{ background: coverGradient(program) }} role="img" aria-label={program.title || "Program cover"}>
-      {showTitle ? (
-        <>
-          <div className="absolute pointer-events-none" style={{ right: -16, bottom: -20, opacity: 0.16 }}>
-            <ProgramIcon kind={program.icon} size={120} color="white" />
-          </div>
-          <div className="relative h-full flex flex-col justify-end p-4">
-            <p className="f-display font-bold text-white leading-tight" style={{ fontSize: 24 }}>{main || "프로그램 이름"}</p>
-            {sub && <p className="f-body text-[15px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}>{sub}</p>}
-          </div>
-        </>
-      ) : (
-        <div className="relative h-full w-full flex items-center justify-center">
-          <ProgramIcon kind={program.icon} size={28} color="white" />
-        </div>
-      )}
+    <div>
+      <h2 className="f-headline leading-tight" style={{ color: C.green, fontSize: size }}>{main || program.title}</h2>
+      {sub && <p className="f-body text-[18px] text-gray-500 leading-snug mt-1">{sub}</p>}
     </div>
   );
 }
+const TitleBar = ({ program }) => <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(program) }} aria-hidden="true" />;
 
 function RankIcon({ label, size = 24, color = C.green }) {
   const s = { stroke: color, strokeWidth: 1.6, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
@@ -1267,26 +1251,12 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(next.program.id)}
           className="focus-ring tap w-full text-left cursor-pointer relative"
         >
-          <div className="relative h-32 rounded-t-2xl overflow-hidden flex items-center justify-center" style={{ background: coverGradient(next.program) }}>
-            <div
-              className="absolute inset-0"
-              style={{ backgroundImage: `repeating-linear-gradient(135deg, rgba(255,248,237,0.10) 0px, rgba(255,248,237,0.10) 1px, transparent 1px, transparent 11px)` }}
-            />
-            <ProgramIcon kind={next.program.icon} size={46} color="white" />
-          </div>
-          <div className="relative h-0">
-            <div className="absolute rounded-full" style={{ left: -10, top: -10, width: 20, height: 20, background: C.cream }} />
-            <div className="absolute rounded-full" style={{ right: -10, top: -10, width: 20, height: 20, background: C.cream }} />
-            <div className="border-t-2 border-dashed" style={{ borderColor: C.beige, marginLeft: 12, marginRight: 12 }} />
-          </div>
-          <div className="bg-white rounded-b-2xl p-5 pt-6">
-            <p className="f-body text-[14px] font-bold uppercase tracking-wide" style={{ color: C.orange }}>
+          <div className="bg-white rounded-2xl p-5">
+            <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>
               {next.program.date} · Level {levelLabel(next.program)}
             </p>
-            <h2 className="f-display text-[21px] font-semibold mt-0.5 mb-3" style={{ color: C.green }}>
-              {next.program.title}
-            </h2>
-            <p className="f-body text-[15px] text-gray-500">{statusLine}</p>
+            <div className="mb-3"><ProgramHeadline program={next.program} size={34} /></div>
+            <p className="f-body text-[16px] text-gray-500">{statusLine}</p>
             <div className="mt-4" onClick={(e) => e.stopPropagation()}>
               <PrimaryButton onClick={() => onOpen(next.program.id)}>{ctaLabel}</PrimaryButton>
             </div>
@@ -1324,13 +1294,10 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
 
 function ProgramMiniCard({ program, onClick }) {
   return (
-    <button onClick={onClick} className="focus-ring tap bg-white rounded-2xl shrink-0 w-36 overflow-hidden text-left">
-      <Cover program={program} className="h-20 rounded-none" />
-      <div className="p-3">
-        <p className="f-display text-[16px] font-semibold leading-snug" style={{ color: C.green }}>
-          {program.title}
-        </p>
-        <p className="f-body text-[13px] text-gray-400 mt-1">{program.date}</p>
+    <button onClick={onClick} className="focus-ring tap bg-white rounded-2xl shrink-0 w-44 overflow-hidden text-left">
+      <div className="p-4">
+        <p className="f-headline text-[21px] leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</p>
+        <p className="f-body text-[14px] text-gray-400 mt-1.5">{program.date}</p>
       </div>
     </button>
   );
@@ -2002,7 +1969,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         <button onClick={onBack} aria-label="Go back" className="focus-ring tap w-9 h-9 rounded-full flex items-center justify-center bg-white border shrink-0" style={{ borderColor: C.beige }}>
           <ArrowLeft size={18} color={C.green} />
         </button>
-        <h1 className="f-display text-[18px] font-semibold truncate" style={{ color: C.green }}>{program.title}</h1>
+        <h1 className="f-headline text-[24px] leading-tight" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</h1>
       </div>
       <div className="px-5 mb-4">
         <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
@@ -2011,7 +1978,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         </button>
         {showAbout && (
           <div className="mt-2">
-            <Cover program={program} showTitle className="h-28 mb-3" />
+            <div className="mb-3"><ProgramHeadline program={program} size={30} /></div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
               <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
@@ -2409,7 +2376,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                     <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                     <span className="min-w-0 py-0.5">
-                      <span className="block f-display font-bold text-[20px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                      <span className="block f-headline text-[23px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
                       {splitTitle(p.title)[1] && <span className="block f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</span>}
                       <span className="block f-body text-[14px] text-gray-400 mt-0.5">{p.date} · Level {levelLabel(p)}</span>
                     </span>
@@ -4135,7 +4102,7 @@ function ProgramInfoSheet({ program, onClose }) {
           <h2 className="f-display text-[21px] font-semibold" style={{ color: C.green }}>체험 안내</h2>
           <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
         </div>
-        <Cover program={program} showTitle className="h-36 mb-4" />
+        <div className="mb-5"><ProgramHeadline program={program} size={34} /></div>
         <div className="space-y-2.5">
           {rows.slice(0, 3).map((r) => (
             <InfoRow key={r.label} {...r} />
@@ -4318,9 +4285,11 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         ))}
       </div>
 
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>대표 이미지 미리보기</p>
-      <Cover program={{ title, icon: icons[0], category: ICON_CHOICES.find((i) => i.key === icons[0])?.category }} showTitle className="h-28 mb-1" />
-      <p className="f-body text-[13px] text-gray-400 mb-3">사진 없이, 이름과 아이콘으로 자동으로 만들어져요.</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>이름 미리보기</p>
+      <div className="rounded-2xl px-4 py-4 mb-1" style={{ background: C.cream, border: `1px solid ${C.beige}` }}>
+        <ProgramHeadline program={{ title: title.trim() || "프로그램 이름" }} size={30} />
+      </div>
+      <p className="f-body text-[13px] text-gray-400 mb-3">부모님과 아이 화면에 이렇게 큰 제목으로 나와요. ":" 뒤의 영어는 작게 아래에 보여요.</p>
 
       <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 mb-3">
@@ -5570,7 +5539,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
               >
                 <span className="w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                 <div className="flex-1 min-w-0 py-0.5">
-                  <p className="f-display font-bold text-[21px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+                  <p className="f-headline text-[24px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
                   {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
                   <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
                   {wishesFor(suggestions, p.id).length > 0 && (

@@ -2325,6 +2325,10 @@ function parentNotices(children, adventures) {
           const when = [program.date, program.info.time].filter(Boolean).join(" ");
           list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
         }
+        const team = teamOf(program, a);
+        if (team && !a.attended) {
+          list.push({ key: `${base}-team`, icon: "🧑‍🏫", title: "팀과 담당 선생님이 정해졌어요", text: `${base} · ${teamForParent(team)}`, action: "확인하기", kind: "team", programId: program.id });
+        }
         if (a.attended && !a.parentSurvey) {
           list.push({ key: `${base}-survey`, icon: "📋", title: "체험 후 설문을 남겨 주세요", text: `${base} · 1~2분이면 돼요`, action: "설문하기", kind: "survey", childId: child.id, programId: program.id });
         }
@@ -2338,7 +2342,7 @@ function parentNotices(children, adventures) {
         }
       });
   });
-  const priority = { "🎒": 0, "📍": 1, "📝": 2, "📋": 3, "✏️": 4, "📚": 5 };
+  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "📝": 3, "📋": 4, "✏️": 5, "📚": 6 };
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
@@ -2748,7 +2752,16 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
       />
       {showGuide && <ParentGuide onClose={closeGuide} />}
       {showSheet && <GuideSheet onClose={() => setShowSheet(false)} />}
-      {infoId && getProgram(infoId) && <ProgramInfoSheet program={getProgram(infoId)} onClose={() => setInfoId(null)} />}
+      {infoId && getProgram(infoId) && (
+        <ProgramInfoSheet
+          program={getProgram(infoId)}
+          teamRows={myChildren
+            .map((c) => ({ c, a: adventures.find((x) => x.studentId === c.id && x.programId === infoId) }))
+            .filter((x) => x.a && teamOf(getProgram(infoId), x.a))
+            .map((x) => `${x.c.name} · ${teamForParent(teamOf(getProgram(infoId), x.a))}`)}
+          onClose={() => setInfoId(null)}
+        />
+      )}
       <div className="px-5 space-y-3">
         {myChildren.length === 0 && (
           <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
@@ -2761,7 +2774,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
               {notices.map((n) => (
                 <button
                   key={n.key}
-                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" ? setInfoId(n.programId) : onStartAdventure(n.childId))}
+                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" || n.kind === "team" ? setInfoId(n.programId) : onStartAdventure(n.childId))}
                   className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
                   style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
                 >
@@ -2810,6 +2823,28 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                   <div className="h-full rounded-full" style={{ width: `${segPct}%`, background: C.orange }} />
                 </div>
               </div>
+              {adventures.filter((a) => a.studentId === s.id).length > 0 && (
+                <div className="mb-3 space-y-2">
+                  <p className="f-body text-[14px] font-bold" style={{ color: C.orange }}>신청한 체험</p>
+                  {adventures.filter((a) => a.studentId === s.id).map((a) => {
+                    const prog = getProgram(a.programId);
+                    if (!prog) return null;
+                    const team = teamOf(prog, a);
+                    return (
+                      <div key={a.programId} className="flex items-stretch gap-3">
+                        <TitleBar program={prog} />
+                        <div className="min-w-0 py-0.5">
+                          <p className="f-headline text-[20px] leading-snug" style={{ color: C.green }}>{splitTitle(prog.title)[0] || prog.title}</p>
+                          <p className="f-body text-[14px] text-gray-400">{prog.date}</p>
+                          <p className="f-body text-[15px] font-bold mt-0.5" style={{ color: team ? "#1F7A44" : "#9C927D" }}>
+                            {team ? `🧑‍🏫 ${teamForParent(team)}` : "팀과 선생님을 정하고 있어요"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => onViewReport(s.id)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
                   리포트 보기
@@ -2895,7 +2930,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 /* ================================================================== */
 /*  TEACHER VIEW                                                        */
 /* ================================================================== */
-function TeacherStudentCard({ student, allStudents, onCancelEnrollment, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
+function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssignTeam, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -2938,9 +2973,6 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, programT
         <span className="text-[27px]">{student.avatar}</span>
         <div className="flex-1 min-w-0">
           <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{student.name}</p>
-          <p className="f-body text-[14px] text-gray-400">
-            Level {student.level} · 참여 {participationCount}회 · {reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>복습 {reviewScoreOf(adv).percent}% · </span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>📝 리포트 작성됨</span> : <span style={{ color: "#B08A3E" }}>리포트 미작성</span>}
-          </p>
         </div>
         <button
           onClick={() => {
@@ -2960,6 +2992,17 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, programT
         </button>
       </div>
 
+      <div className="px-4 pb-2.5 -mt-1">
+        {teamsOf(program).length > 0 && (
+          <p className="f-body text-[14px] font-bold" style={{ color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}>
+            {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 미배정"}
+          </p>
+        )}
+        <p className="f-body text-[14px] text-gray-400">
+          Level {student.level} · 참여 {participationCount}회 · {reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>복습 {reviewScoreOf(adv).percent}% · </span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>📝 리포트 작성됨</span> : <span style={{ color: "#B08A3E" }}>리포트 미작성</span>}
+        </p>
+      </div>
+
       <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3 border-l-4" style={{ background: "#FFF1E2", borderColor: C.orange }}>
         <span style={{ fontSize: 25 }}>{rank.emoji}</span>
         <div className="flex-1 min-w-0">
@@ -2970,6 +3013,27 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, programT
 
       {open && (
         <div className="px-4 pb-4 space-y-4">
+          {teamsOf(program).length > 0 && onAssignTeam && (
+            <div>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>팀</p>
+              <div className="flex flex-wrap gap-2">
+                {teamsOf(program).map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => onAssignTeam(t.id)}
+                    aria-pressed={adv.teamId === t.id}
+                    className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-2 rounded-full"
+                    style={{ background: adv.teamId === t.id ? C.green : C.cream, color: adv.teamId === t.id ? "white" : C.charcoal, border: `1px solid ${adv.teamId === t.id ? C.green : C.beige}` }}
+                  >
+                    {teamLabel(t)}
+                  </button>
+                ))}
+                {adv.teamId && teamOf(program, adv) && (
+                  <button onClick={() => onAssignTeam("")} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-2 rounded-full" style={{ color: "#9C927D" }}>팀에서 빼기</button>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>학생 정보</p>
@@ -4083,7 +4147,7 @@ function InfoEditor({ program, value, onChange }) {
 }
 
 /** What parents see: one clear page, only the rows that were filled in. */
-function ProgramInfoSheet({ program, onClose }) {
+function ProgramInfoSheet({ program, teamRows = [], onClose }) {
   const info = infoFrom(program);
   const place = info.venue || program.locationKo || program.location;
   const bring = splitBring(info.bring);
@@ -4107,6 +4171,14 @@ function ProgramInfoSheet({ program, onClose }) {
           {rows.slice(0, 3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
+          {teamRows.length > 0 && (
+            <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
+              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>🧑‍🏫 우리 아이 팀과 선생님</p>
+              {teamRows.map((r, i) => (
+                <p key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>{r}</p>
+              ))}
+            </div>
+          )}
           {bring.length > 0 && (
             <div className="bg-white rounded-2xl p-4">
               <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.orange }}>🎒 준비물</p>
@@ -4416,6 +4488,7 @@ const PROGRAM_CHECKS = [
   ["dateReached", "오늘 진행"],
   ["reviewOpen", "복습 열기"],
   ["info", "체험 전 안내"],
+  ["teams", "팀 구성"],
 ];
 const ADVENTURE_CHECKS = [
   ["insights", "단어 연습·답 기록"],
@@ -4425,6 +4498,7 @@ const ADVENTURE_CHECKS = [
   ["beforeCompletedAt", "예습 완료 시각"],
   ["attendedAt", "출석 시각"],
   ["afterCompletedAt", "복습 완료 시각"],
+  ["teamId", "팀 배정"],
 ];
 /** Compares what the screen holds with what the server returns right now. */
 function compareWithServer(local, fresh) {
@@ -5001,6 +5075,19 @@ function ApprovalPanel({ students, onAccept, onReject }) {
   );
 }
 
+/* ================================================================== */
+/*  TEAMS: a level group + a teacher, per program (e.g. "A1 · Anna")    */
+/*  Definitions live on the program (`teams`); each child's place is     */
+/*  `teamId` on their own adventure record.                              */
+/* ================================================================== */
+const teachersCall = (name) => (/선생/.test(name) ? name : `${name} 선생님`);
+const teamsOf = (program) => (program && Array.isArray(program.teams) ? program.teams : []);
+const teamOf = (program, adv) => teamsOf(program).find((t) => t.id === adv?.teamId) || null;
+const teamLabel = (t) => `${t.level} · ${t.teacher}`;
+/** What a parent reads: "A1 팀 · Anna 선생님" */
+const teamForParent = (t) => `${t.level} 팀 · ${teachersCall(t.teacher)}`;
+const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf(p).map((t) => t.teacher)).filter(Boolean))];
+
 /** Where a program stands, worked out from existing data (nothing extra is stored). */
 function programStatus(program, adventures) {
   const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
@@ -5012,8 +5099,12 @@ function programStatus(program, adventures) {
   else stage = "before";
   const infoSent = !!program.info?.published;
   const reportsLeft = attended.filter((a) => !a.feedback).length;
+  const teams = teamsOf(program);
+  const unassigned = teams.length ? mine.filter((a) => !teams.some((t) => t.id === a.teamId)).length : 0;
   return {
     stage, // before | live | done
+    teamCount: teams.length,
+    unassigned,
     enrolled: mine.length,
     attended: attended.length,
     infoSent,
@@ -5081,6 +5172,7 @@ function nextStep(program, st) {
   if (st.stage === "before") {
     if (st.infoLate) return { text: "체험 전 안내를 보내야 해요", go: "info" };
     if (st.enrolled === 0) return { text: "신청한 아이가 아직 없어요", go: "manage" };
+    if (st.unassigned > 0) return { text: `팀이 정해지지 않은 아이가 ${st.unassigned}명 있어요`, go: "manage" };
     return { text: "체험 날에 '오늘 진행'을 켜 주세요", go: "manage" };
   }
   if (st.stage === "live") {
@@ -5148,6 +5240,11 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
               {cell("복습", p.reviewOpen ? "열림 ✓" : "닫힘", p.reviewOpen ? "ok" : "")}
               {cell("피드백", st.attended === 0 ? "—" : st.reportsLeft > 0 ? `${st.reportsLeft}명 남음` : "모두 작성 ✓", st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
             </div>
+            {st.teamCount > 0 && (
+              <div className="mt-2">
+                {cell("팀 · 선생님", `${st.teamCount}팀 · ${teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", ")}${st.unassigned > 0 ? ` · 미배정 ${st.unassigned}명` : ""}`, st.unassigned > 0 ? "warn" : "ok")}
+              </div>
+            )}
             {next.go ? (
               <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-3 flex items-center justify-between gap-2 rounded-xl px-3.5 py-3 text-left" style={{ background: "#FFF1E2" }}>
                 <span className="f-body text-[15px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
@@ -5180,7 +5277,107 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, updateAdventure, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+/** Teacher: make teams (level + teacher) for a program and see who is in each one. */
+function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign }) {
+  const teams = teamsOf(program);
+  const [form, setForm] = useState(null); // { id|null, level, teacher }
+  const members = (t) => roster.filter((r) => r.adv.teamId === t.id).map((r) => r.student);
+  const loose = roster.filter((r) => !teams.some((t) => t.id === r.adv.teamId)).map((r) => r.student);
+  const startAdd = () => setForm({ id: null, level: loose[0]?.level || LEVEL_CHOICES[1], teacher: "" });
+  const save = () => {
+    const teacher = form.teacher.trim();
+    if (!teacher) return;
+    const next = form.id
+      ? teams.map((t) => (t.id === form.id ? { ...t, level: form.level, teacher } : t))
+      : [...teams, { id: `t-${Date.now().toString(36)}`, level: form.level, teacher }];
+    onSaveTeams(next);
+    setForm(null);
+  };
+  const remove = (t) => {
+    members(t).forEach((st) => onAssign(st.id, ""));
+    onSaveTeams(teams.filter((x) => x.id !== t.id));
+    setForm(null);
+  };
+  const fillLevel = (t) => loose.filter((st) => st.level === t.level).forEach((st) => onAssign(st.id, t.id));
+  const field = "focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none";
+  return (
+    <div className="px-5 mb-3">
+      <div className="bg-white rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>팀 · 선생님</p>
+          {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>+ 팀 추가</button>}
+        </div>
+        {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요.</p>}
+
+        <div className="space-y-2 mt-2">
+          {teams.map((t) => {
+            const mem = members(t);
+            const fillable = loose.filter((st) => st.level === t.level).length;
+            return (
+              <div key={t.id} className="rounded-xl p-3" style={{ background: C.cream }}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="f-headline text-[21px] leading-snug" style={{ color: C.green }}>{t.level} · {t.teacher}</p>
+                    <p className="f-body text-[15px]" style={{ color: C.charcoal }}>
+                      {mem.length ? `${mem.length}명 · ${mem.map((m) => m.name).join(", ")}` : "아직 아이가 없어요"}
+                    </p>
+                  </div>
+                  <button onClick={() => setForm({ id: t.id, level: t.level, teacher: t.teacher })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: C.orange }}>수정</button>
+                </div>
+                {fillable > 0 && (
+                  <button onClick={() => fillLevel(t)} className="focus-ring tap mt-2 f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
+                    {t.level} 레벨 아이 {fillable}명 넣기
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {teams.length > 0 && loose.length > 0 && (
+          <p className="f-body text-[14px] font-bold mt-3" style={{ color: "#B25A0B" }}>팀 미배정 {loose.length}명 · {loose.map((st) => `${st.name}(${st.level})`).join(", ")}</p>
+        )}
+
+        {form && (
+          <div className="mt-3 rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
+            <div className="flex gap-2 mb-3">
+              {LEVEL_CHOICES.map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setForm({ ...form, level: l })}
+                  aria-pressed={form.level === l}
+                  className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5"
+                  style={{ background: form.level === l ? C.green : C.cream, color: form.level === l ? "white" : C.charcoal, border: `1px solid ${form.level === l ? C.green : C.beige}` }}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>선생님 이름</p>
+            <input value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder="예: Anna" aria-label="선생님 이름" className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+            {teacherSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {teacherSuggestions.map((n) => (
+                  <button key={n} onClick={() => setForm({ ...form, teacher: n })} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}>{n}</button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setForm(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>취소</button>
+              <button onClick={save} disabled={!form.teacher.trim()} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.orange }}>{form.id ? "저장" : "팀 만들기"}</button>
+            </div>
+            {form.id && (
+              <button onClick={() => remove(teams.find((t) => t.id === form.id))} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 mt-1" style={{ color: "#C0674A" }}>이 팀 삭제 (아이들은 미배정으로 돌아가요)</button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -5445,6 +5642,14 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
             </div>
           </div>
 
+          <TeamPanel
+            program={program}
+            roster={roster}
+            teacherSuggestions={teacherNamesIn(PROGRAMS)}
+            onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
+            onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
+          />
+
           <div className="px-5 space-y-3">
             {roster.map(({ student, adv }) => (
               <TeacherStudentCard
@@ -5453,6 +5658,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 allStudents={students}
                 adv={adv}
                 program={program}
+                onAssignTeam={(teamId) => updateAdventure(student.id, programId, { teamId })}
                 programTitle={program.title}
                 onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
                 adventures={adventures}
@@ -6245,6 +6451,14 @@ export default function CarrotExplorer() {
     downloadJson(`carrot-explorer-backup-${kstDay()}.json`, buildBackup({ students, programs: PROGRAMS, adventures, suggestions }));
   };
 
+  const setProgramTeams = (programId, teams) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    PROGRAMS[idx] = { ...PROGRAMS[idx], teams };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, { teams }));
+  };
+
   const setProgramReview = (programId, value) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -6313,6 +6527,7 @@ export default function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onCheckSave={checkServerSave}
+              onSaveTeams={setProgramTeams}
               lastSyncAt={lastSyncAt}
               onAcceptFamily={acceptFamily}
               onRejectFamily={rejectFamily}

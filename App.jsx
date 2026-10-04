@@ -24,6 +24,7 @@ const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 .f-display { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .f-body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.f-display, .f-body { word-break: keep-all; overflow-wrap: break-word; }
 @keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes riseIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pop-in { animation: screenIn 0.2s ease both; }
@@ -46,7 +47,7 @@ const FONTS = `
 @keyframes burstIn { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 .burst-in { animation: burstIn 0.6s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) { .confetti-piece { display: none; } .burst-in { animation: none; } }
-@supports (-webkit-touch-callout: none) { input, textarea, select { font-size: 16px !important; } }
+@supports (-webkit-touch-callout: none) { input, textarea, select { font-size: max(16px, 1em) !important; } }
 .focus-ring:focus-visible { outline: 3px solid ${C.orange}; outline-offset: 2px; }
 `;
 
@@ -554,6 +555,11 @@ const coverGradient = (program) => {
   const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
   return `linear-gradient(135deg, ${from}, ${to})`;
 };
+const themeBar = (program) => {
+  const cat = program.category || ICON_CHOICES.find((i) => i.key === program.icon)?.category;
+  const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
+  return `linear-gradient(180deg, ${from}, ${to})`;
+};
 const splitTitle = (title) => {
   const [main, ...rest] = String(title || "").split(/[:：]\s*/);
   return [main.trim(), rest.join(": ").trim()];
@@ -569,8 +575,8 @@ function Cover({ program, className = "", showTitle = false }) {
             <ProgramIcon kind={program.icon} size={120} color="white" />
           </div>
           <div className="relative h-full flex flex-col justify-end p-4">
-            <p className="f-display font-bold text-white leading-tight" style={{ fontSize: 21 }}>{main || "프로그램 이름"}</p>
-            {sub && <p className="f-body text-[12px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}>{sub}</p>}
+            <p className="f-display font-bold text-white leading-tight" style={{ fontSize: 24 }}>{main || "프로그램 이름"}</p>
+            {sub && <p className="f-body text-[15px] font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.9)" }}>{sub}</p>}
           </div>
         </>
       ) : (
@@ -622,7 +628,7 @@ function PrimaryButton({ children, onClick, disabled, full = true, small = false
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`focus-ring tap f-display font-semibold text-white rounded-2xl ${small ? "py-2.5 px-4 text-[13px]" : "py-3.5 px-6 text-[15px]"} ${full ? "w-full" : ""} ${disabled ? "opacity-40" : ""}`}
+      className={`focus-ring tap f-display font-semibold text-white rounded-2xl ${small ? "py-2.5 px-4 text-[16px]" : "py-3.5 px-6 text-[18px]"} ${full ? "w-full" : ""} ${disabled ? "opacity-40" : ""}`}
       style={{ background: disabled ? "#C9BFA8" : C.orange }}
     >
       {children}
@@ -632,7 +638,7 @@ function PrimaryButton({ children, onClick, disabled, full = true, small = false
 
 function GhostButton({ children, onClick, icon: Icon }) {
   return (
-    <button onClick={onClick} className="focus-ring tap f-body font-bold text-sm flex items-center justify-center gap-1.5 py-2" style={{ color: C.green }}>
+    <button onClick={onClick} className="focus-ring tap f-body font-bold text-[17px] flex items-center justify-center gap-1.5 py-2" style={{ color: C.green }}>
       {Icon && <Icon size={15} />}
       {children}
     </button>
@@ -649,10 +655,10 @@ function ScreenHeader({ title, subtitle, onBack, right }) {
           </button>
         )}
         <div>
-          <h1 className="f-display text-lg font-semibold" style={{ color: C.green }}>
+          <h1 className="f-display text-[21px] font-semibold" style={{ color: C.green }}>
             {title}
           </h1>
-          {subtitle && <p className="f-body text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="f-body text-[15px] text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       </div>
       {right}
@@ -698,7 +704,7 @@ function StageProgress({ before, trip, after, current, onPick, labels }) {
           aria-current={current === s.key ? "step" : undefined}
         >
           <StageDot state={current === s.key ? (s.state === "locked" ? "locked" : "active") : s.state} />
-          <span className="text-[11px] font-bold" style={{ color: current === s.key ? C.green : "#9C927D" }}>
+          <span className="text-[14px] font-bold" style={{ color: current === s.key ? C.green : "#9C927D" }}>
             {s.label}
           </span>
         </button>
@@ -726,7 +732,7 @@ function StageTabs({ before, trip, after, current, onPick }) {
             aria-selected={active}
             onClick={() => !locked && onPick(st.key)}
             disabled={locked}
-            className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-full py-1.5 flex items-center justify-center gap-1"
+            className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-full py-1.5 flex items-center justify-center gap-1"
             style={{ background: active ? "white" : "transparent", color: active ? C.green : "#9C927D" }}
           >
             {st.state === "done" && <Check size={12} strokeWidth={3} />}
@@ -740,7 +746,7 @@ function StageTabs({ before, trip, after, current, onPick }) {
 }
 
 function Badge({ b, size = "md" }) {
-  const dim = size === "sm" ? "w-14 h-14 text-2xl" : "w-20 h-20 text-4xl";
+  const dim = size === "sm" ? "w-14 h-14 text-[27px]" : "w-20 h-20 text-4xl";
   return (
     <div className="flex flex-col items-center gap-2 text-center w-20">
       <div
@@ -749,7 +755,7 @@ function Badge({ b, size = "md" }) {
       >
         {b.emoji}
       </div>
-      <span className="text-[11px] leading-tight font-bold f-body" style={{ color: C.charcoal }}>
+      <span className="text-[14px] leading-tight font-bold f-body" style={{ color: C.charcoal }}>
         {b.name}
       </span>
     </div>
@@ -801,7 +807,7 @@ function PracticeBoxes({ word, count, onChange }) {
           );
         })}
       </div>
-      {count >= WORD_PRACTICE_GOAL && <p className="f-body text-[11px] font-bold mt-1.5" style={{ color: "#1F7A44" }}>All 5 done ⭐</p>}
+      {count >= WORD_PRACTICE_GOAL && <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: "#1F7A44" }}>All 5 done ⭐</p>}
     </div>
   );
 }
@@ -811,13 +817,13 @@ function VocabularyCard({ v, onTap, checks, onCheck }) {
     <div className="bg-white rounded-2xl p-4 text-left">
       <button onClick={() => { if (onTap) onTap(v); speak(v.en); }} aria-label={`Play pronunciation for ${v.en}`} className="focus-ring tap w-full text-left">
         <div className="flex items-start justify-between">
-          <span className="text-2xl">{v.emoji}</span>
+          <span className="text-[27px]">{v.emoji}</span>
           <Volume2 size={16} color={C.orange} />
         </div>
         <p className="f-display font-semibold mt-2" style={{ color: C.green }}>
           {v.en}
         </p>
-        <p className="f-body text-[12px] text-gray-500 mt-0.5">{v.meaning}</p>
+        <p className="f-body text-[15px] text-gray-500 mt-0.5">{v.meaning}</p>
       </button>
       {onCheck && <PracticeBoxes word={v.en} count={checks || 0} onChange={onCheck} />}
     </div>
@@ -831,7 +837,7 @@ function MissionCard({ mission, done, onToggle }) {
         {done ? <CheckCircle2 size={26} color={C.orange} /> : <Circle size={26} color="#D8CEB8" />}
       </button>
       <span
-        className="f-body text-[15px] font-semibold flex-1 text-left"
+        className="f-body text-[18px] font-semibold flex-1 text-left"
         style={{ color: done ? "#B4AC99" : C.charcoal, textDecoration: done ? "line-through" : "none" }}
       >
         {mission.text}
@@ -845,7 +851,7 @@ function TagChip({ label, selected, onClick }) {
     <button
       onClick={onClick}
       aria-pressed={selected}
-      className="focus-ring tap text-[12px] f-body font-bold px-3 py-1.5 rounded-full"
+      className="focus-ring tap text-[15px] f-body font-bold px-3 py-1.5 rounded-full"
       style={{
         background: selected ? C.green : C.cream,
         color: selected ? "white" : C.charcoal,
@@ -860,7 +866,7 @@ function TagChip({ label, selected, onClick }) {
 function RatingRow({ label, value, options, onChange }) {
   return (
     <div className="mb-3">
-      <p className="f-body text-[12px] font-bold mb-1.5" style={{ color: C.charcoal }}>{label}</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{label}</p>
       <div className="flex gap-1.5">
         {options.map((opt) => (
           <button
@@ -868,7 +874,7 @@ function RatingRow({ label, value, options, onChange }) {
             onClick={() => onChange && onChange(opt.value)}
             disabled={!onChange}
             aria-pressed={value === opt.value}
-            className={`flex-1 text-[10px] f-body font-bold rounded-lg py-1.5 ${onChange ? "focus-ring tap" : ""}`}
+            className={`flex-1 text-[13px] f-body font-bold rounded-lg py-1.5 ${onChange ? "focus-ring tap" : ""}`}
             style={{ background: value === opt.value ? C.green : C.cream, color: value === opt.value ? "white" : "#9C927D" }}
           >
             {opt.label}
@@ -930,7 +936,7 @@ function StarRow() {
   return (
     <div className="flex justify-center gap-1.5 mb-3" aria-hidden="true">
       {[0, 1, 2].map((i) => (
-        <span key={i} className="burst-in text-2xl" style={{ animationDelay: `${0.15 + i * 0.12}s` }}>⭐</span>
+        <span key={i} className="burst-in text-[27px]" style={{ animationDelay: `${0.15 + i * 0.12}s` }}>⭐</span>
       ))}
     </div>
   );
@@ -949,10 +955,10 @@ function CelebrationModal({ title, subtitle, badge, praise = "Great Job!", onClo
           <div className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-4" style={{ background: C.green }}>
             <IconGift size={40} />
           </div>
-          <h3 className="f-display text-lg font-semibold mb-1" style={{ color: C.green }}>
+          <h3 className="f-display text-[21px] font-semibold mb-1" style={{ color: C.green }}>
             A gift arrived!
           </h3>
-          <p className="f-body text-sm text-gray-500">Tap to open</p>
+          <p className="f-body text-[17px] text-gray-500">Tap to open</p>
         </button>
       </div>
     );
@@ -968,17 +974,17 @@ function CelebrationModal({ title, subtitle, badge, praise = "Great Job!", onClo
         </h3>
         <StarRow />
         {title && title !== praise && (
-          <p className="f-display text-base font-semibold mb-1" style={{ color: C.green }}>
+          <p className="f-display text-[18px] font-semibold mb-1" style={{ color: C.green }}>
             {title}
           </p>
         )}
-        {subtitle && <p className="f-body text-sm text-gray-500 mb-4">{subtitle}</p>}
+        {subtitle && <p className="f-body text-[17px] text-gray-500 mb-4">{subtitle}</p>}
         {badge && (
           <div className="rounded-2xl p-4 mb-5 mt-3 flex items-center gap-3 text-left" style={{ background: C.cream, border: `1.5px solid ${C.beige}` }}>
             <div className="text-4xl burst-in" style={{ animationDelay: "0.3s" }}>{badge.emoji}</div>
             <div className="min-w-0">
-              <p className="f-body text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: C.orange }}>New badge unlocked</p>
-              <p className="f-display text-base font-semibold truncate" style={{ color: C.green }}>{badge.name}</p>
+              <p className="f-body text-[13px] font-bold uppercase tracking-[0.12em]" style={{ color: C.orange }}>New badge unlocked</p>
+              <p className="f-display text-[18px] font-semibold truncate" style={{ color: C.green }}>{badge.name}</p>
             </div>
           </div>
         )}
@@ -1013,7 +1019,7 @@ function ChoiceQuestion({ q, onAnswered }) {
             key={opt}
             disabled={selected !== null}
             onClick={() => submit(idx, idx)}
-            className="focus-ring w-full text-left rounded-xl p-3 mb-2 f-body font-semibold text-sm"
+            className="focus-ring w-full text-left rounded-xl p-3 mb-2 f-body font-semibold text-[17px]"
             style={{ background: cellBg(selected === idx, idx === q.answer), color: C.charcoal }}
           >
             {opt}
@@ -1025,7 +1031,7 @@ function ChoiceQuestion({ q, onAnswered }) {
             key={String(val)}
             disabled={selected !== null}
             onClick={() => submit(null, val)}
-            className="focus-ring w-full text-left rounded-xl p-3 mb-2 f-body font-semibold text-sm"
+            className="focus-ring w-full text-left rounded-xl p-3 mb-2 f-body font-semibold text-[17px]"
             style={{ background: cellBg(selected === val, val === q.answer), color: C.charcoal }}
           >
             {val ? "True" : "False"}
@@ -1091,14 +1097,14 @@ function MatchPairs({ pairs, onDone }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           {pairs.map((p) => (
-            <button key={p.key} disabled={matched.includes(p.key)} onClick={() => pickLeft(p.key)} className="focus-ring w-full rounded-xl p-3 text-left f-body font-bold text-sm" style={cellStyle(p.key, selLeft === p.key)}>
+            <button key={p.key} disabled={matched.includes(p.key)} onClick={() => pickLeft(p.key)} className="focus-ring w-full rounded-xl p-3 text-left f-body font-bold text-[17px]" style={cellStyle(p.key, selLeft === p.key)}>
               {p.word}
             </button>
           ))}
         </div>
         <div className="space-y-2">
           {rightOrder.map((p) => (
-            <button key={p.key} disabled={matched.includes(p.key)} onClick={() => pickRight(p.key)} className="focus-ring w-full rounded-xl p-3 text-center text-xl" style={cellStyle(p.key, selRight === p.key)}>
+            <button key={p.key} disabled={matched.includes(p.key)} onClick={() => pickRight(p.key)} className="focus-ring w-full rounded-xl p-3 text-center text-[23px]" style={cellStyle(p.key, selRight === p.key)}>
               {p.emoji}
             </button>
           ))}
@@ -1161,7 +1167,7 @@ function BottomNavigation({ items, active, onSelect }) {
         return (
           <button key={it.key} onClick={() => onSelect(it.key)} className="focus-ring tap flex flex-col items-center gap-1 px-3 py-1">
             <it.icon size={20} color={isActive ? C.orange : "#B9AE99"} strokeWidth={isActive ? 2.4 : 2} />
-            <span className="f-body text-[10px] font-bold" style={{ color: isActive ? C.orange : "#B9AE99" }}>
+            <span className="f-body text-[13px] font-bold" style={{ color: isActive ? C.orange : "#B9AE99" }}>
               {it.label}
             </span>
           </button>
@@ -1184,12 +1190,12 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
   if (withProgram.length === 0) {
     return (
       <div className="px-5 pt-7 pb-6">
-        <h1 className="f-display text-2xl font-semibold" style={{ color: C.green }}>Hi, Explorer</h1>
+        <h1 className="f-display text-[27px] font-semibold" style={{ color: C.green }}>Hi, Explorer</h1>
         <div className="bg-white rounded-2xl p-6 text-center mt-5">
           <div className="text-4xl mb-3">🌱</div>
           <p className="f-display font-semibold" style={{ color: C.green }}>No adventures yet</p>
-          <p className="f-body text-sm text-gray-500 mt-2">아직 신청한 체험이 없어요. 부모님과 함께 체험을 골라 보세요!</p>
-          <p className="f-body text-[11px] text-gray-400 mt-3">위쪽 "Exit to Parent"를 누르면 부모님 화면으로 돌아가요.</p>
+          <p className="f-body text-[17px] text-gray-500 mt-2">아직 신청한 체험이 없어요. 부모님과 함께 체험을 골라 보세요!</p>
+          <p className="f-body text-[14px] text-gray-400 mt-3">위쪽 "Exit to Parent"를 누르면 부모님 화면으로 돌아가요.</p>
         </div>
       </div>
     );
@@ -1223,19 +1229,19 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
   return (
     <div className="pb-6">
       <div className="px-5 pt-7 pb-2">
-        <h1 className="f-display text-2xl font-semibold" style={{ color: C.green }}>
+        <h1 className="f-display text-[27px] font-semibold" style={{ color: C.green }}>
           Hi, Explorer
         </h1>
 
         <button onClick={onViewProgress} className="focus-ring tap w-full flex items-center gap-2.5 bg-white rounded-2xl px-4 py-3.5 mt-5" style={{ boxShadow: "0 1px 3px rgba(23,76,53,0.06)" }}>
           <RankIcon label={rank.label} size={20} color={C.orange} />
-          <span className="f-display text-[13px] font-bold flex-1 text-left" style={{ color: C.green }}>{rank.label}</span>
-          <span className="f-body text-[11px] font-bold" style={{ color: C.orange }}>My Journey →</span>
+          <span className="f-display text-[16px] font-bold flex-1 text-left" style={{ color: C.green }}>{rank.label}</span>
+          <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>My Journey →</span>
         </button>
       </div>
 
       <div className="px-5 mt-5">
-        <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Your Next Adventure</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-2">Your Next Adventure</p>
         <div
           role="button"
           tabIndex={0}
@@ -1256,13 +1262,13 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
             <div className="border-t-2 border-dashed" style={{ borderColor: C.beige, marginLeft: 12, marginRight: 12 }} />
           </div>
           <div className="bg-white rounded-b-2xl p-5 pt-6">
-            <p className="f-body text-[11px] font-bold uppercase tracking-wide" style={{ color: C.orange }}>
+            <p className="f-body text-[14px] font-bold uppercase tracking-wide" style={{ color: C.orange }}>
               {next.program.date} · Level {levelLabel(next.program)}
             </p>
-            <h2 className="f-display text-lg font-semibold mt-0.5 mb-3" style={{ color: C.green }}>
+            <h2 className="f-display text-[21px] font-semibold mt-0.5 mb-3" style={{ color: C.green }}>
               {next.program.title}
             </h2>
-            <p className="f-body text-[12px] text-gray-500">{statusLine}</p>
+            <p className="f-body text-[15px] text-gray-500">{statusLine}</p>
             <div className="mt-4" onClick={(e) => e.stopPropagation()}>
               <PrimaryButton onClick={() => onOpen(next.program.id)}>{ctaLabel}</PrimaryButton>
             </div>
@@ -1284,7 +1290,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           )}
           {otherDone.length > 0 && (
             <>
-              <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Completed</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-2">Completed</p>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
                 {otherDone.map(({ program }) => (
                   <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
@@ -1303,10 +1309,10 @@ function ProgramMiniCard({ program, onClick }) {
     <button onClick={onClick} className="focus-ring tap bg-white rounded-2xl shrink-0 w-36 overflow-hidden text-left">
       <Cover program={program} className="h-20 rounded-none" />
       <div className="p-3">
-        <p className="f-display text-[13px] font-semibold leading-snug" style={{ color: C.green }}>
+        <p className="f-display text-[16px] font-semibold leading-snug" style={{ color: C.green }}>
           {program.title}
         </p>
-        <p className="f-body text-[10px] text-gray-400 mt-1">{program.date}</p>
+        <p className="f-body text-[13px] text-gray-400 mt-1">{program.date}</p>
       </div>
     </button>
   );
@@ -1328,12 +1334,12 @@ function AdventuresList({ adventures, studentId, onOpen }) {
             <button key={program.id} onClick={() => onOpen(program.id)} className="focus-ring tap w-full flex items-center gap-3 bg-white rounded-2xl p-3 text-left">
               <Cover program={program} className="w-16 h-16 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>
+                <p className="f-display font-semibold text-[17px] truncate" style={{ color: C.green }}>
                   {program.title}
                 </p>
-                <p className="f-body text-[11px] text-gray-400">{program.date} · Level {levelLabel(program)}</p>
+                <p className="f-body text-[14px] text-gray-400">{program.date} · Level {levelLabel(program)}</p>
                 <span
-                  className="inline-block mt-1 text-[10px] f-body font-bold px-2 py-0.5 rounded-full"
+                  className="inline-block mt-1 text-[13px] f-body font-bold px-2 py-0.5 rounded-full"
                   style={{ background: status === "completed" ? "#DCF3E4" : C.beige, color: status === "completed" ? "#1F7A44" : C.green }}
                 >
                   {status === "completed" ? "Completed" : "Upcoming"}
@@ -1368,12 +1374,12 @@ function LevelLadder({ count }) {
             <div key={r.label} className="flex flex-col items-center gap-1.5" style={{ width: 44 }}>
               <div style={{ height: 16 }}>
                 {isCurrent && (
-                  <span className="text-[8px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#DCF3E4", color: "#1F7A44" }}>
+                  <span className="text-[13px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#DCF3E4", color: "#1F7A44" }}>
                     CURRENT
                   </span>
                 )}
                 {isNextGoal && (
-                  <span className="text-[8px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: C.orange, color: "white" }}>
+                  <span className="text-[13px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: C.orange, color: "white" }}>
                     NEXT GOAL
                   </span>
                 )}
@@ -1390,8 +1396,8 @@ function LevelLadder({ count }) {
               >
                 <RankIcon label={r.label} size={isCurrent ? 21 : 17} color={isCurrent ? C.green : C.orange} />
               </div>
-              <span className="f-body text-[11px] font-bold" style={{ color: C.green }}>{r.label}</span>
-              <span className="f-body text-[9px]" style={{ color: "#9C927D" }}>{r.min}</span>
+              <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{r.label}</span>
+              <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>{r.min}</span>
             </div>
           );
         })}
@@ -1436,8 +1442,8 @@ function Journey({ adventures, studentId }) {
     <div className="pb-6">
       <div className="px-5 pt-6 pb-4 relative overflow-hidden">
         <PassportStamp />
-        <h1 className="f-display text-2xl font-bold" style={{ color: C.green }}>My Journey</h1>
-        <p className="f-body text-sm text-gray-500 mt-1 max-w-[230px]">Every trip brings your child closer to the next badge. 🌱</p>
+        <h1 className="f-display text-[27px] font-bold" style={{ color: C.green }}>My Journey</h1>
+        <p className="f-body text-[17px] text-gray-500 mt-1 max-w-[230px]">Every trip brings your child closer to the next badge. 🌱</p>
       </div>
 
       <div className="px-5 mb-4">
@@ -1447,15 +1453,15 @@ function Journey({ adventures, studentId }) {
               <RankIcon label={rank.label} size={30} color={C.orange} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="f-display text-xl font-bold text-white leading-tight">{rank.label}</p>
+              <p className="f-display text-[23px] font-bold text-white leading-tight">{rank.label}</p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Calendar size={12} color="#9FD1B8" />
-                <span className="f-body text-[12px]" style={{ color: "#C9E6D6" }}>{count} field trips attended</span>
+                <span className="f-body text-[15px]" style={{ color: "#C9E6D6" }}>{count} field trips attended</span>
               </div>
               {nextRank && (
                 <div className="flex items-center gap-1.5 mt-1">
                   <Target size={12} color="#9FD1B8" />
-                  <span className="f-body text-[12px]" style={{ color: "#C9E6D6" }}>
+                  <span className="f-body text-[15px]" style={{ color: "#C9E6D6" }}>
                     Next badge goal: <span style={{ color: C.orange, fontWeight: 700 }}>{nextRank.label}</span> at {nextRank.min} trips
                   </span>
                 </div>
@@ -1466,7 +1472,7 @@ function Journey({ adventures, studentId }) {
           {nextRank && (
             <div className="flex items-center gap-3 mt-3">
               <div className="flex-1 h-px" style={{ background: "#3F7358" }} />
-              <p className="f-body text-[11px] shrink-0" style={{ color: "#9FD1B8" }}>
+              <p className="f-body text-[14px] shrink-0" style={{ color: "#9FD1B8" }}>
                 {count} / {nextRank.min} trips toward {nextRank.label} badge
               </p>
               <div className="flex-1 h-px" style={{ background: "#3F7358" }} />
@@ -1486,8 +1492,8 @@ function Journey({ adventures, studentId }) {
           <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2.5" style={{ background: "#EAF4EE" }}>
             <TrendingUp size={16} color={C.green} />
           </div>
-          <p className="f-display text-lg font-bold" style={{ color: C.green }}>{count}/{nextRank ? nextRank.min : rank.min}</p>
-          <p className="f-body text-[10px] text-gray-500 mb-2 leading-tight">Trips to Next Badge</p>
+          <p className="f-display text-[21px] font-bold" style={{ color: C.green }}>{count}/{nextRank ? nextRank.min : rank.min}</p>
+          <p className="f-body text-[13px] text-gray-500 mb-2 leading-tight">Trips to Next Badge</p>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.beige }}>
             <div className="h-full rounded-full" style={{ width: `${segPct}%`, background: C.green }} />
           </div>
@@ -1496,16 +1502,16 @@ function Journey({ adventures, studentId }) {
           <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2.5" style={{ background: "#EAF4EE" }}>
             <RankIcon label={rank.label} size={17} color={C.green} />
           </div>
-          <p className="f-display text-sm font-bold" style={{ color: C.green }}>{rank.label}</p>
-          <p className="f-body text-[10px] text-gray-500 mb-2 leading-tight">Current Badge</p>
-          <span className="text-[9px] f-body font-bold px-2 py-0.5 rounded-full" style={{ background: "#DCF3E4", color: "#1F7A44" }}>CURRENT</span>
+          <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>{rank.label}</p>
+          <p className="f-body text-[13px] text-gray-500 mb-2 leading-tight">Current Badge</p>
+          <span className="text-[13px] f-body font-bold px-2 py-0.5 rounded-full" style={{ background: "#DCF3E4", color: "#1F7A44" }}>CURRENT</span>
         </div>
         <div className="flex-1 bg-white rounded-2xl p-3" style={{ boxShadow: "0 1px 4px rgba(23,76,53,0.06)" }}>
           <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2.5" style={{ background: "#FFF1E2" }}>
-            <span style={{ fontSize: 15 }}>🥕</span>
+            <span style={{ fontSize: 18 }}>🥕</span>
           </div>
-          <p className="f-display text-lg font-bold" style={{ color: C.orange }}>{points}</p>
-          <p className="f-body text-[10px] text-gray-500 mb-2 leading-tight">Carrot Points</p>
+          <p className="f-display text-[21px] font-bold" style={{ color: C.orange }}>{points}</p>
+          <p className="f-body text-[13px] text-gray-500 mb-2 leading-tight">Carrot Points</p>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.beige }}>
             <div className="h-full rounded-full" style={{ width: `${Math.min(100, (points / pointsGoal) * 100)}%`, background: C.orange }} />
           </div>
@@ -1531,15 +1537,15 @@ function Journey({ adventures, studentId }) {
                 <Cover program={program} className="w-14 h-14 shrink-0" />
                 <div className="flex-1 min-w-0 bg-white rounded-2xl p-3" style={{ boxShadow: "0 1px 4px rgba(23,76,53,0.06)" }}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="f-display text-sm font-semibold truncate" style={{ color: C.green }}>{program.title}</p>
+                    <p className="f-display text-[17px] font-semibold truncate" style={{ color: C.green }}>{program.title}</p>
                     <span
-                      className="text-[10px] f-body font-bold px-2 py-0.5 rounded-full shrink-0"
+                      className="text-[13px] f-body font-bold px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: done ? "#DCF3E4" : "#FFF1E2", color: done ? "#1F7A44" : C.orange }}
                     >
                       {done ? "Completed" : "Upcoming"}
                     </span>
                   </div>
-                  <p className="f-body text-[11px] text-gray-400 truncate mt-0.5">{program.themeKo || program.theme}</p>
+                  <p className="f-body text-[14px] text-gray-400 truncate mt-0.5">{program.themeKo || program.theme}</p>
                 </div>
               </div>
             );
@@ -1561,11 +1567,11 @@ function BadgeCollection({ adventures, studentId }) {
     <div className="pb-6">
       <ScreenHeader title="My Badges" />
       <div className="px-5">
-        <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Earned ({earned.length})</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Earned ({earned.length})</p>
         <div className="grid grid-cols-4 gap-y-4 mb-6">
           {earned.map((b) => <Badge key={b.id} b={b} />)}
         </div>
-        <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Keep exploring to earn</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Keep exploring to earn</p>
         <div className="grid grid-cols-4 gap-y-4">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
@@ -1596,15 +1602,15 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
         <div className="bg-white rounded-2xl p-6 text-center mb-5">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Check size={22} color={C.green} strokeWidth={3} /></div>
           <p className="f-display font-semibold" style={{ color: C.green }}>You're ready for this adventure!</p>
-          <p className="f-body text-sm text-gray-500 mt-1">Nice work learning your words.</p>
+          <p className="f-body text-[17px] text-gray-500 mt-1">Nice work learning your words.</p>
         </div>
         <div className="bg-white rounded-2xl p-4 mb-4">
-          <p className="f-display text-sm font-semibold mb-3" style={{ color: C.green }}>Words you learned</p>
+          <p className="f-display text-[17px] font-semibold mb-3" style={{ color: C.green }}>Words you learned</p>
           <div className="grid grid-cols-3 gap-2">
             {program.vocabulary.map((v) => (
               <div key={v.id} className="rounded-xl text-center py-2" style={{ background: C.cream }}>
-                <div className="text-xl">{v.emoji}</div>
-                <div className="text-[11px] f-body font-bold" style={{ color: C.charcoal }}>{v.en}</div>
+                <div className="text-[23px]">{v.emoji}</div>
+                <div className="text-[14px] f-body font-bold" style={{ color: C.charcoal }}>{v.en}</div>
               </div>
             ))}
           </div>
@@ -1627,8 +1633,8 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
 
   return (
     <div className="px-5 pb-10">
-      <p className="f-body text-[13px] text-gray-500 mb-1">Tap to listen 🔊 · say it · tick a box ✓</p>
-      <p className="f-body text-[11px] text-gray-400 mb-3">{wordsDone} of {program.vocabulary.length} words practiced {WORD_PRACTICE_GOAL} times</p>
+      <p className="f-body text-[16px] text-gray-500 mb-1">Tap to listen 🔊 · say it · tick a box ✓</p>
+      <p className="f-body text-[14px] text-gray-400 mb-3">{wordsDone} of {program.vocabulary.length} words practiced {WORD_PRACTICE_GOAL} times</p>
       <div className="grid grid-cols-2 gap-3 mb-6">
         {program.vocabulary.map((v) => (
           <VocabularyCard
@@ -1657,7 +1663,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
       <div className="px-5 pb-10 text-center pt-10">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
         <p className="f-display font-semibold" style={{ color: C.green }}>This adventure isn't unlocked yet</p>
-        <p className="f-body text-sm text-gray-500 mt-1">Come back on {program.date} to start exploring!</p>
+        <p className="f-body text-[17px] text-gray-500 mt-1">Come back on {program.date} to start exploring!</p>
       </div>
     );
   }
@@ -1665,7 +1671,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
   return (
     <div className="px-5 pb-10">
       <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between">
-        <span className="f-body font-bold text-sm" style={{ color: C.green }}>{doneCount} of {adv.missionsCompleted.length} missions complete</span>
+        <span className="f-body font-bold text-[17px]" style={{ color: C.green }}>{doneCount} of {adv.missionsCompleted.length} missions complete</span>
         <div className="w-24 h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
           <div className="h-full rounded-full" style={{ width: `${(doneCount / adv.missionsCompleted.length) * 100}%`, background: C.orange }} />
         </div>
@@ -1673,16 +1679,16 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
 
       {(program.focus || []).length > 0 && (
         <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-body text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
+          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
           <ul className="space-y-1">
             {program.focus.map((f, i) => (
-              <li key={i} className="f-body text-sm font-semibold" style={{ color: C.charcoal }}>• {f}</li>
+              <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
             ))}
           </ul>
         </div>
       )}
 
-      <p className="f-display text-sm font-semibold mb-2" style={{ color: C.green }}>Today's Missions</p>
+      <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>Today's Missions</p>
       <div className="space-y-2 mb-6">
         {program.missions.map((m, i) => {
           const state = adv.missionsCompleted[i] || { done: false, photo: null };
@@ -1697,7 +1703,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
           <PrimaryButton onClick={onFinish}>Go to Review →</PrimaryButton>
         </div>
       ) : (
-        <p className="text-center f-body text-xs text-gray-400">Check off each mission as you explore!</p>
+        <p className="text-center f-body text-[15px] text-gray-400">Check off each mission as you explore!</p>
       )}
     </div>
   );
@@ -1716,9 +1722,9 @@ function ScoreCard({ score, className = "" }) {
   if (!score) return null;
   return (
     <div className={`bg-white rounded-2xl p-5 text-center ${className}`}>
-      <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>Review score</p>
+      <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>Review score</p>
       <p className="f-display text-5xl font-bold" style={{ color: C.green }}>{score.percent}%</p>
-      <p className="f-body text-sm text-gray-500 mt-1">{score.correct} of {score.total} correct</p>
+      <p className="f-body text-[17px] text-gray-500 mt-1">{score.correct} of {score.total} correct</p>
       <div className="h-2 rounded-full overflow-hidden mt-3" style={{ background: C.beige }} role="img" aria-label={`${score.percent} percent correct`}>
         <div className="h-full rounded-full" style={{ width: `${score.percent}%`, background: C.orange }} />
       </div>
@@ -1751,7 +1757,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       <div className="px-5 pb-10 text-center pt-10">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
         <p className="f-display font-semibold" style={{ color: C.green }}>Finish exploring first</p>
-        <p className="f-body text-sm text-gray-500 mt-1">Complete every mission to unlock this part.</p>
+        <p className="f-body text-[17px] text-gray-500 mt-1">Complete every mission to unlock this part.</p>
       </div>
     );
   }
@@ -1762,18 +1768,18 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       <div className="px-5 pb-10">
         <div className="bg-white rounded-2xl p-6 text-center mb-4">
           <div className="text-4xl mb-1" aria-hidden="true">🎉</div>
-          <p className="f-display text-xl font-bold" style={{ color: C.orange }}>Great Job!</p>
+          <p className="f-display text-[23px] font-bold" style={{ color: C.orange }}>Great Job!</p>
           <p className="f-display font-semibold mt-0.5" style={{ color: C.green }}>Review Complete!</p>
         </div>
         <ScoreCard score={reviewScoreOf(adv)} className="mb-3" />
         <div className="bg-white rounded-2xl p-4 mb-3">
-          <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
-          <p className="f-body text-sm" style={{ color: C.charcoal }}>"{r.favoriteText}" because {r.favoriteReason}</p>
+          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
+          <p className="f-body text-[17px]" style={{ color: C.charcoal }}>"{r.favoriteText}" because {r.favoriteReason}</p>
           {r.photo && <img src={r.photo} alt="Favorite moment" className="w-full h-36 object-cover rounded-xl mt-3" />}
         </div>
         <div className="bg-white rounded-2xl p-4">
-          <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
-          <p className="f-body text-sm" style={{ color: C.charcoal }}>Today I discovered that {r.discovery}.</p>
+          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
+          <p className="f-body text-[17px]" style={{ color: C.charcoal }}>Today I discovered that {r.discovery}.</p>
         </div>
       </div>
     );
@@ -1784,7 +1790,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       <div className="px-5 pb-10 text-center pt-10">
         <div className="text-4xl mb-3" aria-hidden="true">📝</div>
         <p className="f-display font-semibold" style={{ color: C.green }}>Your review is almost ready</p>
-        <p className="f-body text-sm text-gray-500 mt-1">Your teacher is getting it ready. Come back soon!</p>
+        <p className="f-body text-[17px] text-gray-500 mt-1">Your teacher is getting it ready. Come back soon!</p>
       </div>
     );
   }
@@ -1811,8 +1817,8 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 
       {step === "quiz" && phase === "questions" && q && (
         <div>
-          <p className="f-display text-sm font-semibold mb-2" style={{ color: C.green }}>Quick Review</p>
-          <p className="f-body text-sm text-gray-500 mb-3">Question {qIndex + 1} of {quiz.length}</p>
+          <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>Quick Review</p>
+          <p className="f-body text-[17px] text-gray-500 mb-3">Question {qIndex + 1} of {quiz.length}</p>
           {q.type === "match" ? (
             <MatchPairs
               pairs={q.pairs}
@@ -1837,15 +1843,15 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       {step === "quiz" && phase === "bigq" && (
         <div>
           <div className="bg-white rounded-2xl p-5 mb-5">
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>Today's Big Question</p>
-            <p className="f-display text-lg font-semibold mb-1" style={{ color: C.green }}>{program.bigQuestion}</p>
-            <p className="f-body text-[12px] text-gray-400 mb-4">What do you think now?</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>Today's Big Question</p>
+            <p className="f-display text-[21px] font-semibold mb-1" style={{ color: C.green }}>{program.bigQuestion}</p>
+            <p className="f-body text-[15px] text-gray-400 mb-4">What do you think now?</p>
             <div className="flex flex-wrap gap-2 mb-3">
               {program.bigQuestionOptions.map((opt) => (
                 <button
                   key={opt}
                   onClick={() => { setPrediction(opt); setPredictionCustom(false); }}
-                  className="focus-ring text-[12px] f-body font-bold px-3 py-1.5 rounded-full"
+                  className="focus-ring text-[15px] f-body font-bold px-3 py-1.5 rounded-full"
                   style={{ background: prediction === opt && !predictionCustom ? C.orange : C.cream, color: prediction === opt && !predictionCustom ? "white" : C.charcoal, border: `1px solid ${prediction === opt && !predictionCustom ? C.orange : C.beige}` }}
                 >
                   {opt}
@@ -1858,7 +1864,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
               placeholder="Or type your own idea..."
               rows={2}
               aria-label="Write your own answer"
-              className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none"
+              className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
               style={{ background: C.cream, border: `1px solid ${C.beige}` }}
             />
           </div>
@@ -1876,8 +1882,8 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 
       {step === "favorite" && (
         <div>
-          <p className="f-display text-sm font-semibold mb-3" style={{ color: C.green }}>My Favorite Moment</p>
-          <div className="bg-white rounded-2xl p-5 mb-4 f-body text-sm leading-8" style={{ color: C.charcoal }}>
+          <p className="f-display text-[17px] font-semibold mb-3" style={{ color: C.green }}>My Favorite Moment</p>
+          <div className="bg-white rounded-2xl p-5 mb-4 f-body text-[17px] leading-8" style={{ color: C.charcoal }}>
             My favorite part was{" "}
             <input value={favoriteText} onChange={(e) => setFavoriteText(e.target.value)} placeholder="___" aria-label="Your favorite part" className="focus-ring inline-block w-32 border-b-2 outline-none bg-transparent px-1" style={{ borderColor: C.orange }} />{" "}
             because{" "}
@@ -1889,12 +1895,12 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 
       {step === "share" && (
         <div>
-          <p className="f-display text-sm font-semibold mb-3" style={{ color: C.green }}>One Thing I Discovered</p>
+          <p className="f-display text-[17px] font-semibold mb-3" style={{ color: C.green }}>One Thing I Discovered</p>
           <div className="bg-white rounded-2xl p-5 mb-5">
-            <p className="f-body text-sm mb-2" style={{ color: C.charcoal }}>Today I discovered that...</p>
-            <textarea value={discovery} onChange={(e) => setDiscovery(e.target.value)} rows={3} aria-label="What you discovered today" className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+            <p className="f-body text-[17px] mb-2" style={{ color: C.charcoal }}>Today I discovered that...</p>
+            <textarea value={discovery} onChange={(e) => setDiscovery(e.target.value)} rows={3} aria-label="What you discovered today" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
           </div>
-          <p className="f-display text-sm font-semibold mb-2 text-center" style={{ color: C.green }}>How was your adventure?</p>
+          <p className="f-display text-[17px] font-semibold mb-2 text-center" style={{ color: C.green }}>How was your adventure?</p>
           <div className="flex justify-center gap-2 mb-6">
             {[1, 2, 3, 4, 5].map((n) => (
               <button key={n} onClick={() => setRating(n)} aria-label={`${n} star${n > 1 ? "s" : ""}`} className="focus-ring">
@@ -1928,20 +1934,20 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
             <div className="text-5xl mb-1 burst-in" aria-hidden="true">🎉</div>
             <p className="f-display text-3xl font-bold mb-1" style={{ color: C.orange }}>Great Job!</p>
             <StarRow />
-            <p className="f-display text-lg font-semibold mb-1" style={{ color: C.green }}>Review Complete!</p>
-            <p className="f-body text-sm text-gray-500 mb-3">You finished {program.title}</p>
+            <p className="f-display text-[21px] font-semibold mb-1" style={{ color: C.green }}>Review Complete!</p>
+            <p className="f-body text-[17px] text-gray-500 mb-3">You finished {program.title}</p>
           </div>
           <ScoreCard score={score} className="relative mb-3" />
-          <p className="relative inline-block f-body text-[12px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 +{POINTS_PER_ADVENTURE} carrot points</p>
+          <p className="relative inline-block f-body text-[15px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 +{POINTS_PER_ADVENTURE} carrot points</p>
           <div className="relative bg-white rounded-2xl p-5 text-left mb-4">
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
-            <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
-            <p className="f-body text-sm" style={{ color: C.charcoal }}>Today I discovered that {discovery}.</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
+            <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
+            <p className="f-body text-[17px]" style={{ color: C.charcoal }}>Today I discovered that {discovery}.</p>
           </div>
           {badgesJustEarned?.length > 0 && (
             <div className="bg-white rounded-2xl p-4 mb-4">
-              <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>New badges</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>New badges</p>
               <div className="flex justify-center gap-3 flex-wrap">
                 {badgesJustEarned.map((b) => <Badge key={b.id} b={b} size="sm" />)}
               </div>
@@ -1978,22 +1984,22 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         <button onClick={onBack} aria-label="Go back" className="focus-ring tap w-9 h-9 rounded-full flex items-center justify-center bg-white border shrink-0" style={{ borderColor: C.beige }}>
           <ArrowLeft size={18} color={C.green} />
         </button>
-        <h1 className="f-display text-base font-semibold truncate" style={{ color: C.green }}>{program.title}</h1>
+        <h1 className="f-display text-[18px] font-semibold truncate" style={{ color: C.green }}>{program.title}</h1>
       </div>
       <div className="px-5 mb-4">
         <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
-        <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[11px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
+        <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[14px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
           {showAbout ? "Hide details ▴" : "About this adventure ▾"}
         </button>
         {showAbout && (
           <div className="mt-2">
             <Cover program={program} showTitle className="h-28 mb-3" />
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
-              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
-              <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
             </div>
-            <p className="f-body text-sm text-gray-500 italic">"{program.theme}"</p>
+            <p className="f-body text-[17px] text-gray-500 italic">"{program.theme}"</p>
           </div>
         )}
       </div>
@@ -2057,15 +2063,15 @@ function ParentAdventureReport({ a, program }) {
         <div className="flex items-center gap-3 mb-3">
           <Cover program={program} className="w-12 h-12 shrink-0" />
           <div>
-            <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{program.title}</p>
-            <p className="f-body text-[11px] text-gray-400">{program.date} · {program.locationKo}</p>
+            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{program.title}</p>
+            <p className="f-body text-[14px] text-gray-400">{program.date} · {program.locationKo}</p>
           </div>
         </div>
 
         {reviewScoreOf(a) && (
           <div className="rounded-xl p-3 mb-3 flex items-center gap-3" style={{ background: "#FFF1E2" }}>
             <span className="f-display text-3xl font-bold" style={{ color: C.orange }}>{reviewScoreOf(a).percent}%</span>
-            <span className="f-body text-[12px]" style={{ color: C.charcoal }}>
+            <span className="f-body text-[15px]" style={{ color: C.charcoal }}>
               <b>복습 퀴즈 점수</b>
               <br />
               {reviewScoreOf(a).total}문제 중 {reviewScoreOf(a).correct}문제를 맞혔어요
@@ -2073,16 +2079,16 @@ function ParentAdventureReport({ a, program }) {
           </div>
         )}
 
-        <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>무엇을 탐험했나요</p>
-        <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>{program.themeKo}</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>무엇을 탐험했나요</p>
+        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.themeKo}</p>
 
-        <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>배운 단어</p>
-        <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>{program.vocabulary.map((v) => v.en).join(" · ")}</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>배운 단어</p>
+        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.vocabulary.map((v) => v.en).join(" · ")}</p>
 
-        <p className="f-body text-xs font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>오늘의 질문</p>
-        <p className="f-body text-sm mb-3" style={{ color: C.charcoal }}>{program.bigQuestion}</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>오늘의 질문</p>
+        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.bigQuestion}</p>
 
-        <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
         <div className="space-y-1.5 mb-3">
           <HighlightLine ok={missionsAllDone(a)} text={`미션 ${missionsDoneCount(a)}/${a.missionsCompleted.length}개 완료`} />
           <HighlightLine ok={!!a.reflection} text="복습과 소감 작성 완료" />
@@ -2096,12 +2102,12 @@ function ParentAdventureReport({ a, program }) {
             <div className="rounded-xl p-3 mb-3 flex gap-2" style={{ background: "#FFF1E2" }}>
               <MessageCircle size={16} color={C.orange} className="shrink-0 mt-0.5" />
               <div>
-                <p className="f-body text-xs font-bold mb-1" style={{ color: C.orange }}>선생님 코멘트</p>
-                <p className="f-body text-sm italic" style={{ color: C.charcoal }}>"{a.teacherNote}"</p>
+                <p className="f-body text-[15px] font-bold mb-1" style={{ color: C.orange }}>선생님 코멘트</p>
+                <p className="f-body text-[17px] italic" style={{ color: C.charcoal }}>"{a.teacherNote}"</p>
                 {a.teacherTags?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {a.teacherTags.map((t) => (
-                      <span key={t} className="text-[10px] f-body font-bold px-2 py-0.5 rounded-full" style={{ background: "white", color: C.orange }}>{TAG_KO[t] || t}</span>
+                      <span key={t} className="text-[13px] f-body font-bold px-2 py-0.5 rounded-full" style={{ background: "white", color: C.orange }}>{TAG_KO[t] || t}</span>
                     ))}
                   </div>
                 )}
@@ -2130,31 +2136,31 @@ function ParentFeedbackReport({ feedback: fb }) {
   return (
     <div className="rounded-xl p-4 mb-3" style={{ background: C.cream }}>
       <div className="flex items-center justify-between mb-3">
-        <p className="f-body text-xs font-bold" style={{ color: C.green }}>가이드 리포트</p>
-        <span className="f-body text-[10px] font-bold" style={{ color: "#9C927D" }}>{fb.guideName} · CEFR {fb.cefrLevel}</span>
+        <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>가이드 리포트</p>
+        <span className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{fb.guideName} · CEFR {fb.cefrLevel}</span>
       </div>
 
       {fb.overview && (
         <div className="mb-4">
-          <p className="f-body text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>체험 요약</p>
-          <p className="f-body text-sm whitespace-pre-line" style={{ color: C.charcoal }}>{fb.overview}</p>
+          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>체험 요약</p>
+          <p className="f-body text-[17px] whitespace-pre-line" style={{ color: C.charcoal }}>{fb.overview}</p>
         </div>
       )}
 
       {fb.guideNotes && (
         <div className="mb-4">
-          <p className="f-body text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>선생님 코멘트</p>
-          <p className="f-body text-sm italic whitespace-pre-line" style={{ color: C.charcoal }}>"{fb.guideNotes}"</p>
+          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>선생님 코멘트</p>
+          <p className="f-body text-[17px] italic whitespace-pre-line" style={{ color: C.charcoal }}>"{fb.guideNotes}"</p>
         </div>
       )}
 
       {Object.keys(fb.language || {}).length > 0 && (
         <div className="mb-4">
-          <p className="f-body text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>언어 사용 평가</p>
+          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>언어 사용 평가</p>
           <div className="space-y-1.5">
             {LANGUAGE_ROWS.filter((row) => fb.language[row.key]).map((row) => (
               <div key={row.key} className="flex items-center justify-between">
-                <span className="f-body text-[12px]" style={{ color: C.charcoal }}>{row.label.split(" (")[0]}</span>
+                <span className="f-body text-[15px]" style={{ color: C.charcoal }}>{row.label.split(" (")[0]}</span>
                 <DotRating value={fb.language[row.key]} />
               </div>
             ))}
@@ -2164,10 +2170,10 @@ function ParentFeedbackReport({ feedback: fb }) {
 
       {Object.keys(fb.personality || {}).length > 0 && (
         <div>
-          <p className="f-body text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>성향</p>
+          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>성향</p>
           <div className="flex flex-wrap gap-1.5">
             {PERSONALITY_ROWS.filter((row) => fb.personality[row.key]).map((row) => (
-              <span key={row.key} className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: "white", color: C.green }}>
+              <span key={row.key} className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: "white", color: C.green }}>
                 {row.label.split(" (")[0]} · {PERSONALITY_KO[fb.personality[row.key]]}
               </span>
             ))}
@@ -2181,12 +2187,12 @@ function HighlightLine({ ok, text }) {
   return (
     <div className="flex items-center gap-2">
       {ok ? <Check size={14} color="#1F7A44" /> : <Circle size={14} color="#D8CEB8" />}
-      <span className="f-body text-sm" style={{ color: ok ? C.charcoal : "#B4AC99" }}>{text}</span>
+      <span className="f-body text-[17px]" style={{ color: ok ? C.charcoal : "#B4AC99" }}>{text}</span>
     </div>
   );
 }
 function PhotosRow({ photos }) {
-  if (!photos.length) return <p className="f-body text-xs text-gray-400 mt-1">아직 사진이 없어요 — 체험 후에 확인해보세요!</p>;
+  if (!photos.length) return <p className="f-body text-[15px] text-gray-400 mt-1">아직 사진이 없어요 — 체험 후에 확인해보세요!</p>;
   return (
     <div className="flex gap-2 mt-1">
       {photos.map((src, i) => (
@@ -2273,7 +2279,7 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
                 key={t}
                 onClick={() => setType(t)}
                 aria-pressed={type === t}
-                className="focus-ring tap flex-1 text-[12px] f-body font-bold rounded-xl py-2"
+                className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
                 style={{ background: type === t ? C.green : C.cream, color: type === t ? "white" : C.charcoal, border: `1px solid ${type === t ? C.green : C.beige}` }}
               >
                 {t}
@@ -2286,7 +2292,7 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
             rows={3}
             placeholder="의견이나 가보고 싶은 장소를 남겨주세요..."
             aria-label="건의사항 또는 장소 요청 내용"
-            className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
+            className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
             style={{ background: C.cream, border: `1px solid ${C.beige}` }}
           />
           <PrimaryButton onClick={submit} disabled={!message.trim()}>보내기</PrimaryButton>
@@ -2298,15 +2304,15 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
           {mine.map((s) => (
             <div key={s.id} className="rounded-xl p-3" style={{ background: C.cream }}>
               <div className="flex items-center justify-between mb-1">
-                <span className="f-body text-[11px] font-bold" style={{ color: C.orange }}>{s.type}</span>
+                <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>{s.type}</span>
                 <span
-                  className="f-body text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  className="f-body text-[13px] font-bold px-2 py-0.5 rounded-full"
                   style={{ background: s.resolved ? "#DCF3E4" : C.beige, color: s.resolved ? "#1F7A44" : "#8A8060" }}
                 >
                   {s.resolved ? "확인함" : "검토중"}
                 </span>
               </div>
-              <p className="f-body text-sm" style={{ color: C.charcoal }}>{s.message}</p>
+              <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{s.message}</p>
             </div>
           ))}
         </div>
@@ -2362,16 +2368,16 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
     <div id="browse-programs">
       <div className="mb-2 mt-1">
         <p className="f-display font-semibold" style={{ color: C.green }}>체험 둘러보기</p>
-        <p className="f-body text-[11px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청·문의는 카카오톡으로 해 주세요.</p>
+        <p className="f-body text-[14px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청·문의는 카카오톡으로 해 주세요.</p>
         {KAKAO_CHAT_URL && (
-          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[12px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#191919" }}>
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#191919" }}>
             카카오톡으로 문의하기
           </a>
         )}
       </div>
       {cards.length === 0 ? (
         <div className="bg-white rounded-2xl p-4 text-center">
-          <p className="f-body text-sm text-gray-400">지금 신청할 수 있는 새 체험이 없어요. 새 체험이 열리면 여기에 나타나요.</p>
+          <p className="f-body text-[17px] text-gray-400">지금 신청할 수 있는 새 체험이 없어요. 새 체험이 열리면 여기에 나타나요.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl overflow-hidden">
@@ -2385,15 +2391,15 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                     <Cover program={p} className="w-12 h-12 shrink-0" />
                     <span className="min-w-0">
-                      <span className="block f-display font-semibold text-sm truncate" style={{ color: C.green }}>{p.title}</span>
-                      <span className="block f-body text-[11px] text-gray-400">{p.date} · Level {levelLabel(p)}</span>
+                      <span className="block f-display font-semibold text-[17px] truncate" style={{ color: C.green }}>{p.title}</span>
+                      <span className="block f-body text-[14px] text-gray-400">{p.date} · Level {levelLabel(p)}</span>
                     </span>
                   </button>
                   <button
                     onClick={() => onToggleWish({ familyPin, programId: p.id, message })}
                     aria-pressed={liked}
                     aria-label={liked ? "찜 취소" : "찜하기"}
-                    className="focus-ring tap shrink-0 w-10 h-10 rounded-full text-lg"
+                    className="focus-ring tap shrink-0 w-10 h-10 rounded-full text-[21px]"
                     style={{ background: liked ? "#FFE3E0" : C.cream, color: liked ? "#C0392B" : "#B9AE99" }}
                   >
                     {liked ? "♥" : "♡"}
@@ -2401,10 +2407,10 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                 </div>
                 {open && (
                   <div className="mt-3">
-                    {p.themeKo && <p className="f-body text-[12px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
-                    {(p.locationKo || p.location) && <p className="f-body text-[11px] text-gray-400 mt-1">📍 {p.locationKo || p.location}</p>}
-                    {p.info?.published && p.info.time && <p className="f-body text-[11px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
-                    {p.info?.published && feeText(p.info) && <p className="f-body text-[11px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
+                    {p.themeKo && <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
+                    {(p.locationKo || p.location) && <p className="f-body text-[14px] text-gray-400 mt-1">📍 {p.locationKo || p.location}</p>}
+                    {p.info?.published && p.info.time && <p className="f-body text-[14px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
+                    {p.info?.published && feeText(p.info) && <p className="f-body text-[14px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
                   </div>
                 )}
               </div>
@@ -2475,8 +2481,8 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
             <Confetti />
             <div className="relative">
               <div className="text-5xl mb-2 burst-in" aria-hidden="true">💛</div>
-              <p className="f-display text-xl font-bold mb-1" style={{ color: C.green }}>소중한 의견 감사합니다!</p>
-              <p className="f-body text-sm text-gray-500 mb-5">남겨 주신 의견은 다음 체험을 더 좋게 만드는 데 쓸게요.</p>
+              <p className="f-display text-[23px] font-bold mb-1" style={{ color: C.green }}>소중한 의견 감사합니다!</p>
+              <p className="f-body text-[17px] text-gray-500 mb-5">남겨 주신 의견은 다음 체험을 더 좋게 만드는 데 쓸게요.</p>
               <PrimaryButton onClick={onBack}>돌아가기</PrimaryButton>
             </div>
           </div>
@@ -2499,7 +2505,7 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
     setDone(true);
   };
 
-  const field = "focus-ring w-full rounded-xl p-3 f-body text-sm outline-none";
+  const field = "focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none";
   const fieldStyle = { background: "white", border: `1px solid ${C.beige}` };
   return (
     <div className="pb-10">
@@ -2516,27 +2522,27 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
         </ConfirmDialog>
       )}
       <div className="px-5 space-y-3">
-        <p className="f-body text-[12px] text-gray-500">1~2분이면 끝나요. 별을 눌러 점수를 남겨 주세요. <b>전체 만족도</b>만 꼭 남겨 주시면 돼요.</p>
+        <p className="f-body text-[15px] text-gray-500">1~2분이면 끝나요. 별을 눌러 점수를 남겨 주세요. <b>전체 만족도</b>만 꼭 남겨 주시면 돼요.</p>
 
         {SURVEY_ITEMS.map((item) => (
           <div key={item.key} className="bg-white rounded-2xl p-4">
-            <p className="f-display text-sm font-semibold" style={{ color: C.green }}>
+            <p className="f-display text-[17px] font-semibold" style={{ color: C.green }}>
               {item.label} {item.required && <span style={{ color: C.orange }}>*</span>}
             </p>
-            <p className="f-body text-[11px] text-gray-400 mt-0.5 mb-2">{item.hint}</p>
+            <p className="f-body text-[14px] text-gray-400 mt-0.5 mb-2">{item.hint}</p>
             <StarPicker label={item.label} value={ratings[item.key]} onChange={(v) => setRatings((r) => ({ ...r, [item.key]: v }))} />
           </div>
         ))}
 
         <div className="bg-white rounded-2xl p-4">
-          <p className="f-display text-sm font-semibold mb-2" style={{ color: C.green }}>다른 체험이 열리면 또 참여하고 싶으세요?</p>
+          <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>다른 체험이 열리면 또 참여하고 싶으세요?</p>
           <div className="space-y-2">
             {REJOIN_OPTIONS.map((o) => (
               <button
                 key={o.key}
                 onClick={() => setRejoin(rejoin === o.key ? null : o.key)}
                 aria-pressed={rejoin === o.key}
-                className="focus-ring tap w-full text-left f-body text-[13px] font-bold rounded-xl px-3 py-2.5"
+                className="focus-ring tap w-full text-left f-body text-[16px] font-bold rounded-xl px-3 py-2.5"
                 style={{ background: rejoin === o.key ? C.green : C.cream, color: rejoin === o.key ? "white" : C.charcoal, border: `1px solid ${rejoin === o.key ? C.green : C.beige}` }}
               >
                 {o.label}
@@ -2547,21 +2553,21 @@ function ParentSurvey({ student, program, adv, onSubmit, onBack }) {
 
         <div className="bg-white rounded-2xl p-4 space-y-3">
           <div>
-            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>좋았던 점 <span className="font-normal text-gray-400">(선택)</span></p>
+            <p className="f-display text-[17px] font-semibold mb-1.5" style={{ color: C.green }}>좋았던 점 <span className="font-normal text-gray-400">(선택)</span></p>
             <textarea value={good} onChange={(e) => setGood(e.target.value)} rows={2} aria-label="좋았던 점" className={field} style={fieldStyle} />
           </div>
           <div>
-            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>아쉬운 점·바라는 점 <span className="font-normal text-gray-400">(선택)</span></p>
+            <p className="f-display text-[17px] font-semibold mb-1.5" style={{ color: C.green }}>아쉬운 점·바라는 점 <span className="font-normal text-gray-400">(선택)</span></p>
             <textarea value={improve} onChange={(e) => setImprove(e.target.value)} rows={2} aria-label="아쉬운 점" className={field} style={fieldStyle} />
           </div>
           <div>
-            <p className="f-display text-sm font-semibold mb-1.5" style={{ color: C.green }}>다음에 가보고 싶은 체험이나 장소 <span className="font-normal text-gray-400">(선택)</span></p>
+            <p className="f-display text-[17px] font-semibold mb-1.5" style={{ color: C.green }}>다음에 가보고 싶은 체험이나 장소 <span className="font-normal text-gray-400">(선택)</span></p>
             <textarea value={wish} onChange={(e) => setWish(e.target.value)} rows={2} aria-label="가보고 싶은 체험" className={field} style={fieldStyle} />
           </div>
         </div>
 
         <PrimaryButton onClick={submit} disabled={!canSubmit}>설문 보내기</PrimaryButton>
-        {!canSubmit && <p className="f-body text-[11px] text-gray-400 text-center">전체 만족도 별점을 눌러 주세요.</p>}
+        {!canSubmit && <p className="f-body text-[14px] text-gray-400 text-center">전체 만족도 별점을 눌러 주세요.</p>}
       </div>
     </div>
   );
@@ -2616,12 +2622,12 @@ function GuideSheet({ onClose }) {
     <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="사용 방법">
       <div className="max-w-md mx-auto px-5 pt-6 pb-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="f-display text-lg font-semibold" style={{ color: C.green }}>사용 방법</h2>
-          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+          <h2 className="f-display text-[21px] font-semibold" style={{ color: C.green }}>사용 방법</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
             닫기
           </button>
         </div>
-        <p className="f-body text-sm text-gray-500 mb-4">딱 3단계예요.</p>
+        <p className="f-body text-[17px] text-gray-500 mb-4">딱 3단계예요.</p>
         <div className="space-y-3">
           {GUIDE_STEPS.map((st, k) => (
             <div key={st.title} className="bg-white rounded-2xl p-4">
@@ -2629,22 +2635,22 @@ function GuideSheet({ onClose }) {
                 <span className="w-9 h-9 rounded-full flex items-center justify-center f-display font-bold text-white shrink-0" style={{ background: C.orange }}>{k + 1}</span>
                 <p className="f-display font-semibold" style={{ color: C.green }}>{st.title}</p>
               </div>
-              <p className="f-body text-[13px] text-gray-600">{st.text}</p>
+              <p className="f-body text-[16px] text-gray-600">{st.text}</p>
             </div>
           ))}
           <div className="rounded-2xl p-4" style={{ background: C.beige }}>
-            <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.orange }}>앱 주소</p>
-            <p className="f-display text-lg font-semibold mb-2" style={{ color: C.green }}>{APP_ADDRESS}</p>
-            <p className="f-body text-[13px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가해 두면 더 편해요</p>
-            <p className="f-body text-[12px] text-gray-600">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
-            <p className="f-body text-[12px] text-gray-600">아이폰: 공유 버튼 → 홈 화면에 추가</p>
+            <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.orange }}>앱 주소</p>
+            <p className="f-display text-[21px] font-semibold mb-2" style={{ color: C.green }}>{APP_ADDRESS}</p>
+            <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가해 두면 더 편해요</p>
+            <p className="f-body text-[15px] text-gray-600">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
+            <p className="f-body text-[15px] text-gray-600">아이폰: 공유 버튼 → 홈 화면에 추가</p>
             {canInstall && (
-              <button onClick={install} className="focus-ring tap f-body text-[13px] font-bold rounded-xl px-4 py-2.5 mt-3 text-white" style={{ background: C.orange }}>
+              <button onClick={install} className="focus-ring tap f-body text-[16px] font-bold rounded-xl px-4 py-2.5 mt-3 text-white" style={{ background: C.orange }}>
                 지금 홈 화면에 추가
               </button>
             )}
           </div>
-          <p className="f-body text-[12px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+          <p className="f-body text-[15px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
         </div>
       </div>
     </div>
@@ -2658,10 +2664,10 @@ function ParentGuide({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label="사용 안내">
       <div className="bg-white rounded-2xl p-7 w-full max-w-sm text-center screen-in">
-        <p className="f-body text-[11px] font-bold tracking-[0.1em]" style={{ color: C.orange }}>사용 안내 {i + 1} / {GUIDE_STEPS.length}</p>
+        <p className="f-body text-[14px] font-bold tracking-[0.1em]" style={{ color: C.orange }}>사용 안내 {i + 1} / {GUIDE_STEPS.length}</p>
         <div className="text-5xl my-4" aria-hidden="true">{step.icon}</div>
-        <h3 className="f-display text-xl font-semibold mb-2" style={{ color: C.green }}>{step.title}</h3>
-        <p className="f-body text-sm text-gray-600 mb-6" style={{ minHeight: 88 }}>{step.text}</p>
+        <h3 className="f-display text-[23px] font-semibold mb-2" style={{ color: C.green }}>{step.title}</h3>
+        <p className="f-body text-[17px] text-gray-600 mb-6" style={{ minHeight: 88 }}>{step.text}</p>
         <div className="flex justify-center gap-1.5 mb-5" aria-hidden="true">
           {GUIDE_STEPS.map((_, k) => (
             <span key={k} className="rounded-full" style={{ width: k === i ? 18 : 6, height: 6, background: k === i ? C.orange : C.beige }} />
@@ -2669,7 +2675,7 @@ function ParentGuide({ onClose }) {
         </div>
         <PrimaryButton onClick={() => (last ? onClose() : setI(i + 1))}>{last ? "시작하기" : "다음"}</PrimaryButton>
         {!last && (
-          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold mt-3" style={{ color: "#B9AE99" }}>
+          <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold mt-3" style={{ color: "#B9AE99" }}>
             건너뛰기
           </button>
         )}
@@ -2703,24 +2709,24 @@ function ParentWaiting({ students, familyPin, onRefresh, onLogout }) {
       <style>{FONTS}</style>
       <div className="w-full max-w-sm text-center">
         <div className="text-5xl mb-3" aria-hidden="true">🌱</div>
-        <h1 className="f-display text-xl font-semibold mb-2" style={{ color: C.green }}>신청이 접수됐어요</h1>
-        <p className="f-body text-sm text-gray-600 mb-1">선생님이 신청 내역을 확인하고 있어요.</p>
-        <p className="f-body text-sm text-gray-600 mb-5">확인이 끝나면 바로 시작할 수 있어요. 보통 하루 안에 확인해요.</p>
+        <h1 className="f-display text-[23px] font-semibold mb-2" style={{ color: C.green }}>신청이 접수됐어요</h1>
+        <p className="f-body text-[17px] text-gray-600 mb-1">선생님이 신청 내역을 확인하고 있어요.</p>
+        <p className="f-body text-[17px] text-gray-600 mb-5">확인이 끝나면 바로 시작할 수 있어요. 보통 하루 안에 확인해요.</p>
         <div className="bg-white rounded-2xl p-4 mb-5 text-left">
-          <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.orange }}>등록한 아이</p>
+          <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.orange }}>등록한 아이</p>
           {kids.map((k) => (
-            <p key={k.id} className="f-body text-sm" style={{ color: C.charcoal }}><span aria-hidden="true">{k.avatar}</span> {k.name} · Level {k.level}</p>
+            <p key={k.id} className="f-body text-[17px]" style={{ color: C.charcoal }}><span aria-hidden="true">{k.avatar}</span> {k.name} · Level {k.level}</p>
           ))}
         </div>
-        <button onClick={() => check(false)} disabled={checking} className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-3 text-white mb-2 disabled:opacity-60" style={{ background: C.orange }}>
+        <button onClick={() => check(false)} disabled={checking} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3 text-white mb-2 disabled:opacity-60" style={{ background: C.orange }}>
           {checking ? "확인하는 중..." : "확인됐는지 보기"}
         </button>
-        <div aria-live="polite" className="min-h-[18px] mb-2">{msg && <p className="f-body text-[12px] text-gray-500">{msg}</p>}</div>
+        <div aria-live="polite" className="min-h-[18px] mb-2">{msg && <p className="f-body text-[15px] text-gray-500">{msg}</p>}</div>
         {KAKAO_CHAT_URL && (
-          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[12px] font-bold px-4 py-2 rounded-full mb-2" style={{ background: "#FEE500", color: "#191919" }}>카카오톡으로 문의하기</a>
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold px-4 py-2 rounded-full mb-2" style={{ background: "#FEE500", color: "#191919" }}>카카오톡으로 문의하기</a>
         )}
         <div>
-          <button onClick={onLogout} className="focus-ring tap f-body text-[12px] font-bold py-2" style={{ color: "#9C927D" }}>나가기</button>
+          <button onClick={onLogout} className="focus-ring tap f-body text-[15px] font-bold py-2" style={{ color: "#9C927D" }}>나가기</button>
         </div>
       </div>
     </div>
@@ -2745,10 +2751,10 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         title="내 자녀 관리"
         right={
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: C.orange }}>
+            <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>
               도움말
             </button>
-            <button onClick={onLogout} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: "#B9AE99" }}>
+            <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: "#B9AE99" }}>
               Switch user
             </button>
           </div>
@@ -2759,12 +2765,12 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
       {infoId && getProgram(infoId) && <ProgramInfoSheet program={getProgram(infoId)} onClose={() => setInfoId(null)} />}
       <div className="px-5 space-y-3">
         {myChildren.length === 0 && (
-          <p className="f-body text-sm text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
+          <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
         )}
 
         {notices.length > 0 && (
           <div>
-            <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.orange }}>🔔 알림 {notices.length}</p>
+            <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>🔔 알림 {notices.length}</p>
             <div className="space-y-2">
               {notices.map((n) => (
                 <button
@@ -2773,12 +2779,12 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                   className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
                   style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
                 >
-                  <span className="text-2xl">{n.icon}</span>
+                  <span className="text-[27px]">{n.icon}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block f-body text-[13px] font-bold" style={{ color: C.green }}>{n.title}</span>
-                    <span className="block f-body text-[11px] text-gray-500 truncate">{n.text}</span>
+                    <span className="block f-body text-[16px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                    <span className="block f-body text-[14px] text-gray-500 truncate">{n.text}</span>
                   </span>
-                  <span className="f-body text-[11px] font-bold shrink-0" style={{ color: C.orange }}>{n.action} →</span>
+                  <span className="f-body text-[14px] font-bold shrink-0" style={{ color: C.orange }}>{n.action} →</span>
                 </button>
               ))}
             </div>
@@ -2787,8 +2793,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
 
         {myChildren.length > 0 && !adventures.some((a) => myChildren.some((c) => c.id === a.studentId)) && (
           <div className="rounded-2xl p-4 text-center" style={{ background: "#FFF1E2" }}>
-            <p className="f-display font-semibold text-sm" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
-            <p className="f-body text-[12px] text-gray-500 mt-1">아래 "체험 둘러보기"에서 마음에 드는 체험을 골라 보세요.</p>
+            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
+            <p className="f-body text-[15px] text-gray-500 mt-1">아래 "체험 둘러보기"에서 마음에 드는 체험을 골라 보세요.</p>
           </div>
         )}
 
@@ -2801,16 +2807,16 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           return (
             <div key={s.id} className="bg-white rounded-2xl p-4">
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">{s.avatar}</span>
+                <span className="text-[27px]">{s.avatar}</span>
                 <div className="flex-1 min-w-0">
                   <p className="f-display font-semibold" style={{ color: C.green }}>{s.name}</p>
-                  <p className="f-body text-[11px] text-gray-400">Level {s.level} · {rank.emoji} {rank.label}</p>
+                  <p className="f-body text-[14px] text-gray-400">Level {s.level} · {rank.emoji} {rank.label}</p>
                 </div>
               </div>
               <div className="rounded-xl p-3 mb-3" style={{ background: C.cream }}>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="f-body text-[11px] font-bold" style={{ color: C.charcoal }}>참여 {count}회</span>
-                  <span className="f-body text-[11px]" style={{ color: "#9C927D" }}>
+                  <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>참여 {count}회</span>
+                  <span className="f-body text-[14px]" style={{ color: "#9C927D" }}>
                     {nextRank ? `다음 단계까지 ${nextRank.min - count}회 남음` : "최고 단계 달성"}
                   </span>
                 </div>
@@ -2819,15 +2825,15 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => onViewReport(s.id)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
+                <button onClick={() => onViewReport(s.id)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
                   리포트 보기
                 </button>
                 {adventures.some((a) => a.studentId === s.id) ? (
-                  <button onClick={() => onStartAdventure(s.id)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
+                  <button onClick={() => onStartAdventure(s.id)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
                     모험 시작하기
                   </button>
                 ) : (
-                  <button onClick={goBrowse} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
+                  <button onClick={goBrowse} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
                     체험 고르기
                   </button>
                 )}
@@ -2846,7 +2852,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
               onRegister={(info) => { onAddChild(info); setAddingChild(false); }}
             />
           ) : (
-            <button onClick={() => setAddingChild(true)} className="focus-ring tap w-full text-center f-body text-[12px] font-bold py-2" style={{ color: C.orange }}>
+            <button onClick={() => setAddingChild(true)} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
               + 자녀 추가
             </button>
           )
@@ -2878,7 +2884,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 
         {inProgress.length > 0 && (
           <>
-            <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 pt-2">진행중인 체험</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">진행중인 체험</p>
             {inProgress.map(({ a, program }) => {
               const status = getStatus(a);
               const label = status === "reflection_pending" ? "소감 작성 대기중" : status === "ready" ? "체험 준비 완료" : "준비 중";
@@ -2886,10 +2892,10 @@ function ParentDashboard({ adventures, studentId, onBack }) {
                 <div key={program.id} className="bg-white rounded-2xl p-4 flex items-center gap-3">
                   <Cover program={program} className="w-12 h-12 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{program.title}</p>
-                    <p className="f-body text-[11px] text-gray-400">{program.date}</p>
+                    <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{program.title}</p>
+                    <p className="f-body text-[14px] text-gray-400">{program.date}</p>
                   </div>
-                  <span className="text-[10px] f-body font-bold px-2 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{label}</span>
+                  <span className="text-[13px] f-body font-bold px-2 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{label}</span>
                 </div>
               );
             })}
@@ -2903,11 +2909,12 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 /* ================================================================== */
 /*  TEACHER VIEW                                                        */
 /* ================================================================== */
-function TeacherStudentCard({ student, allStudents, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
+function TeacherStudentCard({ student, allStudents, onCancelEnrollment, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [editName, setEditName] = useState(student.name);
   const [editAvatar, setEditAvatar] = useState(student.avatar);
   const [editLevel, setEditLevel] = useState(student.level);
@@ -2942,10 +2949,10 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
   return (
     <div className="bg-white rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 p-3">
-        <span className="text-2xl">{student.avatar}</span>
+        <span className="text-[27px]">{student.avatar}</span>
         <div className="flex-1 min-w-0">
-          <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{student.name}</p>
-          <p className="f-body text-[11px] text-gray-400">
+          <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{student.name}</p>
+          <p className="f-body text-[14px] text-gray-400">
             Level {student.level} · 참여 {participationCount}회 · {reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>복습 {reviewScoreOf(adv).percent}% · </span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>📝 리포트 작성됨</span> : <span style={{ color: "#B08A3E" }}>리포트 미작성</span>}
           </p>
         </div>
@@ -2957,7 +2964,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
             if (next && !program.dateReached) onOpenToday();
           }}
           aria-pressed={adv.attended}
-          className="focus-ring tap text-[11px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+          className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
           style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}
         >
           <ClipboardCheck size={13} /> {adv.attended ? "Present" : "Mark present"}
@@ -2968,10 +2975,10 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
       </div>
 
       <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3 border-l-4" style={{ background: "#FFF1E2", borderColor: C.orange }}>
-        <span style={{ fontSize: 22 }}>{rank.emoji}</span>
+        <span style={{ fontSize: 25 }}>{rank.emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="f-display text-[13px] font-bold" style={{ color: C.green }}>{rank.label}</p>
-          <p className="f-body text-[11px]" style={{ color: "#9C7A4A" }}>완료 {totalCompleted}회 · 뱃지 {badgesEarned.length}개 · 🥕{points}</p>
+          <p className="f-display text-[16px] font-bold" style={{ color: C.green }}>{rank.label}</p>
+          <p className="f-body text-[14px]" style={{ color: "#9C7A4A" }}>완료 {totalCompleted}회 · 뱃지 {badgesEarned.length}개 · 🥕{points}</p>
         </div>
       </div>
 
@@ -2979,9 +2986,9 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
         <div className="px-4 pb-4 space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="f-body text-xs font-bold uppercase tracking-wide" style={{ color: C.green }}>학생 정보</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>학생 정보</p>
               {!editing && (
-                <button onClick={() => setEditing(true)} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: C.orange }}>
+                <button onClick={() => setEditing(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>
                   수정
                 </button>
               )}
@@ -2994,7 +3001,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="학생 이름"
                   aria-label="학생 이름 수정"
-                  className="focus-ring w-full rounded-xl p-2.5 f-body text-sm outline-none mb-2"
+                  className="focus-ring w-full rounded-xl p-2.5 f-body text-[17px] outline-none mb-2"
                   style={{ background: "white", border: `1px solid ${C.beige}` }}
                 />
                 <div className="flex gap-1.5 flex-wrap mb-2">
@@ -3003,7 +3010,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                       key={a}
                       onClick={() => setEditAvatar(a)}
                       aria-pressed={editAvatar === a}
-                      className="focus-ring tap w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                      className="focus-ring tap w-8 h-8 rounded-lg flex items-center justify-center text-[17px]"
                       style={{ background: editAvatar === a ? C.green : "white", border: `1px solid ${editAvatar === a ? C.green : C.beige}` }}
                     >
                       {a}
@@ -3016,7 +3023,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                       key={l}
                       onClick={() => setEditLevel(l)}
                       aria-pressed={editLevel === l}
-                      className="focus-ring tap flex-1 text-[11px] f-body font-bold rounded-lg py-1.5"
+                      className="focus-ring tap flex-1 text-[14px] f-body font-bold rounded-lg py-1.5"
                       style={{ background: editLevel === l ? C.green : "white", color: editLevel === l ? "white" : C.charcoal, border: `1px solid ${editLevel === l ? C.green : C.beige}` }}
                     >
                       {l}
@@ -3029,29 +3036,29 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                   placeholder="가족 로그인 번호 4자리"
                   inputMode="numeric"
                   aria-label="가족 로그인 번호 4자리 수정"
-                  className="focus-ring w-full rounded-xl p-2.5 f-body text-sm outline-none mb-1.5 text-center tracking-[0.3em]"
+                  className="focus-ring w-full rounded-xl p-2.5 f-body text-[17px] outline-none mb-1.5 text-center tracking-[0.3em]"
                   style={{ background: "white", border: `1px solid ${C.beige}` }}
                 />
                 {editPin.length === 4 && editPin !== student.familyPin && familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).length > 0 && (
-                  <p className="f-body text-[11px] font-bold mb-3" style={{ color: "#B08A3E" }}>
+                  <p className="f-body text-[14px] font-bold mb-3" style={{ color: "#B08A3E" }}>
                     이미 쓰는 번호예요. {familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).join(", ")}와(과) 같은 가족으로 묶여요.
                   </p>
                 )}
                 <div className="mb-2" />
                 <div className="flex gap-2 mb-2">
-                  <button onClick={() => setEditing(false)} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal }}>
+                  <button onClick={() => setEditing(false)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal }}>
                     취소
                   </button>
                   <button
                     onClick={saveEdit}
                     disabled={!editName.trim() || !/^\d{4}$/.test(editPin)}
-                    className="focus-ring tap flex-1 f-display text-[12px] font-semibold rounded-lg py-2 text-white"
+                    className="focus-ring tap flex-1 f-display text-[15px] font-semibold rounded-lg py-2 text-white"
                     style={{ background: editName.trim() && /^\d{4}$/.test(editPin) ? C.orange : "#C9BFA8" }}
                   >
                     저장
                   </button>
                 </div>
-                <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
+                <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>
                   학생 삭제
                 </button>
                 {confirmDelete && (
@@ -3071,62 +3078,62 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
               </div>
             ) : (
               <div>
-                <p className="f-body text-sm" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
-                {student.phoneLast4 && <p className="f-body text-[11px] mt-1" style={{ color: "#9C927D" }}>신청 번호 뒷자리 {student.phoneLast4}</p>}
+                <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
+                {student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>신청 번호 뒷자리 {student.phoneLast4}</p>}
               </div>
             )}
           </div>
 
           {badgesEarned.length > 0 && (
             <div>
-              <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>획득한 뱃지</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>획득한 뱃지</p>
               <div className="flex gap-2 flex-wrap">
                 {badgesEarned.map((b) => <Badge key={b.id} b={b} size="sm" />)}
               </div>
-              <p className="f-body text-[10px] text-gray-400 mt-2">뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).</p>
+              <p className="f-body text-[13px] text-gray-400 mt-2">뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).</p>
             </div>
           )}
 
           <div>
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Mission participation</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Mission participation</p>
             <div className="space-y-1.5">
               {program.missions.map((m, i) => (
                 <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={!!adv.missionsCompleted[i]?.done} className="focus-ring tap w-full flex items-center gap-2 text-left">
                   {adv.missionsCompleted[i]?.done ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-                  <span className="f-body text-[13px]" style={{ color: C.charcoal }}>{m.text}</span>
+                  <span className="f-body text-[16px]" style={{ color: C.charcoal }}>{m.text}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Strengths noticed</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Strengths noticed</p>
             <div className="flex flex-wrap gap-1.5">
               {TEACHER_TAGS.map((tag) => <TagChip key={tag} label={tag} selected={adv.teacherTags.includes(tag)} onClick={() => toggleTag(tag)} />)}
             </div>
           </div>
 
           <div>
-            <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Teacher note</p>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Teacher note</p>
             <textarea
               value={adv.teacherNote}
               onChange={(e) => onUpdate({ teacherNote: e.target.value })}
               rows={2}
               placeholder="One or two quick sentences..."
               aria-label={`Teacher note for ${student.name}`}
-              className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none"
+              className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
               style={{ background: C.cream, border: `1px solid ${C.beige}` }}
             />
           </div>
 
           <div className="pt-1 border-t" style={{ borderColor: C.beige }}>
             <button onClick={() => setFeedbackOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between pt-3">
-              <span className="f-body text-xs font-bold uppercase tracking-wide" style={{ color: C.green }}>
+              <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>
                 Full Feedback Report {adv.feedback && "✓"}
               </span>
               <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${feedbackOpen ? "rotate-90" : ""}`} />
             </button>
-            <p className="f-body text-[11px] text-gray-400 mt-1">Usually filled out after the trip — not needed in the moment.</p>
+            <p className="f-body text-[14px] text-gray-400 mt-1">Usually filled out after the trip — not needed in the moment.</p>
 
             {feedbackOpen && (
               <div className="mt-3 space-y-4">
@@ -3136,7 +3143,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                     onChange={(e) => patchFeedback({ guideName: e.target.value })}
                     placeholder="Guide name"
                     aria-label="Guide name"
-                    className="focus-ring flex-1 rounded-xl p-3 f-body text-sm outline-none"
+                    className="focus-ring flex-1 rounded-xl p-3 f-body text-[17px] outline-none"
                     style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                   />
                   <input
@@ -3144,39 +3151,39 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                     onChange={(e) => patchFeedback({ cefrLevel: e.target.value })}
                     placeholder="CEFR"
                     aria-label="CEFR level"
-                    className="focus-ring w-20 rounded-xl p-3 f-body text-sm outline-none text-center"
+                    className="focus-ring w-20 rounded-xl p-3 f-body text-[17px] outline-none text-center"
                     style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                   />
                 </div>
 
                 <div>
-                  <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>Experience Overview / Summary</p>
+                  <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>Experience Overview / Summary</p>
                   <textarea
                     value={fb.overview}
                     onChange={(e) => patchFeedback({ overview: e.target.value })}
                     rows={5}
                     placeholder="What did the group do and explore during the trip?"
                     aria-label="Experience overview"
-                    className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none"
+                    className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
                     style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                   />
                 </div>
 
                 <div>
-                  <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>Guide's Notes on Student</p>
+                  <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>Guide's Notes on Student</p>
                   <textarea
                     value={fb.guideNotes}
                     onChange={(e) => patchFeedback({ guideNotes: e.target.value })}
                     rows={5}
                     placeholder="How was this student during the trip?"
                     aria-label="Guide's notes on student"
-                    className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none"
+                    className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
                     style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                   />
                 </div>
 
                 <div>
-                  <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Language Usage</p>
+                  <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Language Usage</p>
                   {LANGUAGE_ROWS.map((row) => (
                     <RatingRow
                       key={row.key}
@@ -3189,7 +3196,7 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
                 </div>
 
                 <div>
-                  <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Personality</p>
+                  <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Personality</p>
                   {PERSONALITY_ROWS.map((row) => (
                     <RatingRow
                       key={row.key}
@@ -3203,6 +3210,32 @@ function TeacherStudentCard({ student, allStudents, adv, program, adventures, pa
               </div>
             )}
           </div>
+
+          {onCancelEnrollment && (
+            <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
+              {adv.attended ? (
+                <p className="f-body text-[14px] text-gray-400">출석한 체험은 취소할 수 없어요. 출석 체크를 해제하면 취소할 수 있어요.</p>
+              ) : (
+                <>
+                  <button onClick={() => setConfirmCancel(true)} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2.5 rounded-xl" style={{ background: "#FDF1EC", color: "#C0674A" }}>
+                    체험 취소
+                  </button>
+                  <p className="f-body text-[13px] text-gray-400 mt-1.5 text-center">이 아이의 이 프로그램 신청을 취소해요. 학생 등록은 그대로예요.</p>
+                </>
+              )}
+            </div>
+          )}
+          {confirmCancel && (
+            <ConfirmDialog
+              title={`${student.name} 학생의 체험을 취소할까요?`}
+              actions={[
+                { label: "체험 취소", tone: "danger", onClick: () => { setConfirmCancel(false); onCancelEnrollment(); } },
+                { label: "돌아가기", tone: "plain", onClick: () => setConfirmCancel(false) },
+              ]}
+            >
+              {programTitle ? `${programTitle} 신청이 취소돼요. ` : ""}부모님 화면에서는 이 프로그램이 사라져요. 예습 기록은 지우지 않고 보관돼서, 취소한 신청 목록에서 되돌릴 수 있어요.
+            </ConfirmDialog>
+          )}
         </div>
       )}
     </div>
@@ -3314,11 +3347,11 @@ function ConfirmDialog({ title, children, actions }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: "rgba(23,76,53,0.55)" }} role="alertdialog" aria-modal="true" aria-label={title}>
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm screen-in">
-        <p className="f-display text-base font-semibold mb-2 text-center" style={{ color: C.green }}>{title}</p>
-        <div className="f-body text-[13px] text-gray-600 text-center mb-5">{children}</div>
+        <p className="f-display text-[18px] font-semibold mb-2 text-center" style={{ color: C.green }}>{title}</p>
+        <div className="f-body text-[16px] text-gray-600 text-center mb-5">{children}</div>
         <div className="space-y-2">
           {actions.map((a) => (
-            <button key={a.label} onClick={a.onClick} className="focus-ring tap w-full f-body text-sm font-bold rounded-xl py-3" style={tones[a.tone || "plain"]}>
+            <button key={a.label} onClick={a.onClick} className="focus-ring tap w-full f-body text-[17px] font-bold rounded-xl py-3" style={tones[a.tone || "plain"]}>
               {a.label}
             </button>
           ))}
@@ -3433,31 +3466,31 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
         onChange={(e) => setName(e.target.value)}
         placeholder={mode === "teacher" ? "학생 이름" : "자녀 이름"}
         aria-label="학생 이름"
-        className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
+        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>아바타 선택</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>아바타 선택</p>
       <div className="flex gap-2 flex-wrap mb-3">
         {AVATAR_CHOICES.map((a) => (
           <button
             key={a}
             onClick={() => setAvatar(a)}
             aria-pressed={avatar === a}
-            className="focus-ring tap w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+            className="focus-ring tap w-10 h-10 rounded-xl flex items-center justify-center text-[21px]"
             style={{ background: avatar === a ? C.green : C.cream, border: `1px solid ${avatar === a ? C.green : C.beige}` }}
           >
             {a}
           </button>
         ))}
       </div>
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
       <div className="flex gap-2 mb-4">
         {LEVEL_CHOICES.map((l) => (
           <button
             key={l}
             onClick={() => setLevel(l)}
             aria-pressed={level === l}
-            className="focus-ring tap flex-1 text-[12px] f-body font-bold rounded-xl py-2"
+            className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
             style={{ background: level === l ? C.green : C.cream, color: level === l ? "white" : C.charcoal, border: `1px solid ${level === l ? C.green : C.beige}` }}
           >
             {l}
@@ -3467,7 +3500,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
 
       {mode !== "sibling" && (
         <>
-          <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>
+          <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>
             {mode === "parent" ? "로그인 번호 (기억할 숫자 4자리)" : "가족 로그인 번호 (숫자 4자리)"}
           </p>
           <input
@@ -3476,48 +3509,48 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
             placeholder="예: 7391"
             inputMode="numeric"
             aria-label="가족 로그인 번호 4자리"
-            className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-1.5 text-center tracking-[0.3em]"
+            className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1.5 text-center tracking-[0.3em]"
             style={{ background: C.cream, border: `1px solid ${pinStatus === "taken" || pinStatus === "weak" || refused ? "#E0A19A" : C.beige}` }}
           />
           <div aria-live="polite" className="mb-3 min-h-[16px]">
-            {(pinStatus === "taken" || refused) && <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{PIN_TAKEN_MSG}{mode === "parent" && " 이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요."}</p>}
-            {pinStatus === "weak" && <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{PIN_WEAK_MSG}</p>}
-            {pinStatus === "free" && <p className="f-body text-[11px] font-bold" style={{ color: "#1F7A44" }}>사용할 수 있는 번호예요 ✓</p>}
-            {pinStatus === "joins" && <p className="f-body text-[11px] font-bold" style={{ color: "#B08A3E" }}>이미 쓰는 번호예요. {sameFamily.join(", ")}와(과) 같은 가족(형제자매)으로 묶여요.</p>}
+            {(pinStatus === "taken" || refused) && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{PIN_TAKEN_MSG}{mode === "parent" && " 이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요."}</p>}
+            {pinStatus === "weak" && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{PIN_WEAK_MSG}</p>}
+            {pinStatus === "free" && <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>사용할 수 있는 번호예요 ✓</p>}
+            {pinStatus === "joins" && <p className="f-body text-[14px] font-bold" style={{ color: "#B08A3E" }}>이미 쓰는 번호예요. {sameFamily.join(", ")}와(과) 같은 가족(형제자매)으로 묶여요.</p>}
           </div>
-          <p className="f-body text-[10px] text-gray-400 mb-4">
+          <p className="f-body text-[13px] text-gray-400 mb-4">
             {mode === "parent"
               ? "이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요."
               : "이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요."}
           </p>
           {needsPhone && (
             <div className="mb-4">
-              <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>보호자 전화번호 (신청서에 적은 번호)</p>
+              <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>보호자 전화번호 (신청서에 적은 번호)</p>
               <input
                 value={phone}
                 onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 16)); setVerifyError(""); }}
                 placeholder="010-0000-0000"
                 inputMode="tel"
                 aria-label="보호자 전화번호"
-                className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-1.5"
+                className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1.5"
                 style={{ background: C.cream, border: `1px solid ${verifyError || (phone && !phoneValid(phone)) ? "#E0A19A" : C.beige}` }}
               />
-              <p className="f-body text-[10px] text-gray-400">체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.</p>
+              <p className="f-body text-[13px] text-gray-400">체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.</p>
               <div aria-live="polite" className="min-h-[16px] mt-1">
-                {verifyError ? <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요.</p> : null}
+                {verifyError ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요.</p> : null}
               </div>
             </div>
           )}
         </>
       )}
       <div className="flex gap-2">
-        <button onClick={mode === "sibling" && onCancel ? onCancel : reset} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
+        <button onClick={mode === "sibling" && onCancel ? onCancel : reset} className="focus-ring tap flex-1 f-body text-[17px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
           {mode === "sibling" ? "취소" : "초기화"}
         </button>
         <button
           onClick={submit}
           disabled={!canSubmit}
-          className="focus-ring tap flex-1 f-display text-sm font-semibold rounded-xl py-2.5 text-white"
+          className="focus-ring tap flex-1 f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
         >
           {busy ? "확인 중..." : mode === "sibling" ? "추가하기" : "등록 완료"}
@@ -3635,7 +3668,7 @@ function MiniInput({ value, onChange, placeholder, label, className = "" }) {
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       aria-label={label || placeholder}
-      className={`focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[13px] outline-none ${className}`}
+      className={`focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[16px] outline-none ${className}`}
       style={{ ...editorFieldStyle, background: "white" }}
     />
   );
@@ -3643,21 +3676,21 @@ function MiniInput({ value, onChange, placeholder, label, className = "" }) {
 function EditorHeading({ children, hint }) {
   return (
     <div className="mb-1.5">
-      <p className="f-body text-xs font-bold" style={{ color: C.green }}>{children}</p>
-      {hint && <p className="f-body text-[10px] text-gray-400 mt-0.5">{hint}</p>}
+      <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{children}</p>
+      {hint && <p className="f-body text-[13px] text-gray-400 mt-0.5">{hint}</p>}
     </div>
   );
 }
 function AddButton({ onClick, children }) {
   return (
-    <button onClick={onClick} className="focus-ring tap f-body text-[12px] font-bold rounded-lg px-3 py-1.5" style={{ background: C.beige, color: C.green }}>
+    <button onClick={onClick} className="focus-ring tap f-body text-[15px] font-bold rounded-lg px-3 py-1.5" style={{ background: C.beige, color: C.green }}>
       {children}
     </button>
   );
 }
 function RemoveButton({ onClick }) {
   return (
-    <button onClick={onClick} aria-label="삭제" className="focus-ring tap f-body text-[11px] font-bold px-2 py-1 rounded-lg" style={{ color: "#C0674A" }}>
+    <button onClick={onClick} aria-label="삭제" className="focus-ring tap f-body text-[14px] font-bold px-2 py-1 rounded-lg" style={{ color: "#C0674A" }}>
       삭제
     </button>
   );
@@ -3694,7 +3727,7 @@ function VocabEditor({ items, onChange }) {
                 onChange={(e) => update(i, { emoji: e.target.value })}
                 placeholder="🙂"
                 aria-label="이모지"
-                className="focus-ring rounded-lg py-2 f-body text-lg outline-none text-center"
+                className="focus-ring rounded-lg py-2 f-body text-[21px] outline-none text-center"
                 style={{ width: 52, background: "white", border: `1px solid ${C.beige}` }}
               />
               <MiniInput value={v.en || ""} onChange={(val) => update(i, { en: val })} placeholder="영어 단어 (예: airplane)" />
@@ -3706,17 +3739,17 @@ function VocabEditor({ items, onChange }) {
       </div>
       <AddButton onClick={add}>+ 단어 추가</AddButton>
       <div className="mt-3">
-        <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.charcoal }}>한꺼번에 붙여넣기</p>
+        <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>한꺼번에 붙여넣기</p>
         <textarea
           value={bulk}
           onChange={(e) => setBulk(e.target.value)}
           rows={3}
           placeholder={"한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️"}
           aria-label="단어 한꺼번에 붙여넣기"
-          className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[12px] outline-none"
+          className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
           style={{ ...editorFieldStyle, background: "white" }}
         />
-        <p className="f-body text-[10px] text-gray-400 mt-1">형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 " - " 앞뒤에 띄어쓰기)</p>
+        <p className="f-body text-[13px] text-gray-400 mt-1">형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 " - " 앞뒤에 띄어쓰기)</p>
         <div className="mt-1.5"><AddButton onClick={addBulk}>붙여넣은 단어 추가</AddButton></div>
       </div>
     </div>
@@ -3732,13 +3765,13 @@ function QuizEditor({ items, onChange }) {
         {items.map((q, i) => {
           if (q.type !== "mc" && q.type !== "tf") {
             if (q.id === "match-auto") return null;
-            return <p key={q.id || i} className="f-body text-[11px] text-gray-400">🧩 그림 맞추기 문제는 그대로 유지돼요.</p>;
+            return <p key={q.id || i} className="f-body text-[14px] text-gray-400">🧩 그림 맞추기 문제는 그대로 유지돼요.</p>;
           }
           const opts = q.type === "mc" ? (q.options && q.options.length >= 3 ? q.options : [...(q.options || []), "", "", ""].slice(0, 3)) : [];
           return (
             <div key={q.id || i} className="rounded-xl p-2.5 space-y-1.5" style={editorFieldStyle}>
               <div className="flex items-center">
-                <span className="f-body text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+                <span className="f-body text-[14px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>
                   {q.type === "mc" ? "객관식" : "O/X"}
                 </span>
                 <div className="flex-1" />
@@ -3764,7 +3797,7 @@ function QuizEditor({ items, onChange }) {
                       />
                     </div>
                   ))}
-                  <p className="f-body text-[10px] text-gray-400">동그라미를 눌러 정답을 골라 주세요.</p>
+                  <p className="f-body text-[13px] text-gray-400">동그라미를 눌러 정답을 골라 주세요.</p>
                 </div>
               ) : (
                 <div className="flex gap-2">
@@ -3776,7 +3809,7 @@ function QuizEditor({ items, onChange }) {
                       key={String(b.v)}
                       onClick={() => patch(i, { answer: b.v })}
                       aria-pressed={q.answer === b.v}
-                      className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2"
+                      className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2"
                       style={{ background: q.answer === b.v ? C.green : "white", color: q.answer === b.v ? "white" : C.charcoal, border: `1px solid ${q.answer === b.v ? C.green : C.beige}` }}
                     >
                       {b.label}
@@ -3804,7 +3837,7 @@ function MaterialsEditor({ value, onChange }) {
   const focus = value.focus || [];
   return (
     <div className="rounded-xl p-3 mb-3 space-y-5" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
-      <p className="f-body text-[11px] text-gray-500">
+      <p className="f-body text-[14px] text-gray-500">
         아이 화면에 <b>영어</b>로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.
       </p>
 
@@ -3828,11 +3861,11 @@ function MaterialsEditor({ value, onChange }) {
           ))}
         </div>
         <AddButton onClick={() => set({ missions: [...value.missions, { id: newId("m"), text: "" }] })}>+ 미션 추가</AddButton>
-        <p className="f-body text-[10px] text-gray-400 mt-1.5">이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.</p>
+        <p className="f-body text-[13px] text-gray-400 mt-1.5">이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.</p>
 
         <div className="mt-4">
-          <p className="f-body text-[12px] font-bold" style={{ color: C.green }}>🔍 오늘의 집중 포인트</p>
-          <p className="f-body text-[10px] text-gray-400 mt-0.5 mb-2">체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.</p>
+          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>🔍 오늘의 집중 포인트</p>
+          <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2">체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.</p>
           <div className="space-y-1.5 mb-2">
             {focus.map((f, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -3847,7 +3880,7 @@ function MaterialsEditor({ value, onChange }) {
               <button
                 key={t}
                 onClick={() => focus.length < 4 && set({ focus: [...focus.filter((x) => x.trim()), t] })}
-                className="focus-ring tap f-body text-[11px] font-bold px-2.5 py-1.5 rounded-full"
+                className="focus-ring tap f-body text-[14px] font-bold px-2.5 py-1.5 rounded-full"
                 style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}
               >
                 + {t}
@@ -3862,7 +3895,7 @@ function MaterialsEditor({ value, onChange }) {
         <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
         <button onClick={() => set({ autoMatch: !value.autoMatch })} aria-pressed={value.autoMatch} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
           {value.autoMatch ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-          <span className="f-body text-[11px] font-bold" style={{ color: C.charcoal }}>
+          <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>
             단어-그림 맞추기 문제 자동 추가
             <span className="block font-normal text-gray-400">서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.</span>
           </span>
@@ -3886,7 +3919,7 @@ function MaterialsEditor({ value, onChange }) {
 
       <button onClick={() => set({ reviewOpen: !value.reviewOpen })} aria-pressed={value.reviewOpen} className="focus-ring tap flex items-start gap-2 text-left rounded-xl p-3 w-full" style={{ background: value.reviewOpen ? "#DCF3E4" : "white", border: `1px solid ${value.reviewOpen ? "#9FD6B2" : C.beige}` }}>
         {value.reviewOpen ? <CheckCircle2 size={20} color="#1F7A44" /> : <Circle size={20} color="#D8CEB8" />}
-        <span className="f-body text-[12px] font-bold" style={{ color: C.charcoal }}>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>
           복습 열기
           <span className="block font-normal text-gray-500">퀴즈를 다 만든 뒤 켜고 저장하면, 체험에 다녀온 아이들이 복습을 시작할 수 있어요.</span>
         </span>
@@ -3970,12 +4003,12 @@ function InfoEditor({ program, value, onChange }) {
     await copy();
   };
 
-  const field = "focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[13px] outline-none";
+  const field = "focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[16px] outline-none";
   const fieldStyle = { background: "white", border: `1px solid ${C.beige}` };
-  const label = "f-body text-[11px] font-bold mb-1";
+  const label = "f-body text-[14px] font-bold mb-1";
   return (
     <div className="rounded-xl p-3 mb-3 space-y-3" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
-      <p className="f-body text-[11px] text-gray-500">학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 "학부모에게 공개"를 켜고 저장하면 학부모 앱에 알림이 떠요.</p>
+      <p className="f-body text-[14px] text-gray-500">학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 "학부모에게 공개"를 켜고 저장하면 학부모 앱에 알림이 떠요.</p>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -4008,7 +4041,7 @@ function InfoEditor({ program, value, onChange }) {
               key={f.key}
               onClick={() => set({ feeType: value.feeType === f.key ? "" : f.key })}
               aria-pressed={value.feeType === f.key}
-              className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2"
+              className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2"
               style={{ background: value.feeType === f.key ? C.green : "white", color: value.feeType === f.key ? "white" : C.charcoal, border: `1px solid ${value.feeType === f.key ? C.green : C.beige}` }}
             >
               {f.label}
@@ -4029,7 +4062,7 @@ function InfoEditor({ program, value, onChange }) {
             <input value={value.feeNote} onChange={(e) => set({ feeNote: e.target.value })} placeholder="예: 현장 결제" aria-label="입장료 메모" className={field} style={fieldStyle} />
           </div>
         )}
-        {value.feeType === "parent" && value.feeAmount && <p className="f-body text-[11px] text-gray-400 mt-1">→ {moneyText(value.feeAmount)}</p>}
+        {value.feeType === "parent" && value.feeAmount && <p className="f-body text-[14px] text-gray-400 mt-1">→ {moneyText(value.feeAmount)}</p>}
       </div>
 
       <div>
@@ -4039,7 +4072,7 @@ function InfoEditor({ program, value, onChange }) {
 
       <button onClick={() => set({ published: !value.published })} aria-pressed={value.published} className="focus-ring tap flex items-start gap-2 text-left">
         {value.published ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
-        <span className="f-body text-[12px] font-bold" style={{ color: C.charcoal }}>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>
           학부모에게 공개
           <span className="block font-normal text-gray-400">켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 "체험 안내가 도착했어요" 알림이 떠요.</span>
         </span>
@@ -4048,16 +4081,16 @@ function InfoEditor({ program, value, onChange }) {
       <div className="pt-1">
         <p className={label} style={{ color: C.charcoal }}>카톡으로 보내기</p>
         <div className="flex gap-2">
-          <button onClick={share} disabled={!ready} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: "#FEE500", color: "#191919" }}>
+          <button onClick={share} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: "#FEE500", color: "#191919" }}>
             📤 안내문 보내기
           </button>
-          <button onClick={copy} disabled={!ready} className="focus-ring tap flex-1 f-body text-[12px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>
+          <button onClick={copy} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>
             📋 안내문 복사
           </button>
         </div>
-        {status && <p className="f-body text-[11px] mt-1.5" style={{ color: "#1F7A44" }}>{status}</p>}
+        {status && <p className="f-body text-[14px] mt-1.5" style={{ color: "#1F7A44" }}>{status}</p>}
         {fallback && <textarea readOnly value={fallback} rows={7} aria-label="안내문" className={`${field} mt-1.5`} style={fieldStyle} />}
-        {!ready && <p className="f-body text-[10px] text-gray-400 mt-1">프로그램 이름을 먼저 입력해 주세요.</p>}
+        {!ready && <p className="f-body text-[13px] text-gray-400 mt-1">프로그램 이름을 먼저 입력해 주세요.</p>}
       </div>
     </div>
   );
@@ -4080,8 +4113,8 @@ function ProgramInfoSheet({ program, onClose }) {
     <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="체험 안내">
       <div className="max-w-md mx-auto px-5 pt-6 pb-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="f-display text-lg font-semibold" style={{ color: C.green }}>체험 안내</h2>
-          <button onClick={onClose} className="focus-ring tap f-body text-[12px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
+          <h2 className="f-display text-[21px] font-semibold" style={{ color: C.green }}>체험 안내</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
         </div>
         <Cover program={program} showTitle className="h-36 mb-4" />
         <div className="space-y-2.5">
@@ -4090,20 +4123,20 @@ function ProgramInfoSheet({ program, onClose }) {
           ))}
           {bring.length > 0 && (
             <div className="bg-white rounded-2xl p-4">
-              <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.orange }}>🎒 준비물</p>
+              <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.orange }}>🎒 준비물</p>
               <div className="flex flex-wrap gap-1.5">
                 {bring.map((b) => (
-                  <span key={b} className="f-body text-[13px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: C.charcoal }}>{b}</span>
+                  <span key={b} className="f-body text-[16px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: C.charcoal }}>{b}</span>
                 ))}
               </div>
             </div>
           )}
           {(program.focus || []).length > 0 && (
             <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-              <p className="f-body text-[11px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트</p>
+              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트</p>
               <ul className="space-y-1">
                 {program.focus.map((f, i) => (
-                  <li key={i} className="f-body text-[14px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
+                  <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
                 ))}
               </ul>
             </div>
@@ -4112,7 +4145,7 @@ function ProgramInfoSheet({ program, onClose }) {
             <InfoRow key={r.label} {...r} />
           ))}
         </div>
-        <p className="f-body text-[11px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+        <p className="f-body text-[14px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
     </div>
   );
@@ -4121,8 +4154,8 @@ function InfoRow({ icon, label, value, tone }) {
   const pay = tone === "pay";
   return (
     <div className="rounded-2xl p-4" style={{ background: pay ? "#FFF1E2" : "white", border: pay ? `1px solid ${C.beige}` : "none" }}>
-      <p className="f-body text-[11px] font-bold mb-1" style={{ color: C.orange }}>{icon} {label}</p>
-      <p className="f-body text-[14px] font-semibold whitespace-pre-line" style={{ color: C.charcoal }}>{value}</p>
+      <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.orange }}>{icon} {label}</p>
+      <p className="f-body text-[17px] font-semibold whitespace-pre-line" style={{ color: C.charcoal }}>{value}</p>
     </div>
   );
 }
@@ -4203,11 +4236,11 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
       <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{isEdit ? "프로그램 수정" : "새 프로그램 등록"}</p>
       {draft && (
         <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-body text-[12px] font-bold" style={{ color: C.green }}>저장하지 않고 나간 작성 내용이 있어요</p>
-          <p className="f-body text-[11px] text-gray-500 mb-2">이 폰에 임시로 보관돼 있어요.</p>
+          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>저장하지 않고 나간 작성 내용이 있어요</p>
+          <p className="f-body text-[14px] text-gray-500 mb-2">이 폰에 임시로 보관돼 있어요.</p>
           <div className="flex gap-2">
-            <button onClick={restoreDraft} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>이어서 작성</button>
-            <button onClick={dropDraft} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>버리기</button>
+            <button onClick={restoreDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>이어서 작성</button>
+            <button onClick={dropDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>버리기</button>
           </div>
         </div>
       )}
@@ -4228,7 +4261,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         onChange={(e) => setTitle(e.target.value)}
         placeholder="프로그램 이름 (예: Seoul Grand Park)"
         aria-label="프로그램 이름"
-        className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
+        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
       <div className="flex gap-2 mb-3">
@@ -4237,7 +4270,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
           onChange={(e) => setDate(e.target.value)}
           placeholder="날짜 (예: Sep 30)"
           aria-label="날짜"
-          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-sm outline-none"
+          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
         <input
@@ -4245,12 +4278,12 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
           onChange={(e) => setLocation(e.target.value)}
           placeholder="장소"
           aria-label="장소"
-          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-sm outline-none"
+          className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
       </div>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>테마 아이콘 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>테마 아이콘 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 flex-wrap mb-3">
         {ICON_CHOICES.map((opt) => (
           <button
@@ -4261,23 +4294,23 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
             style={{ background: icons.includes(opt.key) ? C.green : C.cream, border: `1px solid ${icons.includes(opt.key) ? C.green : C.beige}` }}
           >
             <ProgramIcon kind={opt.key} size={16} color={icons.includes(opt.key) ? "white" : C.green} />
-            <span className="f-body text-[11px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{opt.label}</span>
+            <span className="f-body text-[14px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{opt.label}</span>
           </button>
         ))}
       </div>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>대표 이미지 미리보기</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>대표 이미지 미리보기</p>
       <Cover program={{ title, icon: icons[0], category: ICON_CHOICES.find((i) => i.key === icons[0])?.category }} showTitle className="h-28 mb-1" />
-      <p className="f-body text-[10px] text-gray-400 mb-3">사진 없이, 이름과 아이콘으로 자동으로 만들어져요.</p>
+      <p className="f-body text-[13px] text-gray-400 mb-3">사진 없이, 이름과 아이콘으로 자동으로 만들어져요.</p>
 
-      <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
       <div className="flex gap-2 mb-3">
         {LEVEL_CHOICES.map((l) => (
           <button
             key={l}
             onClick={() => setLevels((prev) => toggleIn(prev, l))}
             aria-pressed={levels.includes(l)}
-            className="focus-ring tap flex-1 text-[12px] f-body font-bold rounded-xl py-2"
+            className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
             style={{ background: levels.includes(l) ? C.green : C.cream, color: levels.includes(l) ? "white" : C.charcoal, border: `1px solid ${levels.includes(l) ? C.green : C.beige}` }}
           >
             {l}
@@ -4291,7 +4324,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         placeholder="체험 소개 (부모님용, 한 문장)"
         rows={2}
         aria-label="체험 소개"
-        className="focus-ring w-full rounded-xl p-3 f-body text-sm outline-none mb-3"
+        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
 
@@ -4302,10 +4335,10 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         style={{ background: C.beige }}
       >
         <span className="text-left min-w-0">
-          <span className="block f-body text-[12px] font-bold" style={{ color: C.green }}>체험 전 안내</span>
-          <span className="block f-body text-[10.5px] text-gray-500">시간 · 모이는 곳 · 준비물 · 입장료</span>
+          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>체험 전 안내</span>
+          <span className="block f-body text-[13px] text-gray-500">시간 · 모이는 곳 · 준비물 · 입장료</span>
         </span>
-        <span className="shrink-0 whitespace-nowrap f-body text-[12px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? "접기 ▴" : "펼치기 ▾"}</span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? "접기 ▴" : "펼치기 ▾"}</span>
       </button>
       {showInfo && <InfoEditor program={{ title, date, location, locationKo: location, focus: materials.focus }} value={noticeInfo} onChange={setNoticeInfo} />}
 
@@ -4316,27 +4349,27 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         style={{ background: C.beige }}
       >
         <span className="text-left min-w-0">
-          <span className="block f-body text-[12px] font-bold" style={{ color: C.green }}>체험 자료 입력</span>
-          <span className="block f-body text-[10.5px] text-gray-500">단어 · 질문 · 퀴즈 · 미션</span>
+          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>체험 자료 입력</span>
+          <span className="block f-body text-[13px] text-gray-500">단어 · 질문 · 퀴즈 · 미션</span>
         </span>
-        <span className="shrink-0 whitespace-nowrap f-body text-[12px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
       </button>
       {showMaterials && <MaterialsEditor value={materials} onChange={setMaterials} />}
 
       <button onClick={() => setDateReached((d) => !d)} aria-pressed={dateReached} className="focus-ring tap flex items-center gap-2 mb-4">
         {dateReached ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-        <span className="f-body text-[12px] font-bold" style={{ color: C.charcoal }}>오늘 진행 (체험 시작 가능)</span>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>오늘 진행 (체험 시작 가능)</span>
       </button>
 
       {isEdit ? (
         <div className="flex gap-2 mb-2">
-          <button onClick={askLeave} className="focus-ring tap flex-1 f-body text-sm font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
+          <button onClick={askLeave} className="focus-ring tap flex-1 f-body text-[17px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
             취소
           </button>
           <button
             onClick={submit}
             disabled={!canSubmit}
-            className="focus-ring tap flex-1 f-display text-sm font-semibold rounded-xl py-2.5 text-white"
+            className="focus-ring tap flex-1 f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
             style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
           >
             저장
@@ -4346,7 +4379,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         <button
           onClick={submit}
           disabled={!canSubmit}
-          className="focus-ring tap w-full f-display text-sm font-semibold rounded-xl py-2.5 text-white"
+          className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
         >
           프로그램 등록
@@ -4354,7 +4387,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
       )}
 
       {isEdit && (
-        <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[11px] font-bold py-1.5" style={{ color: "#C0674A" }}>
+        <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>
           프로그램 삭제
         </button>
       )}
@@ -4370,7 +4403,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
           {deleteNote && <span className="block mt-1 text-gray-500">삭제하기 전에 백업 파일이 자동으로 내려받아져요.</span>}
         </ConfirmDialog>
       )}
-      {!isEdit && <p className="f-body text-[10px] text-gray-400 mt-2">단어·미션·질문은 기본 내용으로 채워져요.</p>}
+      {!isEdit && <p className="f-body text-[13px] text-gray-400 mt-2">단어·미션·질문은 기본 내용으로 채워져요.</p>}
     </div>
   );
 }
@@ -4467,14 +4500,14 @@ function DataTools({ onCheck, onExport }) {
   return (
     <div className="px-5 mt-3 pb-8">
       <StatCard title="데이터 관리" hint="서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.">
-        <button onClick={run} disabled={state.phase === "running"} className="focus-ring tap w-full f-body text-[13px] font-bold rounded-xl py-2.5 mb-2 text-white disabled:opacity-60" style={{ background: C.green }}>
+        <button onClick={run} disabled={state.phase === "running"} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5 mb-2 text-white disabled:opacity-60" style={{ background: C.green }}>
           {state.phase === "running" ? "확인하는 중..." : "서버 저장 점검"}
         </button>
-        <p className="f-body text-[10.5px] text-gray-400 mb-3">단어·퀴즈·안내 등을 입력한 <b>직후, 새로고침하기 전에</b> 눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.</p>
-        {state.phase === "error" && <p className="f-body text-[12px] mb-3" style={{ color: "#C0392B" }}>서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.</p>}
+        <p className="f-body text-[13px] text-gray-400 mb-3">단어·퀴즈·안내 등을 입력한 <b>직후, 새로고침하기 전에</b> 눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.</p>
+        {state.phase === "error" && <p className="f-body text-[15px] mb-3" style={{ color: "#C0392B" }}>서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.</p>}
         {r && (
           <div className="mb-4">
-            <p className="f-body text-[12px] font-bold mb-2" style={{ color: r.missing.length ? "#C0392B" : "#1F7A44" }}>
+            <p className="f-body text-[15px] font-bold mb-2" style={{ color: r.missing.length ? "#C0392B" : "#1F7A44" }}>
               {r.checked === 0
                 ? "아직 비교할 데이터가 없어요. 입력하고 저장한 뒤 다시 눌러 보세요."
                 : r.missing.length
@@ -4484,20 +4517,20 @@ function DataTools({ onCheck, onExport }) {
             <div className="space-y-1">
               {r.rows.map((x) => (
                 <div key={x.key} className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: x.total === 0 ? "transparent" : x.saved === x.total ? "#EAF7EF" : "#FDECEA" }}>
-                  <span className="f-body text-[12px]" style={{ color: x.total === 0 ? "#B9AE99" : C.charcoal }}>{x.label}</span>
-                  <span className="f-body text-[11px] font-bold" style={{ color: x.total === 0 ? "#B9AE99" : x.saved === x.total ? "#1F7A44" : "#C0392B" }}>
+                  <span className="f-body text-[15px]" style={{ color: x.total === 0 ? "#B9AE99" : C.charcoal }}>{x.label}</span>
+                  <span className="f-body text-[14px] font-bold" style={{ color: x.total === 0 ? "#B9AE99" : x.saved === x.total ? "#1F7A44" : "#C0392B" }}>
                     {x.total === 0 ? "비교할 데이터 없음" : x.saved === x.total ? `✓ ${x.saved}/${x.total} 저장됨` : `✗ ${x.saved}/${x.total} 저장 안 됨`}
                   </span>
                 </div>
               ))}
             </div>
-            {r.missing.length > 0 && <p className="f-body text-[11px] text-gray-500 mt-2">✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(<code>api.js</code>, <code>functions/api</code>)을 보내 주시면 고칠게요.</p>}
+            {r.missing.length > 0 && <p className="f-body text-[14px] text-gray-500 mt-2">✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(<code>api.js</code>, <code>functions/api</code>)을 보내 주시면 고칠게요.</p>}
           </div>
         )}
-        <button onClick={onExport} className="focus-ring tap w-full f-body text-[13px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
+        <button onClick={onExport} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
           전체 자료 내려받기 (백업)
         </button>
-        <p className="f-body text-[10.5px] text-gray-400 mt-2">아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.</p>
+        <p className="f-body text-[13px] text-gray-400 mt-2">아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.</p>
       </StatCard>
     </div>
   );
@@ -4621,8 +4654,8 @@ function programDetail(program, rows) {
 function StatCard({ title, hint, children }) {
   return (
     <div className="bg-white rounded-2xl p-4">
-      <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{title}</p>
-      {hint && <p className="f-body text-[11px] text-gray-400 mt-0.5 mb-3">{hint}</p>}
+      <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{title}</p>
+      {hint && <p className="f-body text-[14px] text-gray-400 mt-0.5 mb-3">{hint}</p>}
       {!hint && <div className="mb-3" />}
       {children}
     </div>
@@ -4633,17 +4666,17 @@ function StatBar({ label, value, total, sub, note }) {
   return (
     <div className="mb-3 last:mb-0">
       <div className="flex items-baseline justify-between gap-2 mb-1">
-        <span className="f-body text-[12px] font-bold min-w-0 truncate" style={{ color: C.charcoal }}>{label}</span>
-        <span className="f-body text-[11px] text-gray-500 shrink-0">{sub ?? `${value}명 · ${p}%`}</span>
+        <span className="f-body text-[15px] font-bold min-w-0 truncate" style={{ color: C.charcoal }}>{label}</span>
+        <span className="f-body text-[14px] text-gray-500 shrink-0">{sub ?? `${value}명 · ${p}%`}</span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
         <div className="h-full rounded-full" style={{ width: `${p}%`, background: C.orange }} />
       </div>
-      {note && <p className="f-body text-[10.5px] text-gray-400 mt-1">{note}</p>}
+      {note && <p className="f-body text-[13px] text-gray-400 mt-1">{note}</p>}
     </div>
   );
 }
-const NO_DATA_YET = <p className="f-body text-[12px] text-gray-400">아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.</p>;
+const NO_DATA_YET = <p className="f-body text-[15px] text-gray-400">아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.</p>;
 
 function VisitCard({ suggestions }) {
   const v = visitStats(suggestions);
@@ -4658,27 +4691,27 @@ function VisitCard({ suggestions }) {
           { label: "방문한 가족", value: v.families },
         ].map((x) => (
           <div key={x.label} className="rounded-xl py-3 text-center" style={{ background: C.cream }}>
-            <p className="f-display text-2xl font-bold" style={{ color: C.green }}>{x.value}</p>
-            <p className="f-body text-[11px] text-gray-500 mt-0.5">{x.label}</p>
+            <p className="f-display text-[27px] font-bold" style={{ color: C.green }}>{x.value}</p>
+            <p className="f-body text-[14px] text-gray-500 mt-0.5">{x.label}</p>
           </div>
         ))}
       </div>
-      <p className="f-body text-[11px] font-bold mb-2" style={{ color: C.charcoal }}>최근 7일</p>
+      <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.charcoal }}>최근 7일</p>
       <div className="flex items-end gap-1.5" style={{ height: 72 }} role="img" aria-label="최근 7일 방문 수">
         {v.week.map((d, i) => (
           <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
-            <span className="f-body text-[10px] text-gray-500 mb-0.5">{d.count || ""}</span>
+            <span className="f-body text-[13px] text-gray-500 mb-0.5">{d.count || ""}</span>
             <div className="w-full rounded-t-md" style={{ height: `${Math.max(d.count ? 8 : 3, (d.count / max) * 44)}px`, background: i === v.week.length - 1 ? C.orange : "#F2C9A0" }} />
           </div>
         ))}
       </div>
       <div className="flex gap-1.5 mt-1">
         {v.week.map((d) => (
-          <span key={d.day} className="flex-1 text-center f-body text-[10px] text-gray-400">{dow[new Date(`${d.day}T12:00:00+09:00`).getUTCDay()]}</span>
+          <span key={d.day} className="flex-1 text-center f-body text-[13px] text-gray-400">{dow[new Date(`${d.day}T12:00:00+09:00`).getUTCDay()]}</span>
         ))}
       </div>
-      {v.returning > 0 && <p className="f-body text-[11px] text-gray-500 mt-3">🔁 이틀 이상 다시 찾아온 가족 {v.returning}가족</p>}
-      {v.total === 0 && <p className="f-body text-[11px] text-gray-400 mt-3">아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.</p>}
+      {v.returning > 0 && <p className="f-body text-[14px] text-gray-500 mt-3">🔁 이틀 이상 다시 찾아온 가족 {v.returning}가족</p>}
+      {v.total === 0 && <p className="f-body text-[14px] text-gray-400 mt-3">아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.</p>}
     </StatCard>
   );
 }
@@ -4707,7 +4740,7 @@ function StatsPanel({ adventures, students, suggestions }) {
           <button
             key={o.id}
             onClick={() => setSel(o.id)}
-            className="focus-ring tap shrink-0 text-[12px] f-body font-bold px-3.5 py-2 rounded-full"
+            className="focus-ring tap shrink-0 text-[15px] f-body font-bold px-3.5 py-2 rounded-full"
             style={{ background: sel === o.id ? C.green : "white", color: sel === o.id ? "white" : C.charcoal }}
           >
             {o.label}
@@ -4719,7 +4752,7 @@ function StatsPanel({ adventures, students, suggestions }) {
 
       {sum.total === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center">
-          <p className="f-body text-sm text-gray-400">아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.</p>
+          <p className="f-body text-[17px] text-gray-400">아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.</p>
         </div>
       ) : (
         <>
@@ -4728,12 +4761,12 @@ function StatsPanel({ adventures, students, suggestions }) {
               <StatBar key={f.key} label={f.label} value={f.value} total={sum.total} />
             ))}
             {drop && (
-              <p className="f-body text-[11px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>
+              <p className="f-body text-[14px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>
                 💡 "{drop.from.label}" → "{drop.to.label}" 단계에서 가장 많이 줄어요 ({drop.from.value}명 → {drop.to.value}명).
               </p>
             )}
             {(sum.prepDays !== null || sum.afterDays !== null) && (
-              <p className="f-body text-[11px] text-gray-500 mt-2">
+              <p className="f-body text-[14px] text-gray-500 mt-2">
                 {sum.prepDays !== null && <>등록 후 예습을 끝내기까지 평균 {oneDecimal(sum.prepDays)}일 </>}
                 {sum.afterDays !== null && <>· 출석 후 복습까지 평균 {oneDecimal(sum.afterDays)}일</>}
               </p>
@@ -4753,7 +4786,7 @@ function StatsPanel({ adventures, students, suggestions }) {
 
           <StatCard title="복습 퀴즈 점수" hint="체험 후 선생님이 만든 퀴즈를 아이들이 푼 결과예요.">
             {sum.reviewPct === null ? (
-              <p className="f-body text-[12px] text-gray-400">아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.</p>
+              <p className="f-body text-[15px] text-gray-400">아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.</p>
             ) : (
               <StatBar label="평균 정답률" value={sum.reviewPct} total={100} sub={`${sum.reviewPct}% · ${sum.reviewN}명`} />
             )}
@@ -4763,16 +4796,16 @@ function StatsPanel({ adventures, students, suggestions }) {
             {sum.rating.n ? (
               <StatBar label="체험 별점" value={sum.rating.avg} total={5} sub={`${oneDecimal(sum.rating.avg)} / 5 · ${sum.rating.n}명`} />
             ) : (
-              <p className="f-body text-[12px] text-gray-400">아직 별점이 없어요.</p>
+              <p className="f-body text-[15px] text-gray-400">아직 별점이 없어요.</p>
             )}
           </StatCard>
 
           <StatCard title="부모 만족도 설문" hint="체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.">
             {sum.survey.n === 0 ? (
-              <p className="f-body text-[12px] text-gray-400">아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.</p>
+              <p className="f-body text-[15px] text-gray-400">아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.</p>
             ) : (
               <>
-                <p className="f-body text-[12px] mb-3" style={{ color: C.charcoal }}>
+                <p className="f-body text-[15px] mb-3" style={{ color: C.charcoal }}>
                   응답 <b>{sum.survey.n}</b>건 · 출석한 {sum.survey.attended}명 중 {pctOf(sum.survey.n, sum.survey.attended)}%
                 </p>
                 {sum.survey.avg.filter((x) => x.n > 0).map((x) => (
@@ -4780,7 +4813,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                 ))}
                 {sum.survey.rejoinN > 0 && (
                   <div className="mt-4">
-                    <p className="f-body text-[12px] font-bold mb-2" style={{ color: C.charcoal }}>다시 참여하고 싶으세요?</p>
+                    <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.charcoal }}>다시 참여하고 싶으세요?</p>
                     {sum.survey.rejoin.map((o) => (
                       <StatBar key={o.key} label={o.label} value={o.count} total={sum.survey.rejoinN} />
                     ))}
@@ -4792,12 +4825,12 @@ function StatsPanel({ adventures, students, suggestions }) {
                   { k: "wish", title: "가보고 싶은 체험·장소", list: sum.survey.wish },
                 ].filter((g) => g.list.length > 0).map((g) => (
                   <div key={g.k} className="mt-4">
-                    <p className="f-body text-[12px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.title} ({g.list.length})</p>
+                    <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.title} ({g.list.length})</p>
                     <div className="space-y-1.5">
                       {g.list.slice(0, 5).map((t, i) => (
-                        <p key={i} className="f-body text-[12px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
+                        <p key={i} className="f-body text-[15px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
                       ))}
-                      {g.list.length > 5 && <p className="f-body text-[11px] text-gray-400">외 {g.list.length - 5}개</p>}
+                      {g.list.length > 5 && <p className="f-body text-[14px] text-gray-400">외 {g.list.length - 5}개</p>}
                     </div>
                   </div>
                 ))}
@@ -4813,8 +4846,8 @@ function StatsPanel({ adventures, students, suggestions }) {
                   const sm = summarizeRows(r);
                   return (
                     <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left rounded-xl p-3" style={{ background: C.cream }}>
-                      <p className="f-body text-[13px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
-                      <p className="f-body text-[11px] text-gray-500 mt-0.5">
+                      <p className="f-body text-[16px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
+                      <p className="f-body text-[14px] text-gray-500 mt-0.5">
                         등록 {sm.total}명 · 예습 {pctOf(sm.funnel[1].value, sm.total)}% · 출석 {pctOf(sm.funnel[2].value, sm.total)}% · 복습 {pctOf(sm.funnel[3].value, sm.total)}%
                         {sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : ""}
                         {wishCount(p) ? ` · ♥${wishCount(p)}` : ""}
@@ -4875,20 +4908,20 @@ function StatsPanel({ adventures, students, suggestions }) {
 
               <StatCard title="큰 질문에 아이들은 뭐라고 답했나요?" hint="예습에서 고른 답이에요.">
                 {detail.bigQ.length === 0 ? (
-                  <p className="f-body text-[12px] text-gray-400">아직 답이 없어요.</p>
+                  <p className="f-body text-[15px] text-gray-400">아직 답이 없어요.</p>
                 ) : (
                   detail.bigQ.map(([answer, count]) => <StatBar key={answer} label={answer} value={count} total={sum.total} />)
                 )}
               </StatCard>
 
               <StatCard title="관심">
-                <p className="f-body text-[13px]" style={{ color: C.charcoal }}>♥ {wishCount(program)}가족이 이 체험을 찜했어요.</p>
+                <p className="f-body text-[16px]" style={{ color: C.charcoal }}>♥ {wishCount(program)}가족이 이 체험을 찜했어요.</p>
               </StatCard>
             </>
           )}
         </>
       )}
-      <p className="f-body text-[10px] text-gray-400 text-center pb-2">통계는 아이 개인이 아닌 전체 숫자만 보여줘요.</p>
+      <p className="f-body text-[13px] text-gray-400 text-center pb-2">통계는 아이 개인이 아닌 전체 숫자만 보여줘요.</p>
     </div>
   );
 }
@@ -4918,27 +4951,27 @@ function ApprovalPanel({ students, onAccept, onReject }) {
     setVerdict((v) => ({ ...v, [f.pin]: code === f.phoneCode ? "match" : "differ" }));
   };
   if (!families.length) {
-    return <div className="px-5"><div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-sm text-gray-400">수락을 기다리는 가입이 없어요.</p></div></div>;
+    return <div className="px-5"><div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[17px] text-gray-400">수락을 기다리는 가입이 없어요.</p></div></div>;
   }
   return (
     <div className="px-5 space-y-3">
-      <p className="f-body text-[11px] text-gray-500">신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.</p>
+      <p className="f-body text-[14px] text-gray-500">신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.</p>
       {families.map((f) => (
         <div key={f.pin} className="bg-white rounded-2xl p-4">
           <div className="space-y-1.5 mb-2">
             {f.kids.map((k) => (
               <div key={k.id} className="flex items-center gap-2">
-                <span className="text-xl" aria-hidden="true">{k.avatar}</span>
-                <p className="f-display font-semibold text-sm" style={{ color: C.green }}>{k.name} <span className="f-body font-normal text-[11px] text-gray-400">· Level {k.level}</span></p>
+                <span className="text-[23px]" aria-hidden="true">{k.avatar}</span>
+                <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{k.name} <span className="f-body font-normal text-[14px] text-gray-400">· Level {k.level}</span></p>
               </div>
             ))}
           </div>
-          <p className="f-body text-[12px]" style={{ color: C.charcoal }}>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>
             신청 번호 뒷자리 <b>{f.phoneLast4 || "—"}</b>
             {f.registeredAt && <span className="text-gray-400"> · {timeAgoKo(f.registeredAt)} 신청</span>}
           </p>
           {f.sameNumber.length > 0 && (
-            <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>⚠️ 같은 번호로 이미 가입한 가족이 있어요: {f.sameNumber.join(", ")}</p>
+            <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>⚠️ 같은 번호로 이미 가입한 가족이 있어요: {f.sameNumber.join(", ")}</p>
           )}
           {f.phoneCode && (
             <div className="mt-2">
@@ -4949,19 +4982,19 @@ function ApprovalPanel({ students, onAccept, onReject }) {
                   placeholder="신청서 번호를 붙여넣어 확인 (선택)"
                   inputMode="tel"
                   aria-label={`신청서 번호 확인 ${f.kids[0].name}`}
-                  className="focus-ring flex-1 min-w-0 rounded-lg px-2.5 py-2 f-body text-[12px] outline-none"
+                  className="focus-ring flex-1 min-w-0 rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
                   style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                 />
-                <button onClick={() => check(f)} disabled={!typed[f.pin]} className="focus-ring tap shrink-0 f-body text-[12px] font-bold rounded-lg px-3 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>확인</button>
+                <button onClick={() => check(f)} disabled={!typed[f.pin]} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-lg px-3 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>확인</button>
               </div>
-              {verdict[f.pin] === "match" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#1F7A44" }}>✓ 가입할 때 입력한 번호와 같아요</p>}
-              {verdict[f.pin] === "differ" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>✗ 가입할 때 입력한 번호와 달라요</p>}
-              {verdict[f.pin] === "bad" && <p className="f-body text-[11px] font-bold mt-1" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요</p>}
+              {verdict[f.pin] === "match" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#1F7A44" }}>✓ 가입할 때 입력한 번호와 같아요</p>}
+              {verdict[f.pin] === "differ" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>✗ 가입할 때 입력한 번호와 달라요</p>}
+              {verdict[f.pin] === "bad" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요</p>}
             </div>
           )}
           <div className="flex gap-2 mt-3">
-            <button onClick={() => setDeclining(f.pin)} className="focus-ring tap flex-1 f-body text-[13px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#C0674A" }}>거절</button>
-            <button onClick={() => onAccept(f.pin)} className="focus-ring tap flex-[2] f-display text-[13px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>수락</button>
+            <button onClick={() => setDeclining(f.pin)} className="focus-ring tap flex-1 f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#C0674A" }}>거절</button>
+            <button onClick={() => onAccept(f.pin)} className="focus-ring tap flex-[2] f-display text-[16px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>수락</button>
           </div>
         </div>
       ))}
@@ -4980,7 +5013,7 @@ function ApprovalPanel({ students, onAccept, onReject }) {
   );
 }
 
-function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, updateAdventure, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -5010,7 +5043,12 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
     .filter((a) => a.programId === programId)
     .map((adv) => ({ student: students.find((s) => s.id === adv.studentId), adv }))
     .filter((r) => r.student);
-  const unenrolled = students.filter((s) => !roster.some((r) => r.student.id === s.id));
+  const unenrolled = students.filter((s) => !isPendingStudent(s) && !roster.some((r) => r.student.id === s.id));
+  const canceledHere = canceledAdventures
+    .filter((a) => a.programId === programId)
+    .map((a) => students.find((s) => s.id === a.studentId))
+    .filter(Boolean);
+  const [showCanceled, setShowCanceled] = useState(false);
 
   // Things waiting on the teacher (worked out from existing data, nothing extra stored)
   const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
@@ -5112,26 +5150,26 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
 
       {teacherNotices.length > 0 && (
         <div className="px-5 mb-4">
-          <p className="f-body text-xs font-bold mb-1.5" style={{ color: C.orange }}>🔔 확인이 필요해요 {teacherNotices.length}</p>
+          <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>🔔 확인이 필요해요 {teacherNotices.length}</p>
           <div className="space-y-2">
             {teacherNotices.slice(0, 5).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
                 <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
-                  <span className="text-2xl">{n.icon}</span>
+                  <span className="text-[27px]">{n.icon}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block f-body text-[13px] font-bold" style={{ color: C.green }}>{n.title}</span>
-                    <span className="block f-body text-[11px] text-gray-500 truncate">{n.text}</span>
+                    <span className="block f-body text-[16px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                    <span className="block f-body text-[14px] text-gray-500 truncate">{n.text}</span>
                   </span>
                   {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
                 </button>
                 {n.onDone && (
-                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[11px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>
+                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>
                     ✓ 확인함
                   </button>
                 )}
               </div>
             ))}
-            {teacherNotices.length > 5 && <p className="f-body text-[11px] text-gray-400 text-center">외 {teacherNotices.length - 5}건</p>}
+            {teacherNotices.length > 5 && <p className="f-body text-[14px] text-gray-400 text-center">외 {teacherNotices.length - 5}건</p>}
           </div>
         </div>
       )}
@@ -5141,7 +5179,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
             <button
               key={t.key}
               onClick={() => go(() => setTab(t.key))}
-              className="focus-ring tap flex-1 shrink-0 whitespace-nowrap px-2.5 text-[10.5px] f-body font-bold py-2 rounded-xl"
+              className="focus-ring tap flex-1 shrink-0 whitespace-nowrap px-2.5 text-[13px] f-body font-bold py-2 rounded-xl"
               style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}
             >
               {t.label}
@@ -5155,7 +5193,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
       {tab === "register" && (
         <div className="px-5">
           <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
-          <p className="f-body text-[11px] text-gray-400 mt-2">보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 "학생관리" 탭에서 프로그램에 추가해주세요.</p>
+          <p className="f-body text-[14px] text-gray-400 mt-2">보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 "학생관리" 탭에서 프로그램에 추가해주세요.</p>
         </div>
       )}
 
@@ -5167,15 +5205,15 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
                 <button
                   key={p.id}
                   onClick={() => setProgramId(p.id)}
-                  className="focus-ring tap shrink-0 text-[12px] f-body font-bold px-3.5 py-2 rounded-full"
+                  className="focus-ring tap shrink-0 text-[15px] f-body font-bold px-3.5 py-2 rounded-full"
                   style={{ background: programId === p.id ? C.green : "white", color: programId === p.id ? "white" : C.charcoal }}
                 >
-                  {p.emoji} {p.title.split(" ").slice(0, 2).join(" ")}
+                  {splitTitle(p.title)[0] || p.title}
                 </button>
               ))}
               <button
                 onClick={() => setTab("programs")}
-                className="focus-ring tap shrink-0 text-[12px] f-body font-bold px-3.5 py-2 rounded-full border-2 border-dashed"
+                className="focus-ring tap shrink-0 text-[15px] f-body font-bold px-3.5 py-2 rounded-full border-2 border-dashed"
                 style={{ borderColor: C.beige, color: C.orange }}
               >
                 + 새 프로그램
@@ -5188,8 +5226,9 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
               <div className="flex items-center gap-3 mb-3">
                 <Cover program={program} className="w-11 h-11 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>{program.title}</p>
-                  <p className="f-body text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+                  <p className="f-display font-semibold text-[17px] leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</p>
+                  {splitTitle(program.title)[1] && <p className="f-body text-[14px] text-gray-500 leading-snug">{splitTitle(program.title)[1]}</p>}
+                  <p className="f-body text-[14px] text-gray-500 flex items-center gap-1.5 flex-wrap">
                     <Users size={12} /> 신청한 아이 {roster.length}명
                     {wishesFor(suggestions, programId).length > 0 && (
                       <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
@@ -5212,13 +5251,13 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
                   >
                     {sw.on ? <CheckCircle2 size={18} color="#1F7A44" /> : <Circle size={18} color="#D8CEB8" />}
                     <span className="min-w-0">
-                      <span className="block f-body text-[12px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.label}</span>
-                      <span className="block f-body text-[10px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onLabel : "꺼짐"}</span>
+                      <span className="block f-body text-[15px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.label}</span>
+                      <span className="block f-body text-[13px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onLabel : "꺼짐"}</span>
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="f-body text-[10.5px] text-gray-400 mt-2">한 번 누르면 이 프로그램에 신청한 아이 {roster.length}명 모두에게 바로 적용돼요.</p>
+              <p className="f-body text-[13px] text-gray-400 mt-2">한 번 누르면 이 프로그램에 신청한 아이 {roster.length}명 모두에게 바로 적용돼요.</p>
             </div>
           </div>
 
@@ -5230,6 +5269,8 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
                 allStudents={students}
                 adv={adv}
                 program={program}
+                programTitle={program.title}
+                onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
                 adventures={adventures}
                 participationCount={attendedCount(adventures, student.id)}
                 onUpdate={(patch) => updateAdventure(student.id, programId, patch)}
@@ -5239,18 +5280,41 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
               />
             ))}
 
+            {canceledHere.length > 0 && (
+              <div className="bg-white rounded-2xl p-4">
+                <button onClick={() => setShowCanceled((v) => !v)} aria-expanded={showCanceled} className="focus-ring tap w-full flex items-center justify-between">
+                  <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: "#9C927D" }}>취소한 신청 {canceledHere.length}명</span>
+                  <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${showCanceled ? "rotate-90" : ""}`} />
+                </button>
+                {showCanceled && (
+                  <div className="space-y-2 mt-3">
+                    {canceledHere.map((st) => (
+                      <div key={st.id} className="flex items-center gap-3">
+                        <span className="text-[23px]">{st.avatar}</span>
+                        <span className="flex-1 f-body text-[17px]" style={{ color: "#9C927D" }}>{st.name}</span>
+                        <button onClick={() => onRestoreEnrollment && onRestoreEnrollment(st.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+                          되돌리기
+                        </button>
+                      </div>
+                    ))}
+                    <p className="f-body text-[13px] text-gray-400">되돌리면 예습 기록과 함께 다시 신청한 상태로 돌아가요.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {unenrolled.length > 0 && (
               <div className="bg-white rounded-2xl p-4">
-                <p className="f-body text-xs font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>이 프로그램에 없는 학생</p>
+                <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>이 프로그램에 없는 학생</p>
                 <div className="space-y-2">
                   {unenrolled.map((s) => (
                     <div key={s.id} className="flex items-center gap-3">
-                      <span className="text-xl">{s.avatar}</span>
-                      <span className="flex-1 f-body text-sm font-semibold" style={{ color: C.charcoal }}>
+                      <span className="text-[23px]">{s.avatar}</span>
+                      <span className="flex-1 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>
                         {s.name}
-                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[11px] font-bold" style={{ color: "#C0392B" }}>♥ 관심</span>}
+                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>♥ 관심</span>}
                       </span>
-                      <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[11px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
+                      <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
                         + 추가
                       </button>
                     </div>
@@ -5265,7 +5329,7 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
       {tab === "programs" && (
         <div className="px-5 space-y-3">
           <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} />
-          <p className="f-body text-xs font-bold uppercase tracking-wide text-gray-400 pt-2">등록된 프로그램</p>
+          <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">등록된 프로그램</p>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
@@ -5287,20 +5351,21 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
               <button
                 key={p.id}
                 onClick={() => go(() => setEditingProgramId(p.id))}
-                className="focus-ring tap w-full flex items-center gap-3 bg-white rounded-2xl p-3 text-left"
+                className="focus-ring tap w-full flex items-stretch gap-3 bg-white rounded-2xl p-3 text-left"
               >
-                <Cover program={p} className="w-11 h-11 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="f-display font-semibold text-sm truncate" style={{ color: C.green }}>{p.title}</p>
-                  <p className="f-body text-[11px] text-gray-400">{p.date} · {p.locationKo || p.location}</p>
+                <span className="w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
+                <div className="flex-1 min-w-0 py-0.5">
+                  <p className="f-display font-semibold text-[18px] truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+                  {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 truncate">{splitTitle(p.title)[1]}</p>}
+                  <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
                   {(p.dateReached || p.reviewOpen) && (
-                    <p className="f-body text-[11px] font-bold" style={{ color: "#1F7A44" }}>{[p.dateReached && "오늘 진행 중", p.reviewOpen && "복습 열림"].filter(Boolean).join(" · ")}</p>
+                    <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>{[p.dateReached && "오늘 진행 중", p.reviewOpen && "복습 열림"].filter(Boolean).join(" · ")}</p>
                   )}
                   {wishesFor(suggestions, p.id).length > 0 && (
-                    <p className="f-body text-[11px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
+                    <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
                   )}
                 </div>
-                <ChevronRight size={16} color="#C9BFA8" />
+                <ChevronRight size={16} color="#C9BFA8" className="self-center shrink-0" />
               </button>
             )
           )}
@@ -5316,11 +5381,11 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
 
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
-          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-sm text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
+          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
           {unresolvedCount > 0 && (
             <button
               onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isSystemRow(x)).map((x) => x.id))}
-              className="focus-ring tap w-full f-body text-[12px] font-bold rounded-xl py-2.5 text-white"
+              className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-2.5 text-white"
               style={{ background: C.green }}
             >
               ✓ 모두 확인함으로 표시 ({unresolvedCount}건)
@@ -5331,18 +5396,18 @@ function TeacherDashboard({ adventures, students, updateAdventure, onAcceptFamil
             return (
               <div key={s.id} className="bg-white rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{s.type}</span>
+                  <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{s.type}</span>
                   <button
                     onClick={() => onToggleSuggestion(s.id)}
                     aria-pressed={s.resolved}
-                    className="focus-ring tap text-[11px] f-body font-bold px-3 py-1.5 rounded-full"
+                    className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full"
                     style={{ background: s.resolved ? "#DCF3E4" : C.green, color: s.resolved ? "#1F7A44" : "white" }}
                   >
                     {s.resolved ? "✓ 확인함 (되돌리기)" : "✓ 확인했어요"}
                   </button>
                 </div>
-                <p className="f-body text-sm mb-1" style={{ color: C.charcoal }}>{s.message}</p>
-                {family && <p className="f-body text-[11px] text-gray-400">{family} 가족</p>}
+                <p className="f-body text-[17px] mb-1" style={{ color: C.charcoal }}>{s.message}</p>
+                {family && <p className="f-body text-[14px] text-gray-400">{family} 가족</p>}
               </div>
             );
           })}
@@ -5389,19 +5454,19 @@ function PinPad({ length = 4, validate, onSuccess }) {
       </div>
       <div className="grid grid-cols-3 gap-3 max-w-[240px] mx-auto">
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
-          <button key={d} onClick={() => press(d)} className="focus-ring tap f-display text-lg font-semibold rounded-full aspect-square" style={{ background: C.cream, color: C.green }}>
+          <button key={d} onClick={() => press(d)} className="focus-ring tap f-display text-[21px] font-semibold rounded-full aspect-square" style={{ background: C.cream, color: C.green }}>
             {d}
           </button>
         ))}
         <div />
-        <button onClick={() => press("0")} className="focus-ring tap f-display text-lg font-semibold rounded-full aspect-square" style={{ background: C.cream, color: C.green }}>
+        <button onClick={() => press("0")} className="focus-ring tap f-display text-[21px] font-semibold rounded-full aspect-square" style={{ background: C.cream, color: C.green }}>
           0
         </button>
         <button onClick={backspace} aria-label="Backspace" className="focus-ring tap flex items-center justify-center">
           <ArrowLeft size={18} color="#B9AE99" />
         </button>
       </div>
-      {error && <p className="text-center f-body text-xs mt-4" style={{ color: "#D9603A" }}>Wrong PIN — try again</p>}
+      {error && <p className="text-center f-body text-[15px] mt-4" style={{ color: "#D9603A" }}>Wrong PIN — try again</p>}
     </div>
   );
 }
@@ -5441,25 +5506,25 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin, onLookupP
           <>
             {inKakao && !hideKakaoTip && (
               <div className="rounded-2xl p-3 mb-6" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-                <p className="f-body text-[12px] font-bold mb-1" style={{ color: C.green }}>카카오톡 안에서 열었어요</p>
-                <p className="f-body text-[11px] text-gray-600 mb-2">이 화면에서는 홈 화면 추가나 공유가 안 될 수 있어요. 크롬이나 사파리로 열면 더 편해요.</p>
+                <p className="f-body text-[15px] font-bold mb-1" style={{ color: C.green }}>카카오톡 안에서 열었어요</p>
+                <p className="f-body text-[14px] text-gray-600 mb-2">이 화면에서는 홈 화면 추가나 공유가 안 될 수 있어요. 크롬이나 사파리로 열면 더 편해요.</p>
                 <div className="flex gap-2">
-                  <button onClick={openInBrowser} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
+                  <button onClick={openInBrowser} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
                     브라우저로 열기
                   </button>
-                  <button onClick={() => setHideKakaoTip(true)} className="focus-ring tap f-body text-[12px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>
+                  <button onClick={() => setHideKakaoTip(true)} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>
                     그냥 쓸게요
                   </button>
                 </div>
               </div>
             )}
-            <p className="f-display text-lg font-bold text-center mb-1" style={{ color: C.orange }}>
+            <p className="f-display text-[21px] font-bold text-center mb-1" style={{ color: C.orange }}>
               CarrotWorld
             </p>
-            <h1 className="f-display text-xl font-semibold text-center mb-2" style={{ color: C.green }}>
+            <h1 className="f-display text-[23px] font-semibold text-center mb-2" style={{ color: C.green }}>
               Welcome back
             </h1>
-            <p className="f-body text-sm text-center mb-8" style={{ color: "#9C927D" }}>
+            <p className="f-body text-[17px] text-center mb-8" style={{ color: "#9C927D" }}>
               아이의 특별한 하루를 기록합니다
             </p>
             <div className="space-y-3 mb-4">
@@ -5477,7 +5542,7 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin, onLookupP
                 </button>
               ))}
             </div>
-            <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[12px] font-bold py-2" style={{ color: C.orange }}>
+            <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
               처음이신가요? 자녀 등록하기
             </button>
           </>
@@ -5485,19 +5550,19 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin, onLookupP
 
         {step === "pin" && (
           <>
-            <button onClick={() => setStep("role")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-sm font-bold" style={{ color: C.green }}>
+            <button onClick={() => setStep("role")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-[17px] font-bold" style={{ color: C.green }}>
               <ArrowLeft size={16} /> Back
             </button>
-            <h1 className="f-display text-xl font-semibold text-center mb-1" style={{ color: C.green }}>
+            <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>
               Enter PIN
             </h1>
-            <p className="f-body text-sm text-gray-500 text-center mb-8">
+            <p className="f-body text-[17px] text-gray-500 text-center mb-8">
               {role === "parent" ? "로그인 번호 4자리" : "Teacher access"}
             </p>
             <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null })} />
-            {pinLocked && <p role="alert" className="text-center f-body text-xs mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
+            {pinLocked && <p role="alert" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
             {role === "parent" && (
-              <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[12px] font-bold py-4" style={{ color: C.orange }}>
+              <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }}>
                 처음이신가요? 자녀 등록하기
               </button>
             )}
@@ -5506,13 +5571,13 @@ function LoginScreen({ students, onSelfRegister, onLogin, onLookupPin, onLookupP
 
         {step === "register" && (
           <>
-            <button onClick={() => setStep("role")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-sm font-bold" style={{ color: C.green }}>
+            <button onClick={() => setStep("role")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-[17px] font-bold" style={{ color: C.green }}>
               <ArrowLeft size={16} /> Back
             </button>
-            <h1 className="f-display text-xl font-semibold text-center mb-1" style={{ color: C.green }}>
+            <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>
               자녀 등록
             </h1>
-            <p className="f-body text-sm text-gray-500 text-center mb-6">
+            <p className="f-body text-[17px] text-gray-500 text-center mb-6">
               등록하면 바로 로그인돼요
             </p>
             <RegisterStudentPanel mode="parent" students={students} onLookupPin={onLookupPin} onLookupPhone={onLookupPhone} onRegister={onSelfRegister} />
@@ -5577,10 +5642,10 @@ function SplashScreen({ onDone }) {
           </g>
         </svg>
 
-        <p className="f-display text-[19px] font-bold mb-1 rise-in" style={{ color: C.green, letterSpacing: "0.1em" }}>
+        <p className="f-display text-[21px] font-bold mb-1 rise-in" style={{ color: C.green, letterSpacing: "0.1em" }}>
           CARROTWORLD
         </p>
-        <p className="f-body text-[10px] uppercase mb-6 rise-in" style={{ color: C.green, letterSpacing: "0.18em" }}>
+        <p className="f-body text-[13px] uppercase mb-6 rise-in" style={{ color: C.green, letterSpacing: "0.18em" }}>
           Experience <span style={{ color: C.orange }}>•</span> Explore <span style={{ color: C.orange }}>•</span> Express
         </p>
 
@@ -5618,7 +5683,7 @@ function SplashScreen({ onDone }) {
           ))}
         </div>
 
-        <p className="f-body text-[13px] text-center rise-in" style={{ color: "#5C7A6B" }}>
+        <p className="f-body text-[16px] text-center rise-in" style={{ color: "#5C7A6B" }}>
           아이의 특별한 하루를 기록합니다
         </p>
       </div>
@@ -5773,12 +5838,22 @@ export default function CarrotExplorer() {
   const enrollStudent = (studentId, programId) => {
     // decided from the current list, not inside the state update: when several updates happen together
     // (e.g. registering a child and enrolling them at once) the update runs later and nothing would be sent to the server
-    if (adventures.some((a) => a.studentId === studentId && a.programId === programId)) return;
+    const existing = adventures.find((a) => a.studentId === studentId && a.programId === programId);
+    if (existing) {
+      if (existing.canceled) updateAdventure(studentId, programId, { canceled: false, canceledAt: "" }); // re-adding brings the cancelled place back
+      return;
+    }
     if (!getProgram(programId)) return;
     const created = { ...blankAdventure(studentId, getProgram(programId)), enrolledAt: new Date().toISOString() };
     setAdventures((prev) => (prev.some((a) => a.studentId === studentId && a.programId === programId) ? prev : [...prev, created]));
     sync(api.createAdventure(created));
   };
+
+  // A cancelled place is only hidden (nothing is deleted), so it can be brought back with its records.
+  const liveAdventures = adventures.filter((a) => !a.canceled);
+  const canceledAdventures = adventures.filter((a) => a.canceled);
+  const cancelEnrollment = (studentId, programId) => updateAdventure(studentId, programId, { canceled: true, canceledAt: new Date().toISOString() });
+  const restoreEnrollment = (studentId, programId) => updateAdventure(studentId, programId, { canceled: false, canceledAt: "" });
 
   const registerStudent = ({ name, avatar, level, familyPin, contact, pending }, programId) => {
     const id = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 6)}`;
@@ -6016,12 +6091,12 @@ export default function CarrotExplorer() {
         <style>{FONTS}</style>
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
-            <span className="f-body text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>Teacher</span>
-            <button onClick={logout} className="focus-ring tap f-body text-[11px] font-bold" style={{ color: "#B9AE99" }}>Switch user</button>
+            <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>Teacher</span>
+            <button onClick={logout} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: "#B9AE99" }}>Switch user</button>
           </div>
           <div className="flex-1 overflow-y-auto" key={programsVersion}>
             <TeacherDashboard
-              adventures={adventures}
+              adventures={liveAdventures}
               students={students}
               updateAdventure={updateAdventure}
               onRegisterStudent={registerStudent}
@@ -6034,6 +6109,9 @@ export default function CarrotExplorer() {
               onCheckSave={checkServerSave}
               onAcceptFamily={acceptFamily}
               onRejectFamily={rejectFamily}
+              canceledAdventures={canceledAdventures}
+              onCancelEnrollment={cancelEnrollment}
+              onRestoreEnrollment={restoreEnrollment}
               onRefresh={refreshState}
               onExportData={exportData}
               onResolveSuggestions={resolveSuggestions}
@@ -6060,7 +6138,7 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           <div className="flex-1 overflow-y-auto">
             <ParentHome
-              adventures={adventures}
+              adventures={liveAdventures}
               students={students}
               familyPin={session.familyPin}
               suggestions={suggestions}
@@ -6098,7 +6176,7 @@ export default function CarrotExplorer() {
               />
             ) : (
               <div className="px-5 pt-10 text-center">
-                <p className="f-body text-sm text-gray-500 mb-4">설문을 찾을 수 없어요.</p>
+                <p className="f-body text-[17px] text-gray-500 mb-4">설문을 찾을 수 없어요.</p>
                 <PrimaryButton onClick={back}>돌아가기</PrimaryButton>
               </div>
             )}
@@ -6114,7 +6192,7 @@ export default function CarrotExplorer() {
         <style>{FONTS}</style>
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           <div className="flex-1 overflow-y-auto">
-            <ParentDashboard adventures={adventures} studentId={parentScreen.studentId} onBack={() => setParentScreen({ type: "list" })} />
+            <ParentDashboard adventures={liveAdventures} studentId={parentScreen.studentId} onBack={() => setParentScreen({ type: "list" })} />
           </div>
         </div>
       </div>
@@ -6133,12 +6211,12 @@ export default function CarrotExplorer() {
       <style>{FONTS}</style>
       <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
-          <span className="f-body text-[12px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>
+          <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>
             {student.avatar} {student.name}
           </span>
           <button
             onClick={() => setParentScreen({ type: "list" })}
-            className="focus-ring tap f-body text-[11px] font-bold"
+            className="focus-ring tap f-body text-[14px] font-bold"
             style={{ color: "#B9AE97" }}
           >
             Exit to Parent
@@ -6151,17 +6229,17 @@ export default function CarrotExplorer() {
               <AdventureDetail
                 program={selectedProgram}
                 adv={selectedAdv}
-                adventures={adventures}
+                adventures={liveAdventures}
                 studentId={studentId}
                 update={(patch) => updateAdventure(studentId, selectedProgramId, patch)}
                 onBack={() => setSelectedProgramId(null)}
               />
             ) : (
               <>
-                {studentTab === "home" && <StudentHome adventures={adventures} studentId={studentId} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
-                {studentTab === "adventures" && <AdventuresList adventures={adventures} studentId={studentId} onOpen={setSelectedProgramId} />}
-                {studentTab === "journey" && <Journey adventures={adventures} studentId={studentId} />}
-                {studentTab === "badges" && <BadgeCollection adventures={adventures} studentId={studentId} />}
+                {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
+                {studentTab === "adventures" && <AdventuresList adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} />}
+                {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} />}
+                {studentTab === "badges" && <BadgeCollection adventures={liveAdventures} studentId={studentId} />}
               </>
             )}
           </div>

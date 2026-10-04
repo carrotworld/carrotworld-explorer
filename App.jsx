@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, sync } from "./api";
+import { api, sync as syncBase } from "./api";
+// remembers when this phone last sent something to the server
+const writeClock = { at: 0 };
+const sync = (promise) => {
+  writeClock.at = Date.now();
+  return syncBase(promise);
+};
 import {
   ArrowLeft, Lock, CheckCircle2, Circle,
   Star, Volume2, ChevronRight,
@@ -564,6 +570,18 @@ const splitTitle = (title) => {
   const [main, ...rest] = String(title || "").split(/[:：]\s*/);
   return [main.trim(), rest.join(": ").trim()];
 };
+/** Program name as it appears everywhere in lists: big main name, English line under it. */
+function ProgramTitle({ program, size = 20 }) {
+  const [main, sub] = splitTitle(program.title);
+  return (
+    <>
+      <p className="f-display font-bold leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}</p>
+      {sub && <p className="f-body text-[15px] text-gray-500 leading-snug">{sub}</p>}
+    </>
+  );
+}
+const TitleBar = ({ program }) => <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(program) }} aria-hidden="true" />;
+
 /** Photo-free cover: the program title (large covers) or its icon (small thumbnails) on a themed colour. */
 function Cover({ program, className = "", showTitle = false }) {
   const [main, sub] = splitTitle(program.title);
@@ -1331,12 +1349,10 @@ function AdventuresList({ adventures, studentId, onOpen }) {
           const program = getProgram(a.programId);
           const status = getStatus(a);
           return (
-            <button key={program.id} onClick={() => onOpen(program.id)} className="focus-ring tap w-full flex items-center gap-3 bg-white rounded-2xl p-3 text-left">
-              <Cover program={program} className="w-16 h-16 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="f-display font-semibold text-[17px] truncate" style={{ color: C.green }}>
-                  {program.title}
-                </p>
+            <button key={program.id} onClick={() => onOpen(program.id)} className="focus-ring tap w-full flex items-stretch gap-3 bg-white rounded-2xl p-3 text-left">
+              <TitleBar program={program} />
+              <div className="flex-1 min-w-0 py-0.5">
+                <ProgramTitle program={program} />
                 <p className="f-body text-[14px] text-gray-400">{program.date} · Level {levelLabel(program)}</p>
                 <span
                   className="inline-block mt-1 text-[13px] f-body font-bold px-2 py-0.5 rounded-full"
@@ -1534,10 +1550,11 @@ function Journey({ adventures, studentId }) {
                 >
                   {done ? <Check size={14} color="white" strokeWidth={3} /> : <ArrowUpRight size={14} color={C.orange} />}
                 </div>
-                <Cover program={program} className="w-14 h-14 shrink-0" />
-                <div className="flex-1 min-w-0 bg-white rounded-2xl p-3" style={{ boxShadow: "0 1px 4px rgba(23,76,53,0.06)" }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="f-display text-[17px] font-semibold truncate" style={{ color: C.green }}>{program.title}</p>
+                <div className="flex-1 min-w-0 bg-white rounded-2xl p-3 flex gap-3" style={{ boxShadow: "0 1px 4px rgba(23,76,53,0.06)" }}>
+                  <TitleBar program={program} />
+                  <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0"><ProgramTitle program={program} size={19} /></div>
                     <span
                       className="text-[13px] f-body font-bold px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: done ? "#DCF3E4" : "#FFF1E2", color: done ? "#1F7A44" : C.orange }}
@@ -1546,6 +1563,7 @@ function Journey({ adventures, studentId }) {
                     </span>
                   </div>
                   <p className="f-body text-[14px] text-gray-400 truncate mt-0.5">{program.themeKo || program.theme}</p>
+                  </div>
                 </div>
               </div>
             );
@@ -2060,11 +2078,11 @@ function ParentAdventureReport({ a, program }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden">
       <div className="p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <Cover program={program} className="w-12 h-12 shrink-0" />
-          <div>
-            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{program.title}</p>
-            <p className="f-body text-[14px] text-gray-400">{program.date} · {program.locationKo}</p>
+        <div className="flex items-stretch gap-3 mb-3">
+          <TitleBar program={program} />
+          <div className="py-0.5">
+            <ProgramTitle program={program} />
+            <p className="f-body text-[14px] text-gray-400 mt-0.5">{program.date} · {program.locationKo}</p>
           </div>
         </div>
 
@@ -2331,14 +2349,14 @@ function parentNotices(children, adventures) {
       .forEach((a) => {
         const program = getProgram(a.programId);
         if (!program) return;
-        const base = `${child.name} · ${program.title}`;
+        const base = `${child.name} · ${splitTitle(program.title)[0] || program.title}`;
         if (a.feedback) {
           list.push({ key: `${base}-report`, icon: "📝", title: "선생님 리포트가 도착했어요", text: base, action: "리포트 보기", kind: "report", childId: child.id });
         }
         if (program.info?.published && hasInfo(program.info) && !a.attended && !infoShown.has(program.id)) {
           infoShown.add(program.id);
           const when = [program.date, program.info.time].filter(Boolean).join(" ");
-          list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
+          list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
         }
         if (a.attended && !a.parentSurvey) {
           list.push({ key: `${base}-survey`, icon: "📋", title: "체험 후 설문을 남겨 주세요", text: `${base} · 1~2분이면 돼요`, action: "설문하기", kind: "survey", childId: child.id, programId: program.id });
@@ -2389,10 +2407,11 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
               <div key={p.id} className="p-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
-                    <Cover program={p} className="w-12 h-12 shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block f-display font-semibold text-[17px] truncate" style={{ color: C.green }}>{p.title}</span>
-                      <span className="block f-body text-[14px] text-gray-400">{p.date} · Level {levelLabel(p)}</span>
+                    <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
+                    <span className="min-w-0 py-0.5">
+                      <span className="block f-display font-bold text-[20px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                      {splitTitle(p.title)[1] && <span className="block f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</span>}
+                      <span className="block f-body text-[14px] text-gray-400 mt-0.5">{p.date} · Level {levelLabel(p)}</span>
                     </span>
                   </button>
                   <button
@@ -2889,11 +2908,11 @@ function ParentDashboard({ adventures, studentId, onBack }) {
               const status = getStatus(a);
               const label = status === "reflection_pending" ? "소감 작성 대기중" : status === "ready" ? "체험 준비 완료" : "준비 중";
               return (
-                <div key={program.id} className="bg-white rounded-2xl p-4 flex items-center gap-3">
-                  <Cover program={program} className="w-12 h-12 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{program.title}</p>
-                    <p className="f-body text-[14px] text-gray-400">{program.date}</p>
+                <div key={program.id} className="bg-white rounded-2xl p-4 flex items-stretch gap-3">
+                  <TitleBar program={program} />
+                  <div className="flex-1 min-w-0 py-0.5">
+                    <ProgramTitle program={program} />
+                    <p className="f-body text-[14px] text-gray-400 mt-0.5">{program.date}</p>
                   </div>
                   <span className="text-[13px] f-body font-bold px-2 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{label}</span>
                 </div>
@@ -4927,7 +4946,7 @@ function StatsPanel({ adventures, students, suggestions }) {
 }
 
 // remembered outside the screen so it survives the screen being rebuilt after a save or delete
-const teacherUi = { tab: "manage", programId: null };
+const teacherUi = { tab: "overview", programId: null };
 
 const timeAgoKo = (iso) => {
   if (!iso) return "";
@@ -5013,7 +5032,186 @@ function ApprovalPanel({ students, onAccept, onReject }) {
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, updateAdventure, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+/** Where a program stands, worked out from existing data (nothing extra is stored). */
+function programStatus(program, adventures) {
+  const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
+  const attended = mine.filter((a) => a.attended);
+  let stage;
+  if (program.reviewOpen) stage = "done";
+  else if (program.dateReached) stage = "live";
+  else if (attended.length > 0) stage = "done";
+  else stage = "before";
+  const infoSent = !!program.info?.published;
+  const reportsLeft = attended.filter((a) => !a.feedback).length;
+  return {
+    stage, // before | live | done
+    enrolled: mine.length,
+    attended: attended.length,
+    infoSent,
+    infoLate: !infoSent && stage !== "done",
+    reportsLeft,
+    reportsDone: attended.length > 0 && reportsLeft === 0,
+  };
+}
+const STAGE_LOOK = {
+  before: { label: "시작 전", bg: "#EFE9DD", color: "#6F6757" },
+  live: { label: "진행 중", bg: "#DCF3E4", color: "#1F7A44" },
+  done: { label: "진행 완료", bg: "#174C35", color: "#FFFFFF" },
+};
+/** The small pills shown on the right of a program row. */
+function StatusPills({ status }) {
+  const pill = (text, bg, color, key) => (
+    <span key={key} className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: bg, color }}>{text}</span>
+  );
+  const look = STAGE_LOOK[status.stage];
+  const pills = [pill(look.label, look.bg, look.color, "stage")];
+  if (status.infoLate) pills.push(pill("안내 전", "#FFE9D2", "#B25A0B", "info"));
+  else if (status.infoSent && status.stage !== "done") pills.push(pill("안내 완료 ✓", "#EAF7EF", "#1F7A44", "info-ok"));
+  if (status.reportsLeft > 0) pills.push(pill(`피드백 ${status.reportsLeft}명 전`, "#FFE9D2", "#B25A0B", "report"));
+  else if (status.reportsDone) pills.push(pill("피드백 완료 ✓", "#EAF7EF", "#1F7A44", "report-ok"));
+  return <div className="flex flex-col items-end justify-center gap-1.5 shrink-0" data-testid="status-pills">{pills}</div>;
+}
+
+/** The latest things done on this app, from existing time stamps (who did it is not recorded). */
+function recentActivity(programs, adventures, students, limit = 8) {
+  const ev = [];
+  const add = (at, text) => {
+    const t = Date.parse(at);
+    if (!Number.isNaN(t)) ev.push({ at: t, text });
+  };
+  const titleOf = (id) => {
+    const p = programs.find((x) => x.id === id);
+    return p ? splitTitle(p.title)[0] || p.title : "";
+  };
+  const nameOf = (id) => students.find((x) => x.id === id)?.name || "";
+  programs.forEach((p) => {
+    const t = splitTitle(p.title)[0] || p.title;
+    if (p.info?.publishedAt) add(p.info.publishedAt, `${t} 체험 안내 공개`);
+    if (p.todayAt) add(p.todayAt, `${t} 오늘 진행 ${p.dateReached ? "켬" : "끔"}`);
+    if (p.reviewAt) add(p.reviewAt, `${t} 복습 ${p.reviewOpen ? "열림" : "닫힘"}`);
+  });
+  adventures.forEach((a) => {
+    const who = nameOf(a.studentId);
+    const t = titleOf(a.programId);
+    if (!who || !t) return;
+    if (a.canceledAt && a.canceled) add(a.canceledAt, `${who} · ${t} 체험 취소`);
+    if (a.enrolledAt) add(a.enrolledAt, `${who} · ${t} 신청`);
+    if (a.attendedAt) add(a.attendedAt, `${who} · ${t} 출석`);
+    if (a.afterCompletedAt) add(a.afterCompletedAt, `${who} · ${t} 복습 완료`);
+    if (a.reportedAt) add(a.reportedAt, `${who} · ${t} 피드백 작성`);
+  });
+  students.forEach((st) => {
+    if (st.acceptedAt) add(st.acceptedAt, `${st.name} 가입 수락`);
+    if (st.status === "pending" && st.registeredAt) add(st.registeredAt, `${st.name} 가입 신청`);
+  });
+  return ev.sort((a, b) => b.at - a.at).slice(0, limit);
+}
+
+/** The single most useful next step for a program, plus where to go to do it. */
+function nextStep(program, st) {
+  if (st.stage === "before") {
+    if (st.infoLate) return { text: "체험 전 안내를 보내야 해요", go: "info" };
+    if (st.enrolled === 0) return { text: "신청한 아이가 아직 없어요", go: "manage" };
+    return { text: "체험 날에 '오늘 진행'을 켜 주세요", go: "manage" };
+  }
+  if (st.stage === "live") {
+    if (st.attended < st.enrolled) return { text: `출석 체크 ${st.attended}/${st.enrolled}명`, go: "manage" };
+    return { text: "체험이 끝나면 '오늘 진행'을 꺼 주세요", go: "manage" };
+  }
+  if (!program.reviewOpen) return { text: "복습 퀴즈를 만들고 열어 주세요", go: "materials" };
+  if (st.reportsLeft > 0) return { text: `피드백 ${st.reportsLeft}명 작성이 남았어요`, go: "manage" };
+  return { text: "모두 마무리됐어요 🎉", go: null, done: true };
+}
+
+/** Teacher home: every program at a glance, so nobody has to open each one to know where things stand. */
+function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRefresh }) {
+  const [busy, setBusy] = useState(false);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30000); // keeps "N분 전" honest
+    return () => clearInterval(t);
+  }, []);
+  const refresh = async () => {
+    if (!onRefresh) return;
+    setBusy(true);
+    try {
+      await onRefresh();
+    } catch (e) {
+      /* offline: the old numbers stay, the time shows how old they are */
+    }
+    setBusy(false);
+  };
+  const feed = recentActivity(programs, adventures, students);
+  const cell = (label, value, tone) => (
+    <div className="rounded-xl px-3 py-2" style={{ background: tone === "warn" ? "#FFF1E2" : tone === "ok" ? "#EAF7EF" : C.cream }}>
+      <p className="f-body text-[13px]" style={{ color: "#9C927D" }}>{label}</p>
+      <p className="f-body text-[15px] font-bold" style={{ color: tone === "warn" ? "#B25A0B" : tone === "ok" ? "#1F7A44" : C.charcoal }}>{value}</p>
+    </div>
+  );
+  return (
+    <div className="px-5 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="f-body text-[14px] text-gray-500">마지막 확인 {timeAgoKo(new Date(lastSyncAt).toISOString())}</p>
+        <button onClick={refresh} disabled={busy} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 disabled:opacity-60" style={{ background: C.beige, color: C.green }}>
+          {busy ? "확인 중..." : "새로고침"}
+        </button>
+      </div>
+
+      {programs.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">등록된 프로그램이 아직 없어요.</p></div>}
+
+      {programs.map((p) => {
+        const st = programStatus(p, adventures);
+        const next = nextStep(p, st);
+        const look = STAGE_LOOK[st.stage];
+        return (
+          <div key={p.id} className="bg-white rounded-2xl p-4">
+            <div className="flex items-stretch gap-3">
+              <TitleBar program={p} />
+              <div className="flex-1 min-w-0 py-0.5">
+                <ProgramTitle program={p} size={21} />
+                <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date}{(p.locationKo || p.location) && ` · ${p.locationKo || p.location}`}</p>
+              </div>
+              <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{look.label}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {cell("체험 전 안내", st.infoSent ? "보냄 ✓" : st.stage === "done" ? "—" : "아직 안 보냄", st.infoSent ? "ok" : st.stage === "done" ? "" : "warn")}
+              {cell("신청 · 출석", `${st.enrolled}명 · ${st.attended}명`, "")}
+              {cell("복습", p.reviewOpen ? "열림 ✓" : "닫힘", p.reviewOpen ? "ok" : "")}
+              {cell("피드백", st.attended === 0 ? "—" : st.reportsLeft > 0 ? `${st.reportsLeft}명 남음` : "모두 작성 ✓", st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
+            </div>
+            {next.go ? (
+              <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-3 flex items-center justify-between gap-2 rounded-xl px-3.5 py-3 text-left" style={{ background: "#FFF1E2" }}>
+                <span className="f-body text-[15px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
+                <ChevronRight size={18} color="#B25A0B" className="shrink-0" />
+              </button>
+            ) : (
+              <p className="f-body text-[15px] font-bold mt-3 px-1" style={{ color: "#1F7A44" }}>{next.text}</p>
+            )}
+          </div>
+        );
+      })}
+
+      <div className="bg-white rounded-2xl p-4">
+        <p className="f-display font-semibold text-[17px] mb-1" style={{ color: C.green }}>최근 활동</p>
+        <p className="f-body text-[13px] text-gray-400 mb-3">다른 선생님이 한 일도 여기에 보여요. (누가 했는지는 기록되지 않아요)</p>
+        {feed.length === 0 ? (
+          <p className="f-body text-[15px] text-gray-400">아직 기록이 없어요.</p>
+        ) : (
+          <div className="space-y-2">
+            {feed.map((e, i) => (
+              <div key={i} className="flex items-start justify-between gap-3">
+                <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{e.text}</p>
+                <p className="f-body text-[13px] text-gray-400 shrink-0 mt-0.5">{timeAgoKo(new Date(e.at).toISOString())}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, updateAdventure, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -5119,6 +5317,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, updat
 
   const pendingCount = pendingFamilies(students).length;
   const TABS = [
+    { key: "overview", label: "현황" },
     ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? `수락 ${pendingCount}` : "수락" }] : []),
     { key: "register", label: "현장등록" },
     { key: "manage", label: needReport.length ? `학생관리 ${needReport.length}` : "학생관리" },
@@ -5188,6 +5387,23 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, updat
         </div>
       </div>
 
+      {tab === "overview" && (
+        <OverviewPanel
+          programs={PROGRAMS}
+          adventures={adventures}
+          students={students}
+          lastSyncAt={lastSyncAt || Date.now()}
+          onRefresh={onRefresh ? () => onRefresh(null) : undefined}
+          onGo={(where, p) =>
+            go(() => {
+              if (where === "manage") { setProgramId(p.id); setTab("manage"); }
+              else if (where === "info") { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); }
+              else if (where === "materials") { setMaterialsFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); }
+            })
+          }
+        />
+      )}
+
       {tab === "approve" && <ApprovalPanel students={students} onAccept={onAcceptFamily || (() => {})} onReject={onRejectFamily || (() => {})} />}
 
       {tab === "register" && (
@@ -5223,12 +5439,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, updat
 
           <div className="px-5 mb-3">
             <div className="bg-white rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <Cover program={program} className="w-11 h-11 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="f-display font-semibold text-[17px] leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</p>
-                  {splitTitle(program.title)[1] && <p className="f-body text-[14px] text-gray-500 leading-snug">{splitTitle(program.title)[1]}</p>}
-                  <p className="f-body text-[14px] text-gray-500 flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-stretch gap-3 mb-3">
+                <TitleBar program={program} />
+                <div className="flex-1 min-w-0 py-0.5">
+                  <ProgramTitle program={program} />
+                  <p className="f-body text-[14px] text-gray-500 flex items-center gap-1.5 flex-wrap mt-0.5">
                     <Users size={12} /> 신청한 아이 {roster.length}명
                     {wishesFor(suggestions, programId).length > 0 && (
                       <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
@@ -5355,16 +5570,14 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, updat
               >
                 <span className="w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                 <div className="flex-1 min-w-0 py-0.5">
-                  <p className="f-display font-semibold text-[18px] truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
-                  {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 truncate">{splitTitle(p.title)[1]}</p>}
+                  <p className="f-display font-bold text-[21px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+                  {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
                   <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
-                  {(p.dateReached || p.reviewOpen) && (
-                    <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>{[p.dateReached && "오늘 진행 중", p.reviewOpen && "복습 열림"].filter(Boolean).join(" · ")}</p>
-                  )}
                   {wishesFor(suggestions, p.id).length > 0 && (
                     <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
                   )}
                 </div>
+                <StatusPills status={programStatus(p, adventures)} />
                 <ChevronRight size={16} color="#C9BFA8" className="self-center shrink-0" />
               </button>
             )
@@ -5703,6 +5916,7 @@ export default function CarrotExplorer() {
   const [adventures, setAdventures] = useState(() => buildInitialAdventures());
   const [programsVersion, setProgramsVersion] = useState(0);
   const [, rerender] = useState(0); // plain re-render (no screen rebuild)
+  const [lastSyncAt, setLastSyncAt] = useState(() => Date.now());
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
@@ -5732,8 +5946,11 @@ export default function CarrotExplorer() {
 
   // Pull the server's current data (used before editing, so an old copy on this phone never overwrites
   // what another teacher saved). Returns true when that program has changed.
-  const refreshState = async (programId) => {
-    if (Object.keys(pendingSaves.current).length) {
+  const refreshState = async (programId, opts = {}) => {
+    if (opts.quiet) {
+      // automatic refresh: only when nothing typed or sent is still on its way, so it can never undo a change
+      if (Object.keys(pendingSaves.current).length || Date.now() - writeClock.at < 4000) return false;
+    } else if (Object.keys(pendingSaves.current).length) {
       flushSaves();
       await new Promise((r) => setTimeout(r, 600));
     }
@@ -5748,8 +5965,26 @@ export default function CarrotExplorer() {
     if (data.students && data.students.length) setStudents(data.students);
     if (data.adventures) setAdventures(data.adventures);
     if (data.suggestions) setSuggestions(data.suggestions);
+    setLastSyncAt(Date.now());
+    rerender((v) => v + 1); // the program list changed in place, so make sure the screen redraws
     return stableJson(PROGRAMS.find((p) => p.id === programId) || null) !== before;
   };
+
+  // Keep every screen up to date by itself: a title, a notice, "오늘 진행", an acceptance... changed by a teacher
+  // shows up on parents' and children's phones within a minute, without reopening the app.
+  useEffect(() => {
+    if (!session) return;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return; // a hidden tab does not ask the server anything
+      refreshState(null, { quiet: true }).catch(() => {});
+    };
+    const id = setInterval(tick, 45000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [session?.role, session?.familyPin]);
 
   const addSuggestion = ({ type, message, familyPin }) => {
     const suggestion = { id: `${Date.now()}-${Math.random()}`, type, message, familyPin, resolved: false };
@@ -6025,9 +6260,10 @@ export default function CarrotExplorer() {
   const setProgramToday = (programId, value) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
-    PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value };
+    const at = new Date().toISOString();
+    PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value, todayAt: at };
     rerender((v) => v + 1);
-    sync(api.updateProgram(programId, { dateReached: !!value }));
+    sync(api.updateProgram(programId, { dateReached: !!value, todayAt: at }));
   };
 
   const checkServerSave = async () => {
@@ -6043,9 +6279,10 @@ export default function CarrotExplorer() {
   const setProgramReview = (programId, value) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
-    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value };
+    const at = new Date().toISOString();
+    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value, reviewAt: at };
     rerender((v) => v + 1);
-    sync(api.updateProgram(programId, { reviewOpen: !!value }));
+    sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at }));
   };
 
   const hasRecords = (a) => !!(a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended);
@@ -6107,6 +6344,7 @@ export default function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onCheckSave={checkServerSave}
+              lastSyncAt={lastSyncAt}
               onAcceptFamily={acceptFamily}
               onRejectFamily={rejectFamily}
               canceledAdventures={canceledAdventures}

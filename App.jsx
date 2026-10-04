@@ -2936,6 +2936,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [pickTeam, setPickTeam] = useState(false);
   const [editName, setEditName] = useState(student.name);
   const [editAvatar, setEditAvatar] = useState(student.avatar);
   const [editLevel, setEditLevel] = useState(student.level);
@@ -2994,9 +2995,29 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
 
       <div className="px-4 pb-2.5 -mt-1">
         {teamsOf(program).length > 0 && (
-          <p className="f-body text-[14px] font-bold" style={{ color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}>
-            {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 미배정"}
-          </p>
+          onAssignTeam ? (
+            <button
+              onClick={() => setPickTeam(true)}
+              className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 mb-1.5"
+              style={{ background: teamOf(program, adv) ? "#EAF7EF" : "#FFE9D2", color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}
+            >
+              {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 정하기"} ▾
+            </button>
+          ) : (
+            <p className="f-body text-[14px] font-bold" style={{ color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}>
+              {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 미배정"}
+            </p>
+          )
+        )}
+        {pickTeam && (
+          <TeamPicker
+            student={student}
+            teams={teamsOf(program)}
+            counts={Object.fromEntries(teamsOf(program).map((t) => [t.id, adventures.filter((x) => x.programId === program.id && x.teamId === t.id && !x.canceled).length]))}
+            currentId={teamOf(program, adv)?.id}
+            onPick={(teamId) => { onAssignTeam(teamId); setPickTeam(false); }}
+            onClose={() => setPickTeam(false)}
+          />
         )}
         <p className="f-body text-[14px] text-gray-400">
           Level {student.level} · 참여 {participationCount}회 · {reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>복습 {reviewScoreOf(adv).percent}% · </span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>📝 리포트 작성됨</span> : <span style={{ color: "#B08A3E" }}>리포트 미작성</span>}
@@ -3013,27 +3034,6 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
 
       {open && (
         <div className="px-4 pb-4 space-y-4">
-          {teamsOf(program).length > 0 && onAssignTeam && (
-            <div>
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>팀</p>
-              <div className="flex flex-wrap gap-2">
-                {teamsOf(program).map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => onAssignTeam(t.id)}
-                    aria-pressed={adv.teamId === t.id}
-                    className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-2 rounded-full"
-                    style={{ background: adv.teamId === t.id ? C.green : C.cream, color: adv.teamId === t.id ? "white" : C.charcoal, border: `1px solid ${adv.teamId === t.id ? C.green : C.beige}` }}
-                  >
-                    {teamLabel(t)}
-                  </button>
-                ))}
-                {adv.teamId && teamOf(program, adv) && (
-                  <button onClick={() => onAssignTeam("")} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-2 rounded-full" style={{ color: "#9C927D" }}>팀에서 빼기</button>
-                )}
-              </div>
-            </div>
-          )}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>학생 정보</p>
@@ -5277,20 +5277,68 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
   );
 }
 
-/** Teacher: make teams (level + teacher) for a program and see who is in each one. */
+/** A big, simple list of the program's teams: tap one to place a child (or "no team"). */
+function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label={`${student.name} 팀 정하기`} onClick={onClose}>
+      <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 screen-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <p className="f-display text-[19px] font-semibold text-center mb-1" style={{ color: C.green }}>{student.name}의 팀</p>
+        <p className="f-body text-[14px] text-gray-500 text-center mb-4">Level {student.level} · 눌러서 정해요</p>
+        <div className="space-y-2">
+          {teams.map((t) => {
+            const on = currentId === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onPick(t.id)}
+                aria-pressed={on}
+                className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left"
+                style={{ background: on ? C.green : C.cream, color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` }}
+              >
+                <span className="f-headline text-[21px]">{teamLabel(t)}</span>
+                <span className="f-body text-[15px] font-bold shrink-0">{on ? "✓ 지금 이 팀" : `${counts[t.id] || 0}명`}</span>
+              </button>
+            );
+          })}
+          <button onClick={() => onPick("")} className="focus-ring tap w-full rounded-2xl px-4 py-3 f-body text-[16px] font-bold" style={{ background: "white", color: "#9C927D", border: `1px solid ${C.beige}` }}>
+            {currentId ? "팀에서 빼기" : "팀 없음"}
+          </button>
+        </div>
+        <button onClick={onClose} className="focus-ring tap w-full mt-3 f-body text-[16px] font-bold rounded-2xl py-3" style={{ background: C.cream, color: C.charcoal }}>닫기</button>
+      </div>
+    </div>
+  );
+}
+
+/** Teacher: make teams (level + teacher), pick their children from a list, see who is where. */
 function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign }) {
   const teams = teamsOf(program);
-  const [form, setForm] = useState(null); // { id|null, level, teacher }
+  const [form, setForm] = useState(null); // { id|null, level, teacher, picked: [studentId], touched }
+  const [picking, setPicking] = useState(null); // a student being placed from the "not placed yet" list
+  const [confirmRemove, setConfirmRemove] = useState(null); // a team waiting for "yes, delete it"
+  const teamIdOf = (studentId) => roster.find((r) => r.student.id === studentId)?.adv.teamId;
   const members = (t) => roster.filter((r) => r.adv.teamId === t.id).map((r) => r.student);
-  const loose = roster.filter((r) => !teams.some((t) => t.id === r.adv.teamId)).map((r) => r.student);
-  const startAdd = () => setForm({ id: null, level: loose[0]?.level || LEVEL_CHOICES[1], teacher: "" });
+  const placed = (r) => teams.some((t) => t.id === r.adv.teamId);
+  const loose = roster.filter((r) => !placed(r)).map((r) => r.student);
+  const counts = Object.fromEntries(teams.map((t) => [t.id, members(t).length]));
+  const preselect = (level) => loose.filter((st) => st.level === level).map((st) => st.id);
+
+  const startAdd = () => {
+    const level = loose[0]?.level || LEVEL_CHOICES[1];
+    setForm({ id: null, level, teacher: "", picked: preselect(level), touched: false });
+  };
+  const startEdit = (t) => setForm({ id: t.id, level: t.level, teacher: t.teacher, picked: members(t).map((st) => st.id), touched: true });
+  const pickLevel = (l) => setForm((f) => ({ ...f, level: l, picked: !f.touched && !f.id ? preselect(l) : f.picked }));
+  const toggle = (sid) => setForm((f) => ({ ...f, touched: true, picked: f.picked.includes(sid) ? f.picked.filter((x) => x !== sid) : [...f.picked, sid] }));
+
   const save = () => {
     const teacher = form.teacher.trim();
     if (!teacher) return;
-    const next = form.id
-      ? teams.map((t) => (t.id === form.id ? { ...t, level: form.level, teacher } : t))
-      : [...teams, { id: `t-${Date.now().toString(36)}`, level: form.level, teacher }];
-    onSaveTeams(next);
+    const id = form.id || `t-${Date.now().toString(36)}`;
+    const before = form.id ? members(teams.find((t) => t.id === form.id)).map((st) => st.id) : [];
+    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher } : t)) : [...teams, { id, level: form.level, teacher }]);
+    form.picked.forEach((sid) => { if (teamIdOf(sid) !== id) onAssign(sid, id); }); // includes children moved over from another team
+    before.filter((sid) => !form.picked.includes(sid)).forEach((sid) => onAssign(sid, ""));
     setForm(null);
   };
   const remove = (t) => {
@@ -5299,6 +5347,11 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
     setForm(null);
   };
   const fillLevel = (t) => loose.filter((st) => st.level === t.level).forEach((st) => onAssign(st.id, t.id));
+
+  // the checklist: children of this level first, then the others; children without a team before the placed ones
+  const checklist = form
+    ? [...roster].sort((x, y) => (y.student.level === form.level) - (x.student.level === form.level) || (placed(x) ? 1 : 0) - (placed(y) ? 1 : 0) || x.student.name.localeCompare(y.student.name))
+    : [];
   const field = "focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none";
   return (
     <div className="px-5 mb-3">
@@ -5307,7 +5360,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
           <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>팀 · 선생님</p>
           {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>+ 팀 추가</button>}
         </div>
-        {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요.</p>}
+        {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.</p>}
 
         <div className="space-y-2 mt-2">
           {teams.map((t) => {
@@ -5317,14 +5370,12 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
               <div key={t.id} className="rounded-xl p-3" style={{ background: C.cream }}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="f-headline text-[21px] leading-snug" style={{ color: C.green }}>{t.level} · {t.teacher}</p>
-                    <p className="f-body text-[15px]" style={{ color: C.charcoal }}>
-                      {mem.length ? `${mem.length}명 · ${mem.map((m) => m.name).join(", ")}` : "아직 아이가 없어요"}
-                    </p>
+                    <p className="f-headline text-[21px] leading-snug" style={{ color: C.green }}>{teamLabel(t)}</p>
+                    <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{mem.length ? `${mem.length}명 · ${mem.map((m) => m.name).join(", ")}` : "아직 아이가 없어요"}</p>
                   </div>
-                  <button onClick={() => setForm({ id: t.id, level: t.level, teacher: t.teacher })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: C.orange }}>수정</button>
+                  <button onClick={() => startEdit(t)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: C.orange }}>수정</button>
                 </div>
-                {fillable > 0 && (
+                {fillable > 0 && !form && (
                   <button onClick={() => fillLevel(t)} className="focus-ring tap mt-2 f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
                     {t.level} 레벨 아이 {fillable}명 넣기
                   </button>
@@ -5334,8 +5385,17 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
           })}
         </div>
 
-        {teams.length > 0 && loose.length > 0 && (
-          <p className="f-body text-[14px] font-bold mt-3" style={{ color: "#B25A0B" }}>팀 미배정 {loose.length}명 · {loose.map((st) => `${st.name}(${st.level})`).join(", ")}</p>
+        {teams.length > 0 && loose.length > 0 && !form && (
+          <div className="mt-3">
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#B25A0B" }}>팀 미배정 {loose.length}명 · 이름을 눌러 팀을 정해요</p>
+            <div className="flex flex-wrap gap-2">
+              {loose.map((st) => (
+                <button key={st.id} onClick={() => setPicking(st)} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-2" style={{ background: "#FFE9D2", color: "#B25A0B" }}>
+                  {st.name} · {st.level} ▾
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {form && (
@@ -5345,7 +5405,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
               {LEVEL_CHOICES.map((l) => (
                 <button
                   key={l}
-                  onClick={() => setForm({ ...form, level: l })}
+                  onClick={() => pickLevel(l)}
                   aria-pressed={form.level === l}
                   className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5"
                   style={{ background: form.level === l ? C.green : C.cream, color: form.level === l ? "white" : C.charcoal, border: `1px solid ${form.level === l ? C.green : C.beige}` }}
@@ -5363,16 +5423,72 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
                 ))}
               </div>
             )}
+
+            <div className="flex items-center justify-between gap-2 mt-4 mb-1.5">
+              <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>이 팀 아이들 <span style={{ color: C.orange }}>{form.picked.length}명 선택</span></p>
+              {form.picked.length > 0 && <button onClick={() => setForm({ ...form, touched: true, picked: [] })} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>모두 해제</button>}
+            </div>
+            {roster.length === 0 ? (
+              <p className="f-body text-[14px] text-gray-400">이 프로그램에 신청한 아이가 아직 없어요.</p>
+            ) : (
+              <>
+                <p className="f-body text-[12.5px] text-gray-400 mb-1.5">{form.id ? "눌러서 넣거나 빼요." : `${form.level} 레벨 아이를 미리 골라 뒀어요. 눌러서 바꿀 수 있어요.`}</p>
+                <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-0.5" role="group" aria-label="이 팀에 넣을 아이">
+                  {checklist.map(({ student: st, adv }) => {
+                    const on = form.picked.includes(st.id);
+                    const cur = teamsOf(program).find((t) => t.id === adv.teamId);
+                    return (
+                      <button
+                        key={st.id}
+                        onClick={() => toggle(st.id)}
+                        role="checkbox"
+                        aria-checked={on}
+                        className="focus-ring tap w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left"
+                        style={{ background: on ? "#EAF7EF" : "white", border: `1px solid ${on ? "#9FD6B2" : C.beige}` }}
+                      >
+                        {on ? <CheckCircle2 size={22} color="#1F7A44" className="shrink-0" /> : <Circle size={22} color="#D8CEB8" className="shrink-0" />}
+                        <span className="flex-1 min-w-0">
+                          <span className="block f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{st.name} <span className="font-normal text-gray-400">· {st.level}</span></span>
+                          {cur && cur.id !== form.id && <span className="block f-body text-[13px]" style={{ color: "#B25A0B" }}>지금 {teamLabel(cur)} 팀 → 이 팀으로 옮겨요</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
             <div className="flex gap-2 mt-3">
               <button onClick={() => setForm(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>취소</button>
               <button onClick={save} disabled={!form.teacher.trim()} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.orange }}>{form.id ? "저장" : "팀 만들기"}</button>
             </div>
             {form.id && (
-              <button onClick={() => remove(teams.find((t) => t.id === form.id))} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 mt-1" style={{ color: "#C0674A" }}>이 팀 삭제 (아이들은 미배정으로 돌아가요)</button>
+              <button onClick={() => setConfirmRemove(teams.find((t) => t.id === form.id))} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 mt-1" style={{ color: "#C0674A" }}>이 팀 삭제 (아이들은 미배정으로 돌아가요)</button>
             )}
           </div>
         )}
       </div>
+      {confirmRemove && (
+        <ConfirmDialog
+          title={`${teamLabel(confirmRemove)} 팀을 삭제할까요?`}
+          actions={[
+            { label: "팀 삭제", tone: "danger", onClick: () => { const t = confirmRemove; setConfirmRemove(null); remove(t); } },
+            { label: "취소", tone: "plain", onClick: () => setConfirmRemove(null) },
+          ]}
+        >
+          {members(confirmRemove).length > 0 ? `이 팀의 아이 ${members(confirmRemove).length}명은 "팀 미배정"으로 돌아가요. ` : ""}아이들의 기록은 지워지지 않아요. 부모님 화면에서는 이 팀 표시가 사라져요.
+        </ConfirmDialog>
+      )}
+      {picking && (
+        <TeamPicker
+          student={picking}
+          teams={teams}
+          counts={counts}
+          currentId={teamIdOf(picking.id)}
+          onPick={(teamId) => { onAssign(picking.id, teamId); setPicking(null); }}
+          onClose={() => setPicking(null)}
+        />
+      )}
     </div>
   );
 }

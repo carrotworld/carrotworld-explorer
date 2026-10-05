@@ -1,5 +1,480 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api, sync as syncBase } from "./api";
+
+/* ---- teacher screens can be shown in English; parents and children always see Korean ---- */
+let UI_LANG = "ko";
+const setUiLang = (l) => { UI_LANG = l === "en" ? "en" : "ko"; };
+const EN = {
+"팀 {0}": "Team {0}",
+"팀 정하기": "Choose team",
+"팀 미배정": "No team yet",
+"Level {0} · 참여 {1}회 ·": "Level {0} · {1} trips joined ·",
+"복습 {0}% ·": "Review {0}% ·",
+"📝 리포트 작성됨": "📝 Report written",
+"리포트 미작성": "Report not written",
+"완료 {0}회 · 뱃지 {1}개 · 🥕{2}": "Completed {0} · Badges {1} · 🥕{2}",
+"학생 정보": "Student info",
+"수정": "Edit",
+"학생 이름": "Student name",
+"학생 이름 수정": "Edit student name",
+"가족 로그인 번호 4자리": "Family login number (4 digits)",
+"가족 로그인 번호 4자리 수정": "Edit family login number (4 digits)",
+"이미 쓰는 번호예요. {0}와(과) 같은 가족으로 묶여요.": "This number is already in use. They will be grouped as the same family as {0}.",
+"취소": "Cancel",
+"저장": "Save",
+"학생 삭제": "Delete student",
+"{0}정말 삭제할까요?": "{0}Are you sure you want to delete?",
+"이 아이의 피드백·복습 기록도 함께 삭제돼요. 삭제하기 전에 백업 파일이 자동으로 내려받아져요.": "This child's feedback and review records will be deleted too. A backup file is downloaded automatically before deleting.",
+"{0} 학생을 삭제할까요?": "Delete student {0}?",
+"삭제": "Delete",
+"{0} · Level {1} · 로그인 번호 {2}": "{0} · Level {1} · Login number {2}",
+"신청 번호 뒷자리 {0}": "Application phone ends in {0}",
+"획득한 뱃지": "Badges earned",
+"뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).": "Badges and rank are calculated automatically from completed records (cannot be edited).",
+"출석한 체험은 취소할 수 없어요. 출석 체크를 해제하면 취소할 수 있어요.": "A trip the child attended cannot be cancelled. Un-mark attendance first to cancel.",
+"체험 취소": "Cancel trip",
+"이 아이의 이 프로그램 신청을 취소해요. 학생 등록은 그대로예요.": "Cancels this child's place in this program. The student stays registered.",
+"{0}부모님 화면에서는 이 프로그램이 사라져요. 예습 기록은 지우지 않고 보관돼서, 취소한 신청 목록에서 되돌릴 수 있어요.": "{0}The program disappears from the parents' screen. Prep records are kept, and you can restore it from the cancelled list.",
+"{0} 신청이 취소돼요.": "The {0} application will be cancelled.",
+"{0} 학생의 체험을 취소할까요?": "Cancel {0}'s trip?",
+"돌아가기": "Go back",
+"이미 이 번호로 등록돼 있어요. 로그인 번호를 잊으셨다면 선생님께 문의해 주세요.": "This phone number is already registered. If you forgot your login number, please ask a teacher.",
+"자녀 추가": "Add child",
+"새 학생 등록": "Register new student",
+"자녀 이름": "Child's name",
+"아바타 선택": "Choose avatar",
+"레벨": "Level",
+"로그인 번호 (기억할 숫자 4자리)": "Login number (4 digits you will remember)",
+"가족 로그인 번호 (숫자 4자리)": "Family login number (4 digits)",
+"예: 7391": "e.g. 7391",
+"이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요.": "If already registered, log in and tap 'Add child'.",
+"사용할 수 있는 번호예요 ✓": "This number is available ✓",
+"이미 쓰는 번호예요. {0}와(과) 같은 가족(형제자매)으로 묶여요.": "This number is already in use. They will be grouped as the same family (siblings) as {0}.",
+"이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요.": "You log in with this number. Please remember it. If you forget, ask a teacher.",
+"이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요.": "Parents log in with this number. Siblings share the same number and appear together.",
+"보호자 전화번호 (신청서에 적은 번호)": "Guardian phone number (as written on the application)",
+"보호자 전화번호": "Guardian phone number",
+"체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.": "Used only to match the trip application. The number is not stored; only the last 4 digits are kept. You can start once a teacher approves.",
+"전화번호를 끝까지 입력해 주세요.": "Please enter the full phone number.",
+"초기화": "Reset",
+"확인 중...": "Checking...",
+"추가하기": "Add",
+"등록 완료": "Register",
+"이모지": "Emoji",
+"영어 단어 (예: airplane)": "English word (e.g. airplane)",
+"영어 뜻 (예: A machine that flies.)": "English meaning (e.g. A machine that flies.)",
+"+ 단어 추가": "+ Add word",
+"한꺼번에 붙여넣기": "Paste many at once",
+"한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️": "One per line\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️",
+"단어 한꺼번에 붙여넣기": "Paste words all at once",
+"형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 \" - \" 앞뒤에 띄어쓰기)": "Format: word - meaning - emoji (emoji is optional; keep spaces around the \" - \")",
+"붙여넣은 단어 추가": "Add pasted words",
+"🧩 그림 맞추기 문제는 그대로 유지돼요.": "🧩 The picture-matching question stays as it is.",
+"객관식": "Multiple choice",
+"문제 (영어)": "Question (English)",
+"보기 {0}을 정답으로": "Mark option {0} as correct",
+"보기 {0}": "Option {0}",
+"동그라미를 눌러 정답을 골라 주세요.": "Tap the circle to choose the correct answer.",
+"O 맞아요": "O True",
+"X 아니에요": "X False",
+"+ 객관식 문제": "+ Multiple-choice question",
+"+ O/X 문제": "+ True/False question",
+"아이 화면에": "These appear on the child's screen in",
+"로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.": ". Save the program for changes to take effect.",
+"영어": "English",
+"① 예습 · 단어 카드": "① Prep · Word cards",
+"예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.": "Prep shows word cards only. The child taps to listen and practices each word 5 times.",
+"② 체험 · 현장 미션": "② Trip · On-site missions",
+"현장에서 아이가 찾아보는 미션이에요.": "Missions the child looks for during the trip.",
+"미션 (예: Find the oldest airplane.)": "Mission (e.g. Find the oldest airplane.)",
+"+ 미션 추가": "+ Add mission",
+"이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.": "If you edit missions of a program that already has students, their mission records are adjusted automatically.",
+"🔍 오늘의 집중 포인트": "🔍 Today's focus points",
+"체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.": "One or two things the children and teachers focus on during the trip. Shown on the child's on-site screen and in the parent notice.",
+"집중 포인트": "Focus point",
+"집중 포인트 {0}": "Focus point {0}",
+"+ 집중 포인트 추가": "+ Add focus point",
+"③ 복습 · 퀴즈": "③ Review · Quiz",
+"체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.": "After the trip, make true/false or multiple-choice questions from what you taught. The child's score (%) appears after they answer.",
+"단어-그림 맞추기 문제 자동 추가": "Add a word-picture matching question automatically",
+"서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.": "Created when there are 3 or more words with different emoji.",
+"③ 복습 · 큰 질문": "③ Review · Big question",
+"복습 퀴즈 다음에 아이가 하나를 골라요.": "The child picks one after the review quiz.",
+"질문 (예: How can an airplane fly?)": "Question (e.g. How can an airplane fly?)",
+"복습 열기": "Open review",
+"퀴즈를 다 만든 뒤 켜고 저장하면, 체험에 다녀온 아이들이 복습을 시작할 수 있어요.": "After the quiz is ready, turn this on and save: children who went on the trip can start the review.",
+"복사했어요 ✓ 카톡에 붙여넣기 하세요": "Copied ✓ Paste it into KakaoTalk",
+"자동 복사가 안 돼요. 아래 글을 길게 눌러 복사해 주세요": "Automatic copy didn't work. Long-press the text below to copy it",
+"공유 창을 열었어요": "Share sheet opened",
+"학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 \"학부모에게 공개\"를 켜고 저장하면 학부모 앱에 알림이 떠요.": "This is the notice sent to parents. Empty items are not shown. Turn on \"Share with parents\" below and save to send an alert to the parent app.",
+"⏰ 체험 시간": "⏰ Trip time",
+"체험 시간": "Trip time",
+"🕘 집합 시간": "🕘 Meeting time",
+"집합 시간": "Meeting time",
+"🧭 모이는 곳": "🧭 Meeting place",
+"예: 정문 앞 분수대": "e.g. Fountain at the main gate",
+"모이는 곳": "Meeting place",
+"📍 장소 (주소)": "📍 Location (address)",
+"예: 경기 수원시 권선구 …": "e.g. Gwonseon-gu, Suwon, Gyeonggi …",
+"장소 주소": "Location address",
+"🎒 준비물": "🎒 What to bring",
+"(쉼표나 줄바꿈으로 나눠요)": "(separate with commas or new lines)",
+"물통, 편한 신발, 모자": "Water bottle, comfortable shoes, hat",
+"준비물": "What to bring",
+"💰 입장료": "💰 Admission fee",
+"금액 (숫자만)": "Amount (numbers only)",
+"입장료 금액": "Admission fee amount",
+"예: 현장 결제": "e.g. Pay on site",
+"입장료 메모": "Admission fee note",
+"📝 기타 안내": "📝 Other notes",
+"(주차, 우천 시 등)": "(parking, rainy-day plan, etc.)",
+"기타 안내": "Other notes",
+"학부모에게 공개": "Share with parents",
+"켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 \"체험 안내가 도착했어요\" 알림이 떠요.": "Turn on and save to send a \"Trip notice has arrived\" alert to the parent app of children registered for this trip.",
+"카톡으로 보내기": "Send via KakaoTalk",
+"📤 안내문 보내기": "📤 Send notice",
+"📋 안내문 복사": "📋 Copy notice",
+"안내문": "Notice",
+"프로그램 이름을 먼저 입력해 주세요.": "Please enter the program name first.",
+"프로그램 수정": "Edit program",
+"새 프로그램 등록": "Register new program",
+"저장하지 않고 나간 작성 내용이 있어요": "You have unsaved work from earlier",
+"이 폰에 임시로 보관돼 있어요.": "It is kept temporarily on this phone.",
+"이어서 작성": "Continue writing",
+"버리기": "Discard",
+"저장할까요?": "Save it?",
+"이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요.": "Fill in name, date, level and icon to save.",
+"저장하지 않은 내용이 있어요": "You have unsaved changes",
+"저장하고 나가기": "Save and leave",
+"저장 안 하고 나가기": "Leave without saving",
+"계속 작성하기": "Keep writing",
+"프로그램 이름 (예: Seoul Grand Park)": "Program name (e.g. Seoul Grand Park)",
+"프로그램 이름": "Program name",
+"날짜 (예: Sep 30)": "Date (e.g. Sep 30)",
+"날짜": "Date",
+"장소": "Place",
+"테마 아이콘": "Theme icon",
+"(여러 개 선택 가능)": "(you can pick several)",
+"이름 미리보기": "Name preview",
+"부모님과 아이 화면에 이렇게 큰 제목으로 나와요. \":\" 뒤의 영어는 작게 아래에 보여요.": "Parents and children see the name as a big title like this. English after \":\" is shown smaller below.",
+"체험 소개 (부모님용, 한 문장)": "Trip intro (for parents, one sentence)",
+"체험 소개": "Trip intro",
+"체험 전 안내": "Pre-trip info",
+"시간 · 모이는 곳 · 준비물 · 입장료": "Time · meeting place · what to bring · fee",
+"접기 ▴": "Collapse ▴",
+"펼치기 ▾": "Expand ▾",
+"체험 자료 입력": "Trip materials",
+"단어 · 질문 · 퀴즈 · 미션": "Words · questions · quiz · missions",
+"오늘 진행 (체험 시작 가능)": "Live today (children can start)",
+"프로그램 등록": "Register program",
+"프로그램 삭제": "Delete program",
+"{0} 정말 삭제할까요?": "{0} Are you sure you want to delete it?",
+"학생 기록도 함께 삭제돼요.": "Student records will be deleted too.",
+"삭제하기 전에 백업 파일이 자동으로 내려받아져요.": "A backup file is downloaded automatically before deleting.",
+"프로그램을 삭제할까요?": "Delete this program?",
+"단어·미션·질문은 기본 내용으로 채워져요.": "Words, missions and questions are filled with defaults.",
+"가입 수락 상태": "Sign-up approval status",
+"신청 번호 확인 코드": "Application phone check code",
+"신청 번호 뒷자리": "Application phone ends in",
+"찜": "Wishlist hearts",
+"방문 기록": "Visit records",
+"확인하는 중...": "Checking...",
+"서버 저장 점검": "Server save check",
+"단어·퀴즈·안내 등을 입력한": "Press this",
+"눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.": "— it compares the values on screen with the ones saved on the server.",
+"직후, 새로고침하기 전에": "right after entering words, quizzes or notices (before refreshing)",
+"서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.": "Could not reach the server. Check your internet and try again.",
+"아직 비교할 데이터가 없어요. 입력하고 저장한 뒤 다시 눌러 보세요.": "No data to compare yet. Enter and save something, then press again.",
+"서버가 저장하지 않는 항목이 {0}개 있어요": "Items the server is not saving: {0}",
+"확인한 {0}개 항목이 모두 서버에 저장돼 있어요 ✓": "All {0} checked items are saved on the server ✓",
+"비교할 데이터 없음": "Nothing to compare",
+"✓ {0}/{1} 저장됨": "✓ {0}/{1} saved",
+"✗ {0}/{1} 저장 안 됨": "✗ {0}/{1} not saved",
+"✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(": "Items marked ✗ may disappear after a refresh. Please send the server files (",
+")을 보내 주시면 고칠게요.": ") and we will fix it.",
+"전체 자료 내려받기 (백업)": "Download all data (backup)",
+"아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.": "It contains children's and families' information. Keep the downloaded file somewhere safe.",
+"데이터 관리": "Data management",
+"서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.": "Check that data is saved on the server, and download everything as a file for safekeeping.",
+"체험에 등록된 아이": "Children registered",
+"예습(단어) 완료": "Prep (words) done",
+"현장 출석": "Attended on site",
+"복습 완료": "Review done",
+"선생님 리포트 작성": "Teacher report written",
+"(직접 쓴 답)": "(typed answer)",
+"{0}명 · {1}%": "{0} children · {1}%",
+"아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.": "No data yet. It builds up once children finish prep in the new version.",
+"일": "Sun",
+"월": "Mon",
+"화": "Tue",
+"수": "Wed",
+"목": "Thu",
+"금": "Fri",
+"토": "Sat",
+"오늘 방문": "Visits today",
+"누적 방문": "Total visits",
+"방문한 가족": "Families who visited",
+"최근 7일": "Last 7 days",
+"최근 7일 방문 수": "Visits in the last 7 days",
+"🔁 이틀 이상 다시 찾아온 가족 {0}가족": "🔁 {0} families came back on 2 or more days",
+"아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.": "No records yet. They start to build up once parents log in after the new version is deployed.",
+"앱 방문 (학부모만)": "App visits (parents only)",
+"학부모가 앱에 로그인한 기록이에요. 선생님 로그인은 세지 않고, 한 가족은 하루에 한 번만 세요.": "Records of parents logging in. Teacher logins are not counted, and each family is counted once per day.",
+"전체": "All",
+"아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.": "No children are registered yet, so the stats are empty.",
+"💡 \"{0}\" → \"{1}\" 단계에서 가장 많이 줄어요 ({2}명 → {3}명).": "💡 The biggest drop is from \"{0}\" to \"{1}\" ({2} → {3} children).",
+"등록 후 예습을 끝내기까지 평균 {0}일": "On average {0} days from registration to finishing prep",
+"· 출석 후 복습까지 평균 {0}일": "· {0} days from attendance to review on average",
+"아이들은 어디까지 오나요?": "How far do the children get?",
+"신청한 아이 중 단계마다 몇 명이 다음으로 넘어갔는지 보여요.": "Shows how many of the children who applied moved on at each step.",
+"단어 연습을 시작한 아이": "Children who started word practice",
+"{0}/{1}명 · {2}%": "{0}/{1} children · {2}%",
+"모든 단어를 {0}회씩 끝낸 아이": "Children who practiced every word {0} times",
+"예습에 얼마나 참여했나요?": "How much did they take part in prep?",
+"예습은 단어 카드만 나와요. 아이들이 단어를 들어 보고 5칸을 체크한 기록이에요.": "Prep shows word cards only. This records children listening to words and ticking the 5 boxes.",
+"아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.": "No review scores yet. Children can take the quiz once you open the review.",
+"평균 정답률": "Average correct rate",
+"{0}% · {1}명": "{0}% · {1} children",
+"복습 퀴즈 점수": "Review quiz score",
+"체험 후 선생님이 만든 퀴즈를 아이들이 푼 결과예요.": "Results of the quiz you made after the trip.",
+"체험 별점": "Trip star rating",
+"{0} / 5 · {1}명": "{0} / 5 · {1} children",
+"아직 별점이 없어요.": "No star ratings yet.",
+"체험 후 만족도": "Satisfaction after the trip",
+"체험을 마친 아이들이 직접 준 별점이에요 (5점 만점).": "Star ratings given by the children after the trip (out of 5).",
+"아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.": "No survey responses yet. Parents of children who attended get a survey reminder in the app.",
+"응답": "Responses",
+"건 · 출석한 {0}명 중 {1}%": "· {1}% of the {0} children who attended",
+"다시 참여하고 싶으세요?": "Would you like to join again?",
+"좋았던 점": "What went well",
+"아쉬운 점·바라는 점": "What could be better / wishes",
+"가보고 싶은 체험·장소": "Trips and places they would like to visit",
+"외 {0}개": "+{0} more",
+"부모 만족도 설문": "Parent satisfaction survey",
+"체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.": "Surveys left by parents after the trip (out of 5). Comments are shown without names.",
+"등록 {0}명 · 예습 {1}% · 출석 {2}% · 복습 {3}%{4}{5}": "Registered {0} · Prep {1}% · Attended {2}% · Review {3}%{4}{5}",
+"프로그램별 비교": "Compare programs",
+"어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.": "See in which programs the children keep up best.",
+"평균 {0} / {1}회": "Average {0} / {1} times",
+"{0}회 모두 한 아이 {1}/{2}명 · 카드를 눌러 들은 횟수 평균 {3}번": "Did all {0} times: {1}/{2} children · average {3} taps to listen",
+"단어별 연습": "Practice by word",
+"단어마다 {0}칸 체크를 몇 번 했는지 평균이에요. 연습이 적은 단어부터 보여요.": "Average number of the {0} boxes ticked per word. Least-practiced words come first.",
+"가장 많이 고른 오답: \"{0}\" ({1}명)": "Most chosen wrong answer: \"{0}\" ({1} children)",
+"답하는 데 평균 {0}초": "Average {0}s to answer",
+"복습 문제별 정답률": "Correct rate by review question",
+"아이들이 답한 기록이에요. 낮은 문제부터 보여요. 선생님이 다음 수업에서 다시 짚어 줄 부분을 찾아보세요.": "Based on the children's answers, lowest first. Find what to go over again in the next class.",
+"대상 없음": "No data",
+"현장 미션 달성률": "On-site mission completion",
+"미션마다 몇 명이 해냈는지 보여요.": "Shows how many children completed each mission.",
+"아직 답이 없어요.": "No answers yet.",
+"큰 질문에 아이들은 뭐라고 답했나요?": "How did the children answer the big question?",
+"예습에서 고른 답이에요.": "Answers the children chose.",
+"♥ {0}가족이 이 체험을 찜했어요.": "♥ {0} families saved this trip to their wishlist.",
+"관심": "Interest",
+"통계는 아이 개인이 아닌 전체 숫자만 보여줘요.": "Stats show overall numbers only, not individual children.",
+"방금": "just now",
+"{0}분 전": "{0} min ago",
+"{0}시간 전": "{0} h ago",
+"{0}일 전": "{0} d ago",
+"수락을 기다리는 가입이 없어요.": "No sign-ups waiting for approval.",
+"신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.": "Check the name and phone number on the application form, then approve. Parents cannot see learning materials until you approve.",
+"· {0} 신청": "· applied {0}",
+"⚠️ 같은 번호로 이미 가입한 가족이 있어요: {0}": "⚠️ A family has already signed up with the same number: {0}",
+"신청서 번호를 붙여넣어 확인 (선택)": "Paste the number from the application to check (optional)",
+"신청서 번호 확인 {0}": "Check application number {0}",
+"확인": "Check",
+"✓ 가입할 때 입력한 번호와 같아요": "✓ Matches the number entered at sign-up",
+"✗ 가입할 때 입력한 번호와 달라요": "✗ Does not match the number entered at sign-up",
+"전화번호를 끝까지 입력해 주세요": "Please enter the full phone number",
+"거절": "Decline",
+"수락": "Approve",
+"거절하면 이 가입 신청이 삭제돼요. 신청이 맞다면 부모님이 다시 등록할 수 있어요.": "Declining deletes this sign-up request. If the application is genuine, the parent can register again.",
+"가입을 거절할까요?": "Decline this sign-up?",
+"거절하고 삭제": "Decline and delete",
+"안내 전": "Notice not sent",
+"안내 완료 ✓": "Notice sent ✓",
+"피드백 {0}명 전": "Feedback: {0} left",
+"피드백 완료 ✓": "Feedback done ✓",
+"{0} 체험 안내 공개": "{0}: trip notice shared",
+"{0} 오늘 진행 {1}": "{0}: Live today {1}",
+"켬": "turned on",
+"끔": "turned off",
+"{0} 복습 {1}": "{0}: Review {1}",
+"열림": "opened",
+"닫힘": "closed",
+"{0} · {1} 체험 취소": "{0} · {1}: trip cancelled",
+"{0} · {1} 신청": "{0} · {1}: applied",
+"{0} · {1} 출석": "{0} · {1}: attended",
+"{0} · {1} 복습 완료": "{0} · {1}: review completed",
+"{0} · {1} 피드백 작성": "{0} · {1}: feedback written",
+"{0} 가입 수락": "{0}: sign-up approved",
+"{0} 가입 신청": "{0}: sign-up requested",
+"체험 전 안내를 보내야 해요": "Send the pre-trip info",
+"신청한 아이가 아직 없어요": "No children have applied yet",
+"팀이 정해지지 않은 아이가 {0}명 있어요": "{0} children still need a team",
+"체험 날에 '오늘 진행'을 켜 주세요": "On the trip day, switch on 'Live today'",
+"출석 체크 {0}/{1}명": "Attendance {0}/{1}",
+"체험이 끝나면 '오늘 진행'을 꺼 주세요": "When the trip ends, switch off 'Live today'",
+"복습 퀴즈를 만들고 열어 주세요": "Make the review quiz and open the review",
+"피드백 {0}명 작성이 남았어요": "Feedback reports left to write: {0}",
+"모두 마무리됐어요 🎉": "All wrapped up 🎉",
+"마지막 확인 {0}": "Last checked {0}",
+"새로고침": "Refresh",
+"등록된 프로그램이 아직 없어요.": "No programs registered yet.",
+"보냄 ✓": "Sent ✓",
+"아직 안 보냄": "Not sent yet",
+"신청 · 출석": "Applied · Attended",
+"{0}명 · {1}명": "{0} · {1}",
+"복습": "Review",
+"열림 ✓": "Open ✓",
+"피드백": "Feedback",
+"{0}명 남음": "{0} left",
+"모두 작성 ✓": "All written ✓",
+"팀 · 선생님": "Teams · Teachers",
+"{0}팀 · {1}{2}": "Teams: {0} · {1}{2}",
+"· 미배정 {0}명": "· {0} unassigned",
+"최근 활동": "Recent activity",
+"다른 선생님이 한 일도 여기에 보여요. (누가 했는지는 기록되지 않아요)": "What other teachers did shows up here too. (Who did it is not recorded.)",
+"아직 기록이 없어요.": "No records yet.",
+"{0}의 팀": "{0}'s team",
+"Level {0} · 눌러서 정해요": "Level {0} · tap to choose",
+"✓ 지금 이 팀": "✓ Current team",
+"{0}명": "{0} children",
+"팀에서 빼기": "Remove from team",
+"팀 없음": "No team",
+"닫기": "Close",
+"{0} 팀 정하기": "Choose team for {0}",
+"+ 팀 추가": "+ Add team",
+"레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.": "Make a team for each level and choose a teacher. Parents then see their child's team and teacher. You can have several teams at the same level.",
+"{0}명 · {1}": "{0} children · {1}",
+"아직 아이가 없어요": "No children yet",
+"{0} 레벨 아이 {1}명 넣기": "Add {1} {0}-level children",
+"팀 미배정 {0}명 · 이름을 눌러 팀을 정해요": "{0} children without a team · tap a name to choose",
+"선생님 이름": "Teacher name",
+"예: Anna": "e.g. Anna",
+"이 팀 아이들": "Children in this team",
+"{0}명 선택": "{0} selected",
+"모두 해제": "Clear all",
+"이 프로그램에 신청한 아이가 아직 없어요.": "No children have applied to this program yet.",
+"눌러서 넣거나 빼요.": "Tap to add or remove.",
+"{0} 레벨 아이를 미리 골라 뒀어요. 눌러서 바꿀 수 있어요.": "{0}-level children are pre-selected. Tap to change.",
+"지금 {0} 팀 → 이 팀으로 옮겨요": "Now in {0} → will move to this team",
+"이 팀에 넣을 아이": "Children to add to this team",
+"팀 만들기": "Create team",
+"이 팀 삭제 (아이들은 미배정으로 돌아가요)": "Delete this team (children go back to unassigned)",
+"{0}아이들의 기록은 지워지지 않아요. 부모님 화면에서는 이 팀 표시가 사라져요.": "{0}The children's records are not erased. The team label disappears from the parents' screen.",
+"이 팀의 아이 {0}명은 \"팀 미배정\"으로 돌아가요.": "The {0} children in this team go back to \"No team yet\".",
+"{0} 팀을 삭제할까요?": "Delete team {0}?",
+"팀 삭제": "Delete team",
+"가입 수락 대기 {0}건": "Sign-ups waiting for approval: {0}",
+"신청서와 맞는지 확인하고 수락해 주세요": "Check against the application and approve",
+"새 신청 문의 {0}건": "New application inquiries: {0}",
+"학부모 의견 {0}건": "Parent notes: {0}",
+"체험 안내를 보내야 해요": "Pre-trip info needs to be sent",
+"리포트 작성이 필요해요": "Reports need to be written",
+"현황": "Overview",
+"수락 {0}": "Approve {0}",
+"현장등록": "Register",
+"학생관리 {0}": "Students {0}",
+"학생관리": "Students",
+"프로그램등록": "Programs",
+"학부모의견 {0}": "Parent notes {0}",
+"학부모의견": "Parent notes",
+"통계": "Stats",
+"이름·날짜·레벨·아이콘이 비어 있어 저장할 수 없어요.": "Name, date, level and icon are empty, so it cannot be saved.",
+"저장하고 이동": "Save and go",
+"저장 안 하고 이동": "Go without saving",
+"🔔 확인이 필요해요 {0}": "🔔 Needs attention {0}",
+"✓ 확인함": "✓ Done",
+"외 {0}건": "+{0} more",
+"보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 \"학생관리\" 탭에서 프로그램에 추가해주세요.": "Parents normally register in the app themselves. This is for students who arrive on site without registering. Registering alone does not put them in any program, so add them to a program in the \"Students\" tab.",
+"+ 새 프로그램": "+ New program",
+"신청한 아이 {0}명": "{0} children applied",
+"♥ 관심 {0}가족": "♥ {0} families interested",
+"오늘 진행": "Live today",
+"진행 중": "Live",
+"꺼짐": "Off",
+"켜짐": "On",
+"한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.": "One tap applies to all {0} children who applied to this program.",
+"취소한 신청 {0}명": "Cancelled applications: {0}",
+"되돌리기": "Restore",
+"되돌리면 예습 기록과 함께 다시 신청한 상태로 돌아가요.": "Restoring brings them back as applied, with their prep records.",
+"이 프로그램에 없는 학생": "Students not in this program",
+"♥ 관심": "♥ Interested",
+"+ 추가": "+ Add",
+"등록된 프로그램": "Registered programs",
+"아이 {0}명의 피드백·복습·점수 기록이 함께 삭제돼요.": "Feedback, review and score records of {0} children will be deleted too.",
+"아직 들어온 의견이 없어요.": "No notes yet.",
+"✓ 모두 확인함으로 표시 ({0}건)": "✓ Mark all as done ({0})",
+"✓ 확인함 (되돌리기)": "✓ Done (undo)",
+"✓ 확인했어요": "✓ Mark as done",
+"{0} 가족": "{0} family",
+"시작 전": "Not started",
+"사용법": "Guide",
+"진행 완료": "Finished",
+"과학/비행": "Science / Flight",
+"자연": "Nature",
+"역사/궁": "History / Palace",
+"역사/기념": "History / Memorial",
+"전통문화": "Traditional culture",
+"없음 (무료)": "None (free)",
+"부모님 부담": "Paid by parents",
+"프로그램비 포함": "Included in program fee",
+"전시를 천천히, 자세히 보기": "Look at the exhibits slowly and closely",
+"워크북을 끝까지 꼼꼼히 하기": "Complete the workbook carefully to the end",
+"영어로 한 문장씩 말해 보기": "Say one sentence at a time in English",
+"궁금한 것 3가지 질문하기": "Ask 3 questions about things you are curious about",
+"낮음": "Low",
+"다소낮음": "Medium low",
+"보통": "Average",
+"좋음": "Good",
+"높음": "High",
+"레벨 여러 개": "Multiple levels",
+"테마 아이콘 여러 개": "Multiple theme icons",
+"단어 카드": "Word cards",
+"현장 미션": "On-site missions",
+"복습 퀴즈": "Review quiz",
+"팀 구성": "Team setup",
+"단어 연습·답 기록": "Word practice and answers",
+"복습 점수": "Review score",
+"부모 설문": "Parent survey",
+"등록 시각": "Registered at",
+"예습 완료 시각": "Prep completed at",
+"출석 시각": "Attended at",
+"복습 완료 시각": "Review completed at",
+"팀 배정": "Team assignment",
+"전체 만족도": "Overall satisfaction",
+"체험 내용": "Trip content",
+"선생님 진행·소통": "Teacher guidance and communication",
+"영어 학습 효과": "English learning effect",
+"예습 자료 (앱)": "Prep materials (app)",
+"장소·시간·안전": "Place, time and safety",
+"꼭 참여하고 싶어요": "Definitely want to join",
+"고민해 볼게요": "Will think about it",
+"아직 모르겠어요": "Not sure yet",
+"건의사항": "Suggestion",
+"장소 요청": "Place request",
+"기타": "Other",
+"신청 문의": "Application inquiry",
+"이미 사용 중인 번호예요. 다른 번호를 정해 주세요.": "This number is already in use. Please choose a different number.",
+"너무 쉬운 번호예요 (예: 1111, 1234). 다른 번호를 정해 주세요.": "This number is too easy to guess (e.g. 1111, 1234). Please choose a different number."
+};
+const I18N_MISSING = new Set();
+/** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
+const tr = (key, args) => {
+  let out = key;
+  if (UI_LANG === "en") {
+    const core = key.trim();
+    const en = EN[core];
+    if (en !== undefined) out = key.slice(0, key.length - key.trimStart().length) + en + key.slice(key.trimEnd().length);
+    else if (/[\uAC00-\uD7A3]/.test(core)) {
+      I18N_MISSING.add(core);
+      if (typeof window !== "undefined") window.__i18nMissing = [...I18N_MISSING];
+    }
+  }
+  return args ? out.replace(/\{(\d+)\}/g, (m, i) => (args[i] === undefined || args[i] === null ? "" : String(args[i]))) : out;
+};
+
 // remembers when this phone last sent something to the server
 const writeClock = { at: 0 };
 const sync = (promise) => {
@@ -3001,11 +3476,11 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
               className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 mb-1.5"
               style={{ background: teamOf(program, adv) ? "#EAF7EF" : "#FFE9D2", color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}
             >
-              {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 정하기"} ▾
+              {teamOf(program, adv) ? tr("팀 {0}", [teamLabel(teamOf(program, adv))]) : tr("팀 정하기")} ▾
             </button>
           ) : (
             <p className="f-body text-[14px] font-bold" style={{ color: teamOf(program, adv) ? "#1F7A44" : "#B25A0B" }}>
-              {teamOf(program, adv) ? `팀 ${teamLabel(teamOf(program, adv))}` : "팀 미배정"}
+              {teamOf(program, adv) ? tr("팀 {0}", [teamLabel(teamOf(program, adv))]) : tr("팀 미배정")}
             </p>
           )
         )}
@@ -3019,8 +3494,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
             onClose={() => setPickTeam(false)}
           />
         )}
-        <p className="f-body text-[14px] text-gray-400">
-          Level {student.level} · 참여 {participationCount}회 · {reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>복습 {reviewScoreOf(adv).percent}% · </span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>📝 리포트 작성됨</span> : <span style={{ color: "#B08A3E" }}>리포트 미작성</span>}
+        <p className="f-body text-[14px] text-gray-400">{tr("Level {0} · 참여 {1}회 · ", [student.level, participationCount])}{reviewScoreOf(adv) && <span style={{ color: C.orange, fontWeight: 700 }}>{tr("복습 {0}% · ", [reviewScoreOf(adv).percent])}</span>}{adv.feedback ? <span style={{ color: "#1F7A44" }}>{tr("📝 리포트 작성됨")}</span> : <span style={{ color: "#B08A3E" }}>{tr("리포트 미작성")}</span>}
         </p>
       </div>
 
@@ -3028,7 +3502,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
         <span style={{ fontSize: 25 }}>{rank.emoji}</span>
         <div className="flex-1 min-w-0">
           <p className="f-display text-[16px] font-bold" style={{ color: C.green }}>{rank.label}</p>
-          <p className="f-body text-[14px]" style={{ color: "#9C7A4A" }}>완료 {totalCompleted}회 · 뱃지 {badgesEarned.length}개 · 🥕{points}</p>
+          <p className="f-body text-[14px]" style={{ color: "#9C7A4A" }}>{tr("완료 {0}회 · 뱃지 {1}개 · 🥕{2}", [totalCompleted, badgesEarned.length, points])}</p>
         </div>
       </div>
 
@@ -3036,11 +3510,9 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
         <div className="px-4 pb-4 space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>학생 정보</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>{tr("학생 정보")}</p>
               {!editing && (
-                <button onClick={() => setEditing(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>
-                  수정
-                </button>
+                <button onClick={() => setEditing(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>{tr("수정")}</button>
               )}
             </div>
 
@@ -3049,8 +3521,8 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
                 <input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="학생 이름"
-                  aria-label="학생 이름 수정"
+                  placeholder={tr("학생 이름")}
+                  aria-label={tr("학생 이름 수정")}
                   className="focus-ring w-full rounded-xl p-2.5 f-body text-[17px] outline-none mb-2"
                   style={{ background: "white", border: `1px solid ${C.beige}` }}
                 />
@@ -3083,64 +3555,53 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
                 <input
                   value={editPin}
                   onChange={(e) => setEditPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="가족 로그인 번호 4자리"
+                  placeholder={tr("가족 로그인 번호 4자리")}
                   inputMode="numeric"
-                  aria-label="가족 로그인 번호 4자리 수정"
+                  aria-label={tr("가족 로그인 번호 4자리 수정")}
                   className="focus-ring w-full rounded-xl p-2.5 f-body text-[17px] outline-none mb-1.5 text-center tracking-[0.3em]"
                   style={{ background: "white", border: `1px solid ${C.beige}` }}
                 />
                 {editPin.length === 4 && editPin !== student.familyPin && familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).length > 0 && (
-                  <p className="f-body text-[14px] font-bold mb-3" style={{ color: "#B08A3E" }}>
-                    이미 쓰는 번호예요. {familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).join(", ")}와(과) 같은 가족으로 묶여요.
-                  </p>
+                  <p className="f-body text-[14px] font-bold mb-3" style={{ color: "#B08A3E" }}>{tr("이미 쓰는 번호예요. {0}와(과) 같은 가족으로 묶여요.", [familyNamesFor((allStudents || []).filter((st) => st.id !== student.id), editPin).join(", ")])}</p>
                 )}
                 <div className="mb-2" />
                 <div className="flex gap-2 mb-2">
-                  <button onClick={() => setEditing(false)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal }}>
-                    취소
-                  </button>
+                  <button onClick={() => setEditing(false)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal }}>{tr("취소")}</button>
                   <button
                     onClick={saveEdit}
                     disabled={!editName.trim() || !/^\d{4}$/.test(editPin)}
                     className="focus-ring tap flex-1 f-display text-[15px] font-semibold rounded-lg py-2 text-white"
                     style={{ background: editName.trim() && /^\d{4}$/.test(editPin) ? C.orange : "#C9BFA8" }}
-                  >
-                    저장
-                  </button>
+                  >{tr("저장")}</button>
                 </div>
-                <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>
-                  학생 삭제
-                </button>
+                <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>{tr("학생 삭제")}</button>
                 {confirmDelete && (
                   <ConfirmDialog
-                    title={`${student.name} 학생을 삭제할까요?`}
+                    title={tr("{0} 학생을 삭제할까요?", [student.name])}
                     actions={[
-                      { label: "삭제", tone: "danger", onClick: () => { setConfirmDelete(false); onDeleteStudent(); } },
-                      { label: "취소", tone: "plain", onClick: () => setConfirmDelete(false) },
+                      { label: tr("삭제"), tone: "danger", onClick: () => { setConfirmDelete(false); onDeleteStudent(); } },
+                      { label: tr("취소"), tone: "plain", onClick: () => setConfirmDelete(false) },
                     ]}
-                  >
-                    {adventures.some((a) => a.studentId === student.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended))
-                      ? "이 아이의 피드백·복습 기록도 함께 삭제돼요. 삭제하기 전에 백업 파일이 자동으로 내려받아져요. "
-                      : ""}
-                    정말 삭제할까요?
-                  </ConfirmDialog>
+                  >{tr("{0}정말 삭제할까요?", [adventures.some((a) => a.studentId === student.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended))
+                      ? tr("이 아이의 피드백·복습 기록도 함께 삭제돼요. 삭제하기 전에 백업 파일이 자동으로 내려받아져요. ")
+                      : ""])}</ConfirmDialog>
                 )}
               </div>
             ) : (
               <div>
-                <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{student.name} · Level {student.level} · 로그인 번호 {student.familyPin}</p>
-                {student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>신청 번호 뒷자리 {student.phoneLast4}</p>}
+                <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{tr("{0} · Level {1} · 로그인 번호 {2}", [student.name, student.level, student.familyPin])}</p>
+                {student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
               </div>
             )}
           </div>
 
           {badgesEarned.length > 0 && (
             <div>
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>획득한 뱃지</p>
+              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>{tr("획득한 뱃지")}</p>
               <div className="flex gap-2 flex-wrap">
                 {badgesEarned.map((b) => <Badge key={b.id} b={b} size="sm" />)}
               </div>
-              <p className="f-body text-[13px] text-gray-400 mt-2">뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).</p>
+              <p className="f-body text-[13px] text-gray-400 mt-2">{tr("뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).")}</p>
             </div>
           )}
 
@@ -3252,7 +3713,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
                       key={row.key}
                       label={row.label}
                       value={fb.personality[row.key]}
-                      options={PERSONALITY_LEVELS.map((l) => ({ value: l, label: PERSONALITY_KO[l] }))}
+                      options={PERSONALITY_LEVELS.map((l) => ({ value: l, label: tr(PERSONALITY_KO[l]) }))}
                       onChange={(v) => patchPersonality(row.key, v)}
                     />
                   ))}
@@ -3264,27 +3725,23 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
           {onCancelEnrollment && (
             <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
               {adv.attended ? (
-                <p className="f-body text-[14px] text-gray-400">출석한 체험은 취소할 수 없어요. 출석 체크를 해제하면 취소할 수 있어요.</p>
+                <p className="f-body text-[14px] text-gray-400">{tr("출석한 체험은 취소할 수 없어요. 출석 체크를 해제하면 취소할 수 있어요.")}</p>
               ) : (
                 <>
-                  <button onClick={() => setConfirmCancel(true)} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2.5 rounded-xl" style={{ background: "#FDF1EC", color: "#C0674A" }}>
-                    체험 취소
-                  </button>
-                  <p className="f-body text-[13px] text-gray-400 mt-1.5 text-center">이 아이의 이 프로그램 신청을 취소해요. 학생 등록은 그대로예요.</p>
+                  <button onClick={() => setConfirmCancel(true)} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2.5 rounded-xl" style={{ background: "#FDF1EC", color: "#C0674A" }}>{tr("체험 취소")}</button>
+                  <p className="f-body text-[13px] text-gray-400 mt-1.5 text-center">{tr("이 아이의 이 프로그램 신청을 취소해요. 학생 등록은 그대로예요.")}</p>
                 </>
               )}
             </div>
           )}
           {confirmCancel && (
             <ConfirmDialog
-              title={`${student.name} 학생의 체험을 취소할까요?`}
+              title={tr("{0} 학생의 체험을 취소할까요?", [student.name])}
               actions={[
-                { label: "체험 취소", tone: "danger", onClick: () => { setConfirmCancel(false); onCancelEnrollment(); } },
-                { label: "돌아가기", tone: "plain", onClick: () => setConfirmCancel(false) },
+                { label: tr("체험 취소"), tone: "danger", onClick: () => { setConfirmCancel(false); onCancelEnrollment(); } },
+                { label: tr("돌아가기"), tone: "plain", onClick: () => setConfirmCancel(false) },
               ]}
-            >
-              {programTitle ? `${programTitle} 신청이 취소돼요. ` : ""}부모님 화면에서는 이 프로그램이 사라져요. 예습 기록은 지우지 않고 보관돼서, 취소한 신청 목록에서 되돌릴 수 있어요.
-            </ConfirmDialog>
+            >{tr("{0}부모님 화면에서는 이 프로그램이 사라져요. 예습 기록은 지우지 않고 보관돼서, 취소한 신청 목록에서 되돌릴 수 있어요.", [programTitle ? tr("{0} 신청이 취소돼요. ", [programTitle]) : ""])}</ConfirmDialog>
           )}
         </div>
       )}
@@ -3499,7 +3956,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
       }
       setBusy(false);
       if (sameNumber.length) {
-        setVerifyError("이미 이 번호로 등록돼 있어요. 로그인 번호를 잊으셨다면 선생님께 문의해 주세요.");
+        setVerifyError(tr("이미 이 번호로 등록돼 있어요. 로그인 번호를 잊으셨다면 선생님께 문의해 주세요."));
         return;
       }
       contact = { phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code };
@@ -3510,16 +3967,16 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
 
   return (
     <div className="bg-white rounded-2xl p-4 mb-3">
-      {mode !== "parent" && <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{mode === "sibling" ? "자녀 추가" : "새 학생 등록"}</p>}
+      {mode !== "parent" && <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{mode === "sibling" ? tr("자녀 추가") : tr("새 학생 등록")}</p>}
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder={mode === "teacher" ? "학생 이름" : "자녀 이름"}
-        aria-label="학생 이름"
+        placeholder={mode === "teacher" ? tr("학생 이름") : tr("자녀 이름")}
+        aria-label={tr("학생 이름")}
         className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>아바타 선택</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("아바타 선택")}</p>
       <div className="flex gap-2 flex-wrap mb-3">
         {AVATAR_CHOICES.map((a) => (
           <button
@@ -3533,7 +3990,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
           </button>
         ))}
       </div>
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("레벨")}</p>
       <div className="flex gap-2 mb-4">
         {LEVEL_CHOICES.map((l) => (
           <button
@@ -3551,43 +4008,43 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
       {mode !== "sibling" && (
         <>
           <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>
-            {mode === "parent" ? "로그인 번호 (기억할 숫자 4자리)" : "가족 로그인 번호 (숫자 4자리)"}
+            {mode === "parent" ? tr("로그인 번호 (기억할 숫자 4자리)") : tr("가족 로그인 번호 (숫자 4자리)")}
           </p>
           <input
             value={typedPin}
             onChange={(e) => { setTypedPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setRefused(""); }}
-            placeholder="예: 7391"
+            placeholder={tr("예: 7391")}
             inputMode="numeric"
-            aria-label="가족 로그인 번호 4자리"
+            aria-label={tr("가족 로그인 번호 4자리")}
             className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1.5 text-center tracking-[0.3em]"
             style={{ background: C.cream, border: `1px solid ${pinStatus === "taken" || pinStatus === "weak" || refused ? "#E0A19A" : C.beige}` }}
           />
           <div aria-live="polite" className="mb-3 min-h-[16px]">
-            {(pinStatus === "taken" || refused) && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{PIN_TAKEN_MSG}{mode === "parent" && " 이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요."}</p>}
-            {pinStatus === "weak" && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{PIN_WEAK_MSG}</p>}
-            {pinStatus === "free" && <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>사용할 수 있는 번호예요 ✓</p>}
-            {pinStatus === "joins" && <p className="f-body text-[14px] font-bold" style={{ color: "#B08A3E" }}>이미 쓰는 번호예요. {sameFamily.join(", ")}와(과) 같은 가족(형제자매)으로 묶여요.</p>}
+            {(pinStatus === "taken" || refused) && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr(PIN_TAKEN_MSG)}{mode === "parent" && tr(" 이미 등록하셨다면 로그인한 뒤 '자녀 추가'를 눌러 주세요.")}</p>}
+            {pinStatus === "weak" && <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr(PIN_WEAK_MSG)}</p>}
+            {pinStatus === "free" && <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>{tr("사용할 수 있는 번호예요 ✓")}</p>}
+            {pinStatus === "joins" && <p className="f-body text-[14px] font-bold" style={{ color: "#B08A3E" }}>{tr("이미 쓰는 번호예요. {0}와(과) 같은 가족(형제자매)으로 묶여요.", [sameFamily.join(", ")])}</p>}
           </div>
           <p className="f-body text-[13px] text-gray-400 mb-4">
             {mode === "parent"
-              ? "이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요."
-              : "이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요."}
+              ? tr("이 번호로 로그인해요. 직접 정한 번호를 꼭 기억해 주세요. 잊으셨다면 선생님께 문의해 주세요.")
+              : tr("이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요.")}
           </p>
           {needsPhone && (
             <div className="mb-4">
-              <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>보호자 전화번호 (신청서에 적은 번호)</p>
+              <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("보호자 전화번호 (신청서에 적은 번호)")}</p>
               <input
                 value={phone}
                 onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 16)); setVerifyError(""); }}
                 placeholder="010-0000-0000"
                 inputMode="tel"
-                aria-label="보호자 전화번호"
+                aria-label={tr("보호자 전화번호")}
                 className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1.5"
                 style={{ background: C.cream, border: `1px solid ${verifyError || (phone && !phoneValid(phone)) ? "#E0A19A" : C.beige}` }}
               />
-              <p className="f-body text-[13px] text-gray-400">체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.</p>
+              <p className="f-body text-[13px] text-gray-400">{tr("체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.")}</p>
               <div aria-live="polite" className="min-h-[16px] mt-1">
-                {verifyError ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요.</p> : null}
+                {verifyError ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("전화번호를 끝까지 입력해 주세요.")}</p> : null}
               </div>
             </div>
           )}
@@ -3595,7 +4052,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
       )}
       <div className="flex gap-2">
         <button onClick={mode === "sibling" && onCancel ? onCancel : reset} className="focus-ring tap flex-1 f-body text-[17px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
-          {mode === "sibling" ? "취소" : "초기화"}
+          {mode === "sibling" ? tr("취소") : tr("초기화")}
         </button>
         <button
           onClick={submit}
@@ -3603,7 +4060,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
           className="focus-ring tap flex-1 f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
         >
-          {busy ? "확인 중..." : mode === "sibling" ? "추가하기" : "등록 완료"}
+          {busy ? tr("확인 중...") : mode === "sibling" ? tr("추가하기") : tr("등록 완료")}
         </button>
       </div>
     </div>
@@ -3740,9 +4197,7 @@ function AddButton({ onClick, children }) {
 }
 function RemoveButton({ onClick }) {
   return (
-    <button onClick={onClick} aria-label="삭제" className="focus-ring tap f-body text-[14px] font-bold px-2 py-1 rounded-lg" style={{ color: "#C0674A" }}>
-      삭제
-    </button>
+    <button onClick={onClick} aria-label={tr("삭제")} className="focus-ring tap f-body text-[14px] font-bold px-2 py-1 rounded-lg" style={{ color: "#C0674A" }}>{tr("삭제")}</button>
   );
 }
 
@@ -3776,31 +4231,31 @@ function VocabEditor({ items, onChange }) {
                 value={v.emoji || ""}
                 onChange={(e) => update(i, { emoji: e.target.value })}
                 placeholder="🙂"
-                aria-label="이모지"
+                aria-label={tr("이모지")}
                 className="focus-ring rounded-lg py-2 f-body text-[21px] outline-none text-center"
                 style={{ width: 52, background: "white", border: `1px solid ${C.beige}` }}
               />
-              <MiniInput value={v.en || ""} onChange={(val) => update(i, { en: val })} placeholder="영어 단어 (예: airplane)" />
+              <MiniInput value={v.en || ""} onChange={(val) => update(i, { en: val })} placeholder={tr("영어 단어 (예: airplane)")} />
               <RemoveButton onClick={() => remove(i)} />
             </div>
-            <MiniInput value={v.meaning || ""} onChange={(val) => update(i, { meaning: val })} placeholder="영어 뜻 (예: A machine that flies.)" />
+            <MiniInput value={v.meaning || ""} onChange={(val) => update(i, { meaning: val })} placeholder={tr("영어 뜻 (예: A machine that flies.)")} />
           </div>
         ))}
       </div>
-      <AddButton onClick={add}>+ 단어 추가</AddButton>
+      <AddButton onClick={add}>{tr("+ 단어 추가")}</AddButton>
       <div className="mt-3">
-        <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>한꺼번에 붙여넣기</p>
+        <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("한꺼번에 붙여넣기")}</p>
         <textarea
           value={bulk}
           onChange={(e) => setBulk(e.target.value)}
           rows={3}
-          placeholder={"한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️"}
-          aria-label="단어 한꺼번에 붙여넣기"
+          placeholder={tr("한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️")}
+          aria-label={tr("단어 한꺼번에 붙여넣기")}
           className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
           style={{ ...editorFieldStyle, background: "white" }}
         />
-        <p className="f-body text-[13px] text-gray-400 mt-1">형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 " - " 앞뒤에 띄어쓰기)</p>
-        <div className="mt-1.5"><AddButton onClick={addBulk}>붙여넣은 단어 추가</AddButton></div>
+        <p className="f-body text-[13px] text-gray-400 mt-1">{tr("형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 \" - \" 앞뒤에 띄어쓰기)")}</p>
+        <div className="mt-1.5"><AddButton onClick={addBulk}>{tr("붙여넣은 단어 추가")}</AddButton></div>
       </div>
     </div>
   );
@@ -3815,19 +4270,19 @@ function QuizEditor({ items, onChange }) {
         {items.map((q, i) => {
           if (q.type !== "mc" && q.type !== "tf") {
             if (q.id === "match-auto") return null;
-            return <p key={q.id || i} className="f-body text-[14px] text-gray-400">🧩 그림 맞추기 문제는 그대로 유지돼요.</p>;
+            return <p key={q.id || i} className="f-body text-[14px] text-gray-400">{tr("🧩 그림 맞추기 문제는 그대로 유지돼요.")}</p>;
           }
           const opts = q.type === "mc" ? (q.options && q.options.length >= 3 ? q.options : [...(q.options || []), "", "", ""].slice(0, 3)) : [];
           return (
             <div key={q.id || i} className="rounded-xl p-2.5 space-y-1.5" style={editorFieldStyle}>
               <div className="flex items-center">
                 <span className="f-body text-[14px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: C.green }}>
-                  {q.type === "mc" ? "객관식" : "O/X"}
+                  {q.type === "mc" ? tr("객관식") : "O/X"}
                 </span>
                 <div className="flex-1" />
                 <RemoveButton onClick={() => remove(i)} />
               </div>
-              <MiniInput value={q.prompt || ""} onChange={(val) => patch(i, { prompt: val })} placeholder="문제 (영어)" />
+              <MiniInput value={q.prompt || ""} onChange={(val) => patch(i, { prompt: val })} placeholder={tr("문제 (영어)")} />
               {q.type === "mc" ? (
                 <div className="space-y-1.5">
                   {opts.map((o, oi) => (
@@ -3835,7 +4290,7 @@ function QuizEditor({ items, onChange }) {
                       <button
                         onClick={() => patch(i, { options: opts, answer: oi })}
                         aria-pressed={q.answer === oi}
-                        aria-label={`보기 ${oi + 1}을 정답으로`}
+                        aria-label={tr("보기 {0}을 정답으로", [oi + 1])}
                         className="focus-ring tap shrink-0"
                       >
                         {q.answer === oi ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
@@ -3843,17 +4298,17 @@ function QuizEditor({ items, onChange }) {
                       <MiniInput
                         value={o}
                         onChange={(val) => patch(i, { options: opts.map((x, k) => (k === oi ? val : x)), answer: q.answer })}
-                        placeholder={`보기 ${oi + 1}`}
+                        placeholder={tr("보기 {0}", [oi + 1])}
                       />
                     </div>
                   ))}
-                  <p className="f-body text-[13px] text-gray-400">동그라미를 눌러 정답을 골라 주세요.</p>
+                  <p className="f-body text-[13px] text-gray-400">{tr("동그라미를 눌러 정답을 골라 주세요.")}</p>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   {[
-                    { v: true, label: "O 맞아요" },
-                    { v: false, label: "X 아니에요" },
+                    { v: true, label: tr("O 맞아요") },
+                    { v: false, label: tr("X 아니에요") },
                   ].map((b) => (
                     <button
                       key={String(b.v)}
@@ -3872,8 +4327,8 @@ function QuizEditor({ items, onChange }) {
         })}
       </div>
       <div className="flex gap-2 flex-wrap">
-        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "mc", prompt: "", options: ["", "", ""], answer: 0 }])}>+ 객관식 문제</AddButton>
-        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "tf", prompt: "", answer: true }])}>+ O/X 문제</AddButton>
+        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "mc", prompt: "", options: ["", "", ""], answer: 0 }])}>{tr("+ 객관식 문제")}</AddButton>
+        <AddButton onClick={() => onChange([...items, { id: newId("q"), type: "tf", prompt: "", answer: true }])}>{tr("+ O/X 문제")}</AddButton>
       </div>
     </div>
   );
@@ -3887,53 +4342,51 @@ function MaterialsEditor({ value, onChange }) {
   const focus = value.focus || [];
   return (
     <div className="rounded-xl p-3 mb-3 space-y-5" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
-      <p className="f-body text-[14px] text-gray-500">
-        아이 화면에 <b>영어</b>로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.
-      </p>
+      <p className="f-body text-[14px] text-gray-500">{tr("아이 화면에 ")}<b>{tr("영어")}</b>{tr("로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.")}</p>
 
       <div>
-        <EditorHeading hint="예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.">① 예습 · 단어 카드</EditorHeading>
+        <EditorHeading hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")}>{tr("① 예습 · 단어 카드")}</EditorHeading>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary) => set({ vocabulary })} />
       </div>
 
       <div>
-        <EditorHeading hint="현장에서 아이가 찾아보는 미션이에요.">② 체험 · 현장 미션</EditorHeading>
+        <EditorHeading hint={tr("현장에서 아이가 찾아보는 미션이에요.")}>{tr("② 체험 · 현장 미션")}</EditorHeading>
         <div className="space-y-2 mb-2">
           {value.missions.map((m, i) => (
             <div key={m.id || i} className="flex items-center gap-2">
               <MiniInput
                 value={m.text || ""}
                 onChange={(val) => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, text: val } : x)) })}
-                placeholder="미션 (예: Find the oldest airplane.)"
+                placeholder={tr("미션 (예: Find the oldest airplane.)")}
               />
               <RemoveButton onClick={() => set({ missions: value.missions.filter((_, k) => k !== i) })} />
             </div>
           ))}
         </div>
-        <AddButton onClick={() => set({ missions: [...value.missions, { id: newId("m"), text: "" }] })}>+ 미션 추가</AddButton>
-        <p className="f-body text-[13px] text-gray-400 mt-1.5">이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.</p>
+        <AddButton onClick={() => set({ missions: [...value.missions, { id: newId("m"), text: "" }] })}>{tr("+ 미션 추가")}</AddButton>
+        <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.")}</p>
 
         <div className="mt-4">
-          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>🔍 오늘의 집중 포인트</p>
-          <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2">체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.</p>
+          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🔍 오늘의 집중 포인트")}</p>
+          <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2">{tr("체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.")}</p>
           <div className="space-y-1.5 mb-2">
             {focus.map((f, i) => (
               <div key={i} className="flex items-center gap-2">
-                <MiniInput value={f} onChange={(val) => set({ focus: focus.map((x, k) => (k === i ? val : x)) })} placeholder="집중 포인트" label={`집중 포인트 ${i + 1}`} />
+                <MiniInput value={f} onChange={(val) => set({ focus: focus.map((x, k) => (k === i ? val : x)) })} placeholder={tr("집중 포인트")} label={tr("집중 포인트 {0}", [i + 1])} />
                 <RemoveButton onClick={() => set({ focus: focus.filter((_, k) => k !== i) })} />
               </div>
             ))}
           </div>
-          {focus.length < 4 && <AddButton onClick={() => set({ focus: [...focus, ""] })}>+ 집중 포인트 추가</AddButton>}
+          {focus.length < 4 && <AddButton onClick={() => set({ focus: [...focus, ""] })}>{tr("+ 집중 포인트 추가")}</AddButton>}
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {FOCUS_IDEAS.filter((t) => !focus.includes(t)).map((t) => (
+            {FOCUS_IDEAS.filter((t) => !focus.includes(tr(t))).map((t) => (
               <button
                 key={t}
-                onClick={() => focus.length < 4 && set({ focus: [...focus.filter((x) => x.trim()), t] })}
+                onClick={() => focus.length < 4 && set({ focus: [...focus.filter((x) => x.trim()), tr(t)] })}
                 className="focus-ring tap f-body text-[14px] font-bold px-2.5 py-1.5 rounded-full"
                 style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}
               >
-                + {t}
+                + {tr(t)}
               </button>
             ))}
           </div>
@@ -3941,27 +4394,25 @@ function MaterialsEditor({ value, onChange }) {
       </div>
 
       <div>
-        <EditorHeading hint="체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.">③ 복습 · 퀴즈</EditorHeading>
+        <EditorHeading hint={tr("체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.")}>{tr("③ 복습 · 퀴즈")}</EditorHeading>
         <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
         <button onClick={() => set({ autoMatch: !value.autoMatch })} aria-pressed={value.autoMatch} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
           {value.autoMatch ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-          <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>
-            단어-그림 맞추기 문제 자동 추가
-            <span className="block font-normal text-gray-400">서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.</span>
+          <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("단어-그림 맞추기 문제 자동 추가")}<span className="block font-normal text-gray-400">{tr("서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.")}</span>
           </span>
         </button>
       </div>
 
       <div>
-        <EditorHeading hint="복습 퀴즈 다음에 아이가 하나를 골라요.">③ 복습 · 큰 질문</EditorHeading>
+        <EditorHeading hint={tr("복습 퀴즈 다음에 아이가 하나를 골라요.")}>{tr("③ 복습 · 큰 질문")}</EditorHeading>
         <div className="space-y-1.5">
-          <MiniInput value={value.bigQuestion} onChange={(bigQuestion) => set({ bigQuestion })} placeholder="질문 (예: How can an airplane fly?)" />
+          <MiniInput value={value.bigQuestion} onChange={(bigQuestion) => set({ bigQuestion })} placeholder={tr("질문 (예: How can an airplane fly?)")} />
           {bqOpts.map((o, i) => (
             <MiniInput
               key={i}
               value={o}
               onChange={(val) => set({ bigQuestionOptions: bqOpts.map((x, k) => (k === i ? val : x)) })}
-              placeholder={`보기 ${i + 1}`}
+              placeholder={tr("보기 {0}", [i + 1])}
             />
           ))}
         </div>
@@ -3969,9 +4420,7 @@ function MaterialsEditor({ value, onChange }) {
 
       <button onClick={() => set({ reviewOpen: !value.reviewOpen })} aria-pressed={value.reviewOpen} className="focus-ring tap flex items-start gap-2 text-left rounded-xl p-3 w-full" style={{ background: value.reviewOpen ? "#DCF3E4" : "white", border: `1px solid ${value.reviewOpen ? "#9FD6B2" : C.beige}` }}>
         {value.reviewOpen ? <CheckCircle2 size={20} color="#1F7A44" /> : <Circle size={20} color="#D8CEB8" />}
-        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>
-          복습 열기
-          <span className="block font-normal text-gray-500">퀴즈를 다 만든 뒤 켜고 저장하면, 체험에 다녀온 아이들이 복습을 시작할 수 있어요.</span>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("복습 열기")}<span className="block font-normal text-gray-500">{tr("퀴즈를 다 만든 뒤 켜고 저장하면, 체험에 다녀온 아이들이 복습을 시작할 수 있어요.")}</span>
         </span>
       </button>
     </div>
@@ -4033,18 +4482,18 @@ function InfoEditor({ program, value, onChange }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(message);
-      setStatus("복사했어요 ✓ 카톡에 붙여넣기 하세요");
+      setStatus(tr("복사했어요 ✓ 카톡에 붙여넣기 하세요"));
       setFallback("");
     } catch (e) {
       setFallback(message);
-      setStatus("자동 복사가 안 돼요. 아래 글을 길게 눌러 복사해 주세요");
+      setStatus(tr("자동 복사가 안 돼요. 아래 글을 길게 눌러 복사해 주세요"));
     }
   };
   const share = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: `[체험 안내] ${program.title}`, text: message });
-        setStatus("공유 창을 열었어요");
+        await navigator.share({ title: tr("[체험 안내] {0}", [program.title]), text: message });
+        setStatus(tr("공유 창을 열었어요"));
         return;
       } catch (e) {
         if (e && e.name === "AbortError") return;
@@ -4058,33 +4507,33 @@ function InfoEditor({ program, value, onChange }) {
   const label = "f-body text-[14px] font-bold mb-1";
   return (
     <div className="rounded-xl p-3 mb-3 space-y-3" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
-      <p className="f-body text-[14px] text-gray-500">학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 "학부모에게 공개"를 켜고 저장하면 학부모 앱에 알림이 떠요.</p>
+      <p className="f-body text-[14px] text-gray-500">{tr("학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 \"학부모에게 공개\"를 켜고 저장하면 학부모 앱에 알림이 떠요.")}</p>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className={label} style={{ color: C.charcoal }}>⏰ 체험 시간</p>
-          <input value={value.time} onChange={(e) => set({ time: e.target.value })} placeholder="10:00 ~ 12:30" aria-label="체험 시간" className={field} style={fieldStyle} />
+          <p className={label} style={{ color: C.charcoal }}>{tr("⏰ 체험 시간")}</p>
+          <input value={value.time} onChange={(e) => set({ time: e.target.value })} placeholder="10:00 ~ 12:30" aria-label={tr("체험 시간")} className={field} style={fieldStyle} />
         </div>
         <div>
-          <p className={label} style={{ color: C.charcoal }}>🕘 집합 시간</p>
-          <input value={value.meetingTime} onChange={(e) => set({ meetingTime: e.target.value })} placeholder="09:50" aria-label="집합 시간" className={field} style={fieldStyle} />
+          <p className={label} style={{ color: C.charcoal }}>{tr("🕘 집합 시간")}</p>
+          <input value={value.meetingTime} onChange={(e) => set({ meetingTime: e.target.value })} placeholder="09:50" aria-label={tr("집합 시간")} className={field} style={fieldStyle} />
         </div>
       </div>
       <div>
-        <p className={label} style={{ color: C.charcoal }}>🧭 모이는 곳</p>
-        <input value={value.meetingPoint} onChange={(e) => set({ meetingPoint: e.target.value })} placeholder="예: 정문 앞 분수대" aria-label="모이는 곳" className={field} style={fieldStyle} />
+        <p className={label} style={{ color: C.charcoal }}>{tr("🧭 모이는 곳")}</p>
+        <input value={value.meetingPoint} onChange={(e) => set({ meetingPoint: e.target.value })} placeholder={tr("예: 정문 앞 분수대")} aria-label={tr("모이는 곳")} className={field} style={fieldStyle} />
       </div>
       <div>
-        <p className={label} style={{ color: C.charcoal }}>📍 장소 (주소)</p>
-        <input value={value.venue} onChange={(e) => set({ venue: e.target.value })} placeholder="예: 경기 수원시 권선구 …" aria-label="장소 주소" className={field} style={fieldStyle} />
+        <p className={label} style={{ color: C.charcoal }}>{tr("📍 장소 (주소)")}</p>
+        <input value={value.venue} onChange={(e) => set({ venue: e.target.value })} placeholder={tr("예: 경기 수원시 권선구 …")} aria-label={tr("장소 주소")} className={field} style={fieldStyle} />
       </div>
       <div>
-        <p className={label} style={{ color: C.charcoal }}>🎒 준비물 <span className="font-normal text-gray-400">(쉼표나 줄바꿈으로 나눠요)</span></p>
-        <textarea value={value.bring} onChange={(e) => set({ bring: e.target.value })} rows={2} placeholder="물통, 편한 신발, 모자" aria-label="준비물" className={field} style={fieldStyle} />
+        <p className={label} style={{ color: C.charcoal }}>{tr("🎒 준비물 ")}<span className="font-normal text-gray-400">{tr("(쉼표나 줄바꿈으로 나눠요)")}</span></p>
+        <textarea value={value.bring} onChange={(e) => set({ bring: e.target.value })} rows={2} placeholder={tr("물통, 편한 신발, 모자")} aria-label={tr("준비물")} className={field} style={fieldStyle} />
       </div>
 
       <div>
-        <p className={label} style={{ color: C.charcoal }}>💰 입장료</p>
+        <p className={label} style={{ color: C.charcoal }}>{tr("💰 입장료")}</p>
         <div className="flex gap-1.5">
           {FEE_TYPES.map((f) => (
             <button
@@ -4094,7 +4543,7 @@ function InfoEditor({ program, value, onChange }) {
               className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2"
               style={{ background: value.feeType === f.key ? C.green : "white", color: value.feeType === f.key ? "white" : C.charcoal, border: `1px solid ${value.feeType === f.key ? C.green : C.beige}` }}
             >
-              {f.label}
+              {tr(f.label)}
             </button>
           ))}
         </div>
@@ -4104,43 +4553,37 @@ function InfoEditor({ program, value, onChange }) {
               value={value.feeAmount}
               onChange={(e) => set({ feeAmount: e.target.value.replace(/[^\d]/g, "") })}
               inputMode="numeric"
-              placeholder="금액 (숫자만)"
-              aria-label="입장료 금액"
+              placeholder={tr("금액 (숫자만)")}
+              aria-label={tr("입장료 금액")}
               className={field}
               style={fieldStyle}
             />
-            <input value={value.feeNote} onChange={(e) => set({ feeNote: e.target.value })} placeholder="예: 현장 결제" aria-label="입장료 메모" className={field} style={fieldStyle} />
+            <input value={value.feeNote} onChange={(e) => set({ feeNote: e.target.value })} placeholder={tr("예: 현장 결제")} aria-label={tr("입장료 메모")} className={field} style={fieldStyle} />
           </div>
         )}
         {value.feeType === "parent" && value.feeAmount && <p className="f-body text-[14px] text-gray-400 mt-1">→ {moneyText(value.feeAmount)}</p>}
       </div>
 
       <div>
-        <p className={label} style={{ color: C.charcoal }}>📝 기타 안내 <span className="font-normal text-gray-400">(주차, 우천 시 등)</span></p>
-        <textarea value={value.note} onChange={(e) => set({ note: e.target.value })} rows={2} aria-label="기타 안내" className={field} style={fieldStyle} />
+        <p className={label} style={{ color: C.charcoal }}>{tr("📝 기타 안내 ")}<span className="font-normal text-gray-400">{tr("(주차, 우천 시 등)")}</span></p>
+        <textarea value={value.note} onChange={(e) => set({ note: e.target.value })} rows={2} aria-label={tr("기타 안내")} className={field} style={fieldStyle} />
       </div>
 
       <button onClick={() => set({ published: !value.published })} aria-pressed={value.published} className="focus-ring tap flex items-start gap-2 text-left">
         {value.published ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
-        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>
-          학부모에게 공개
-          <span className="block font-normal text-gray-400">켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 "체험 안내가 도착했어요" 알림이 떠요.</span>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("학부모에게 공개")}<span className="block font-normal text-gray-400">{tr("켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 \"체험 안내가 도착했어요\" 알림이 떠요.")}</span>
         </span>
       </button>
 
       <div className="pt-1">
-        <p className={label} style={{ color: C.charcoal }}>카톡으로 보내기</p>
+        <p className={label} style={{ color: C.charcoal }}>{tr("카톡으로 보내기")}</p>
         <div className="flex gap-2">
-          <button onClick={share} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: "#FEE500", color: "#191919" }}>
-            📤 안내문 보내기
-          </button>
-          <button onClick={copy} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>
-            📋 안내문 복사
-          </button>
+          <button onClick={share} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: "#FEE500", color: "#191919" }}>{tr("📤 안내문 보내기")}</button>
+          <button onClick={copy} disabled={!ready} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2.5 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>{tr("📋 안내문 복사")}</button>
         </div>
         {status && <p className="f-body text-[14px] mt-1.5" style={{ color: "#1F7A44" }}>{status}</p>}
-        {fallback && <textarea readOnly value={fallback} rows={7} aria-label="안내문" className={`${field} mt-1.5`} style={fieldStyle} />}
-        {!ready && <p className="f-body text-[13px] text-gray-400 mt-1">프로그램 이름을 먼저 입력해 주세요.</p>}
+        {fallback && <textarea readOnly value={fallback} rows={7} aria-label={tr("안내문")} className={`${field} mt-1.5`} style={fieldStyle} />}
+        {!ready && <p className="f-body text-[13px] text-gray-400 mt-1">{tr("프로그램 이름을 먼저 입력해 주세요.")}</p>}
       </div>
     </div>
   );
@@ -4222,7 +4665,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
   const [date, setDate] = useState(initial?.date || "");
-  const [location, setLocation] = useState(initial?.location || "서울");
+  const [location, setLocation] = useState(initial?.location || (UI_LANG === "en" ? "Seoul" : "서울"));
   const [levels, setLevels] = useState(() => (initial ? programLevels(initial) : []));
   const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
@@ -4291,34 +4734,34 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
 
   return (
     <div className="bg-white rounded-2xl p-4">
-      <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{isEdit ? "프로그램 수정" : "새 프로그램 등록"}</p>
+      <p className="f-display font-semibold mb-3" style={{ color: C.green }}>{isEdit ? tr("프로그램 수정") : tr("새 프로그램 등록")}</p>
       {draft && (
         <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>저장하지 않고 나간 작성 내용이 있어요</p>
-          <p className="f-body text-[14px] text-gray-500 mb-2">이 폰에 임시로 보관돼 있어요.</p>
+          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("저장하지 않고 나간 작성 내용이 있어요")}</p>
+          <p className="f-body text-[14px] text-gray-500 mb-2">{tr("이 폰에 임시로 보관돼 있어요.")}</p>
           <div className="flex gap-2">
-            <button onClick={restoreDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>이어서 작성</button>
-            <button onClick={dropDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>버리기</button>
+            <button onClick={restoreDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>{tr("이어서 작성")}</button>
+            <button onClick={dropDraft} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3 py-1.5" style={{ color: "#9C927D" }}>{tr("버리기")}</button>
           </div>
         </div>
       )}
       {leaving && (
         <ConfirmDialog
-          title="저장하지 않은 내용이 있어요"
+          title={tr("저장하지 않은 내용이 있어요")}
           actions={[
-            ...(canSubmit ? [{ label: "저장하고 나가기", tone: "primary", onClick: () => { setLeaving(false); submit(); } }] : []),
-            { label: "저장 안 하고 나가기", tone: "danger", onClick: () => { setLeaving(false); draftClear(draftKey); if (onCancel) onCancel(); } },
-            { label: "계속 작성하기", tone: "plain", onClick: () => setLeaving(false) },
+            ...(canSubmit ? [{ label: tr("저장하고 나가기"), tone: "primary", onClick: () => { setLeaving(false); submit(); } }] : []),
+            { label: tr("저장 안 하고 나가기"), tone: "danger", onClick: () => { setLeaving(false); draftClear(draftKey); if (onCancel) onCancel(); } },
+            { label: tr("계속 작성하기"), tone: "plain", onClick: () => setLeaving(false) },
           ]}
         >
-          {canSubmit ? "저장할까요?" : "이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요."}
+          {canSubmit ? tr("저장할까요?") : tr("이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요.")}
         </ConfirmDialog>
       )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="프로그램 이름 (예: Seoul Grand Park)"
-        aria-label="프로그램 이름"
+        placeholder={tr("프로그램 이름 (예: Seoul Grand Park)")}
+        aria-label={tr("프로그램 이름")}
         className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
@@ -4326,22 +4769,22 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         <input
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          placeholder="날짜 (예: Sep 30)"
-          aria-label="날짜"
+          placeholder={tr("날짜 (예: Sep 30)")}
+          aria-label={tr("날짜")}
           className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
         <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="장소"
-          aria-label="장소"
+          placeholder={tr("장소")}
+          aria-label={tr("장소")}
           className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
       </div>
 
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>테마 아이콘 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("테마 아이콘 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
       <div className="flex gap-2 flex-wrap mb-3">
         {ICON_CHOICES.map((opt) => (
           <button
@@ -4352,18 +4795,18 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
             style={{ background: icons.includes(opt.key) ? C.green : C.cream, border: `1px solid ${icons.includes(opt.key) ? C.green : C.beige}` }}
           >
             <ProgramIcon kind={opt.key} size={16} color={icons.includes(opt.key) ? "white" : C.green} />
-            <span className="f-body text-[14px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{opt.label}</span>
+            <span className="f-body text-[14px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{tr(opt.label)}</span>
           </button>
         ))}
       </div>
 
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>이름 미리보기</p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("이름 미리보기")}</p>
       <div className="rounded-2xl px-4 py-4 mb-1" style={{ background: C.cream, border: `1px solid ${C.beige}` }}>
-        <ProgramHeadline program={{ title: title.trim() || "프로그램 이름" }} size={30} />
+        <ProgramHeadline program={{ title: title.trim() || tr("프로그램 이름") }} size={30} />
       </div>
-      <p className="f-body text-[13px] text-gray-400 mb-3">부모님과 아이 화면에 이렇게 큰 제목으로 나와요. ":" 뒤의 영어는 작게 아래에 보여요.</p>
+      <p className="f-body text-[13px] text-gray-400 mb-3">{tr("부모님과 아이 화면에 이렇게 큰 제목으로 나와요. \":\" 뒤의 영어는 작게 아래에 보여요.")}</p>
 
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨 <span className="font-normal text-gray-400">(여러 개 선택 가능)</span></p>
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("레벨 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
       <div className="flex gap-2 mb-3">
         {LEVEL_CHOICES.map((l) => (
           <button
@@ -4381,9 +4824,9 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
       <textarea
         value={themeKo}
         onChange={(e) => setThemeKo(e.target.value)}
-        placeholder="체험 소개 (부모님용, 한 문장)"
+        placeholder={tr("체험 소개 (부모님용, 한 문장)")}
         rows={2}
-        aria-label="체험 소개"
+        aria-label={tr("체험 소개")}
         className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
@@ -4395,10 +4838,10 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         style={{ background: C.beige }}
       >
         <span className="text-left min-w-0">
-          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>체험 전 안내</span>
-          <span className="block f-body text-[13px] text-gray-500">시간 · 모이는 곳 · 준비물 · 입장료</span>
+          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("체험 전 안내")}</span>
+          <span className="block f-body text-[13px] text-gray-500">{tr("시간 · 모이는 곳 · 준비물 · 입장료")}</span>
         </span>
-        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? "접기 ▴" : "펼치기 ▾"}</span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
       {showInfo && <InfoEditor program={{ title, date, location, locationKo: location, focus: materials.focus }} value={noticeInfo} onChange={setNoticeInfo} />}
 
@@ -4409,31 +4852,27 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         style={{ background: C.beige }}
       >
         <span className="text-left min-w-0">
-          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>체험 자료 입력</span>
-          <span className="block f-body text-[13px] text-gray-500">단어 · 질문 · 퀴즈 · 미션</span>
+          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("체험 자료 입력")}</span>
+          <span className="block f-body text-[13px] text-gray-500">{tr("단어 · 질문 · 퀴즈 · 미션")}</span>
         </span>
-        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? "접기 ▴" : "펼치기 ▾"}</span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
       {showMaterials && <MaterialsEditor value={materials} onChange={setMaterials} />}
 
       <button onClick={() => setDateReached((d) => !d)} aria-pressed={dateReached} className="focus-ring tap flex items-center gap-2 mb-4">
         {dateReached ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>오늘 진행 (체험 시작 가능)</span>
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("오늘 진행 (체험 시작 가능)")}</span>
       </button>
 
       {isEdit ? (
         <div className="flex gap-2 mb-2">
-          <button onClick={askLeave} className="focus-ring tap flex-1 f-body text-[17px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>
-            취소
-          </button>
+          <button onClick={askLeave} className="focus-ring tap flex-1 f-body text-[17px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
           <button
             onClick={submit}
             disabled={!canSubmit}
             className="focus-ring tap flex-1 f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
             style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
-          >
-            저장
-          </button>
+          >{tr("저장")}</button>
         </div>
       ) : (
         <button
@@ -4441,29 +4880,23 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
           disabled={!canSubmit}
           className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
-        >
-          프로그램 등록
-        </button>
+        >{tr("프로그램 등록")}</button>
       )}
 
       {isEdit && (
-        <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>
-          프로그램 삭제
-        </button>
+        <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>{tr("프로그램 삭제")}</button>
       )}
       {isEdit && confirmDelete && (
         <ConfirmDialog
-          title="프로그램을 삭제할까요?"
+          title={tr("프로그램을 삭제할까요?")}
           actions={[
-            { label: "삭제", tone: "danger", onClick: () => { setConfirmDelete(false); draftClear(draftKey); onDelete(); } },
-            { label: "취소", tone: "plain", onClick: () => setConfirmDelete(false) },
+            { label: tr("삭제"), tone: "danger", onClick: () => { setConfirmDelete(false); draftClear(draftKey); onDelete(); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirmDelete(false) },
           ]}
-        >
-          {deleteNote || "학생 기록도 함께 삭제돼요."} 정말 삭제할까요?
-          {deleteNote && <span className="block mt-1 text-gray-500">삭제하기 전에 백업 파일이 자동으로 내려받아져요.</span>}
+        >{tr("{0} 정말 삭제할까요?", [deleteNote || tr("학생 기록도 함께 삭제돼요.")])}{deleteNote && <span className="block mt-1 text-gray-500">{tr("삭제하기 전에 백업 파일이 자동으로 내려받아져요.")}</span>}
         </ConfirmDialog>
       )}
-      {!isEdit && <p className="f-body text-[13px] text-gray-400 mt-2">단어·미션·질문은 기본 내용으로 채워져요.</p>}
+      {!isEdit && <p className="f-body text-[13px] text-gray-400 mt-2">{tr("단어·미션·질문은 기본 내용으로 채워져요.")}</p>}
     </div>
   );
 }
@@ -4519,13 +4952,13 @@ function compareWithServer(local, fresh) {
     rows.push({ key: `adv-${key}`, label, total: targets.length, saved });
   });
   const freshStudents = new Map((fresh.students || []).map((st) => [st.id, st]));
-  [["status", "가입 수락 상태"], ["phoneCode", "신청 번호 확인 코드"], ["phoneLast4", "신청 번호 뒷자리"]].forEach(([key, label]) => {
+  [["status", tr("가입 수락 상태")], ["phoneCode", tr("신청 번호 확인 코드")], ["phoneLast4", tr("신청 번호 뒷자리")]].forEach(([key, label]) => {
     const targets = (local.students || []).filter((st) => hasValue(st[key]));
     const saved = targets.filter((st) => freshStudents.has(st.id) && stableJson(freshStudents.get(st.id)[key]) === stableJson(st[key])).length;
     rows.push({ key: `student-${key}`, label, total: targets.length, saved });
   });
   const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
-  [[WISH_TYPE, "찜"], [VISIT_TYPE, "방문 기록"]].forEach(([type, label]) => {
+  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")]].forEach(([type, label]) => {
     const targets = (local.suggestions || []).filter((x) => x.type === type);
     const saved = targets.filter((x) => freshSug.has(x.id)).length;
     rows.push({ key: `sug-${type}`, label, total: targets.length, saved });
@@ -4561,38 +4994,36 @@ function DataTools({ onCheck, onExport }) {
   const r = state.result;
   return (
     <div className="px-5 mt-3 pb-8">
-      <StatCard title="데이터 관리" hint="서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.">
+      <StatCard title={tr("데이터 관리")} hint={tr("서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.")}>
         <button onClick={run} disabled={state.phase === "running"} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5 mb-2 text-white disabled:opacity-60" style={{ background: C.green }}>
-          {state.phase === "running" ? "확인하는 중..." : "서버 저장 점검"}
+          {state.phase === "running" ? tr("확인하는 중...") : tr("서버 저장 점검")}
         </button>
-        <p className="f-body text-[13px] text-gray-400 mb-3">단어·퀴즈·안내 등을 입력한 <b>직후, 새로고침하기 전에</b> 눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.</p>
-        {state.phase === "error" && <p className="f-body text-[15px] mb-3" style={{ color: "#C0392B" }}>서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.</p>}
+        <p className="f-body text-[13px] text-gray-400 mb-3">{tr("단어·퀴즈·안내 등을 입력한 ")}<b>{tr("직후, 새로고침하기 전에")}</b>{tr(" 눌러 주세요. 화면의 값과 서버에 저장된 값을 비교해요.")}</p>
+        {state.phase === "error" && <p className="f-body text-[15px] mb-3" style={{ color: "#C0392B" }}>{tr("서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.")}</p>}
         {r && (
           <div className="mb-4">
             <p className="f-body text-[15px] font-bold mb-2" style={{ color: r.missing.length ? "#C0392B" : "#1F7A44" }}>
               {r.checked === 0
-                ? "아직 비교할 데이터가 없어요. 입력하고 저장한 뒤 다시 눌러 보세요."
+                ? tr("아직 비교할 데이터가 없어요. 입력하고 저장한 뒤 다시 눌러 보세요.")
                 : r.missing.length
-                  ? `서버가 저장하지 않는 항목이 ${r.missing.length}개 있어요`
-                  : `확인한 ${r.checked}개 항목이 모두 서버에 저장돼 있어요 ✓`}
+                  ? tr("서버가 저장하지 않는 항목이 {0}개 있어요", [r.missing.length])
+                  : tr("확인한 {0}개 항목이 모두 서버에 저장돼 있어요 ✓", [r.checked])}
             </p>
             <div className="space-y-1">
               {r.rows.map((x) => (
                 <div key={x.key} className="flex items-center justify-between rounded-lg px-2.5 py-1.5" style={{ background: x.total === 0 ? "transparent" : x.saved === x.total ? "#EAF7EF" : "#FDECEA" }}>
-                  <span className="f-body text-[15px]" style={{ color: x.total === 0 ? "#B9AE99" : C.charcoal }}>{x.label}</span>
+                  <span className="f-body text-[15px]" style={{ color: x.total === 0 ? "#B9AE99" : C.charcoal }}>{tr(x.label)}</span>
                   <span className="f-body text-[14px] font-bold" style={{ color: x.total === 0 ? "#B9AE99" : x.saved === x.total ? "#1F7A44" : "#C0392B" }}>
-                    {x.total === 0 ? "비교할 데이터 없음" : x.saved === x.total ? `✓ ${x.saved}/${x.total} 저장됨` : `✗ ${x.saved}/${x.total} 저장 안 됨`}
+                    {x.total === 0 ? tr("비교할 데이터 없음") : x.saved === x.total ? tr("✓ {0}/{1} 저장됨", [x.saved, x.total]) : tr("✗ {0}/{1} 저장 안 됨", [x.saved, x.total])}
                   </span>
                 </div>
               ))}
             </div>
-            {r.missing.length > 0 && <p className="f-body text-[14px] text-gray-500 mt-2">✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(<code>api.js</code>, <code>functions/api</code>)을 보내 주시면 고칠게요.</p>}
+            {r.missing.length > 0 && <p className="f-body text-[14px] text-gray-500 mt-2">{tr("✗ 항목은 새로고침하면 사라질 수 있어요. 서버 파일(")}<code>api.js</code>, <code>functions/api</code>{tr(")을 보내 주시면 고칠게요.")}</p>}
           </div>
         )}
-        <button onClick={onExport} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
-          전체 자료 내려받기 (백업)
-        </button>
-        <p className="f-body text-[13px] text-gray-400 mt-2">아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.</p>
+        <button onClick={onExport} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>{tr("전체 자료 내려받기 (백업)")}</button>
+        <p className="f-body text-[13px] text-gray-400 mt-2">{tr("아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.")}</p>
       </StatCard>
     </div>
   );
@@ -4656,11 +5087,11 @@ function summarizeRows(rows) {
     wish: newest("wish"),
   };
   const funnel = [
-    { key: "enrolled", label: "체험에 등록된 아이", value: rows.length },
-    { key: "prep", label: "예습(단어) 완료", value: rows.filter((a) => a.beforeCompleted).length },
-    { key: "attended", label: "현장 출석", value: rows.filter((a) => a.attended).length },
-    { key: "after", label: "복습 완료", value: rows.filter((a) => a.afterCompleted).length },
-    { key: "report", label: "선생님 리포트 작성", value: rows.filter((a) => a.feedback).length },
+    { key: "enrolled", label: tr("체험에 등록된 아이"), value: rows.length },
+    { key: "prep", label: tr("예습(단어) 완료"), value: rows.filter((a) => a.beforeCompleted).length },
+    { key: "attended", label: tr("현장 출석"), value: rows.filter((a) => a.attended).length },
+    { key: "after", label: tr("복습 완료"), value: rows.filter((a) => a.afterCompleted).length },
+    { key: "report", label: tr("선생님 리포트 작성"), value: rows.filter((a) => a.feedback).length },
   ];
   return {
     total: rows.length,
@@ -4707,7 +5138,7 @@ function programDetail(program, rows) {
     const answer = a.bigQuestionAnswer || a.insights?.bigQuestion?.answer;
     if (!answer) return;
     const custom = a.bigQuestionAnswer ? a.bigQuestionCustom : a.insights?.bigQuestion?.custom;
-    const key = custom ? "(직접 쓴 답)" : answer;
+    const key = custom ? tr("(직접 쓴 답)") : answer;
     bigQ[key] = (bigQ[key] || 0) + 1;
   });
   return { words, questions, missions, bigQ: Object.entries(bigQ).sort((x, y) => y[1] - x[1]), insightN: withInsights.length };
@@ -4729,7 +5160,7 @@ function StatBar({ label, value, total, sub, note }) {
     <div className="mb-3 last:mb-0">
       <div className="flex items-baseline justify-between gap-2 mb-1">
         <span className="f-body text-[15px] font-bold min-w-0 truncate" style={{ color: C.charcoal }}>{label}</span>
-        <span className="f-body text-[14px] text-gray-500 shrink-0">{sub ?? `${value}명 · ${p}%`}</span>
+        <span className="f-body text-[14px] text-gray-500 shrink-0">{sub ?? tr("{0}명 · {1}%", [value, p])}</span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
         <div className="h-full rounded-full" style={{ width: `${p}%`, background: C.orange }} />
@@ -4738,19 +5169,21 @@ function StatBar({ label, value, total, sub, note }) {
     </div>
   );
 }
-const NO_DATA_YET = <p className="f-body text-[15px] text-gray-400">아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.</p>;
+function NoDataYet() {
+  return <p className="f-body text-[15px] text-gray-400">{tr("아직 모인 데이터가 없어요. 아이들이 새 버전으로 예습을 끝내면 쌓여요.")}</p>;
+}
 
 function VisitCard({ suggestions }) {
   const v = visitStats(suggestions);
   const max = Math.max(1, ...v.week.map((d) => d.count));
-  const dow = ["일", "월", "화", "수", "목", "금", "토"];
+  const dow = [tr("일"), tr("월"), tr("화"), tr("수"), tr("목"), tr("금"), tr("토")];
   return (
-    <StatCard title="앱 방문 (학부모만)" hint="학부모가 앱에 로그인한 기록이에요. 선생님 로그인은 세지 않고, 한 가족은 하루에 한 번만 세요.">
+    <StatCard title={tr("앱 방문 (학부모만)")} hint={tr("학부모가 앱에 로그인한 기록이에요. 선생님 로그인은 세지 않고, 한 가족은 하루에 한 번만 세요.")}>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {[
-          { label: "오늘 방문", value: v.today },
-          { label: "누적 방문", value: v.total },
-          { label: "방문한 가족", value: v.families },
+          { label: tr("오늘 방문"), value: v.today },
+          { label: tr("누적 방문"), value: v.total },
+          { label: tr("방문한 가족"), value: v.families },
         ].map((x) => (
           <div key={x.label} className="rounded-xl py-3 text-center" style={{ background: C.cream }}>
             <p className="f-display text-[27px] font-bold" style={{ color: C.green }}>{x.value}</p>
@@ -4758,8 +5191,8 @@ function VisitCard({ suggestions }) {
           </div>
         ))}
       </div>
-      <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.charcoal }}>최근 7일</p>
-      <div className="flex items-end gap-1.5" style={{ height: 72 }} role="img" aria-label="최근 7일 방문 수">
+      <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.charcoal }}>{tr("최근 7일")}</p>
+      <div className="flex items-end gap-1.5" style={{ height: 72 }} role="img" aria-label={tr("최근 7일 방문 수")}>
         {v.week.map((d, i) => (
           <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full">
             <span className="f-body text-[13px] text-gray-500 mb-0.5">{d.count || ""}</span>
@@ -4772,8 +5205,8 @@ function VisitCard({ suggestions }) {
           <span key={d.day} className="flex-1 text-center f-body text-[13px] text-gray-400">{dow[new Date(`${d.day}T12:00:00+09:00`).getUTCDay()]}</span>
         ))}
       </div>
-      {v.returning > 0 && <p className="f-body text-[14px] text-gray-500 mt-3">🔁 이틀 이상 다시 찾아온 가족 {v.returning}가족</p>}
-      {v.total === 0 && <p className="f-body text-[14px] text-gray-400 mt-3">아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.</p>}
+      {v.returning > 0 && <p className="f-body text-[14px] text-gray-500 mt-3">{tr("🔁 이틀 이상 다시 찾아온 가족 {0}가족", [v.returning])}</p>}
+      {v.total === 0 && <p className="f-body text-[14px] text-gray-400 mt-3">{tr("아직 기록이 없어요. 새 버전이 배포된 뒤 학부모가 로그인하면 쌓이기 시작해요.")}</p>}
     </StatCard>
   );
 }
@@ -4798,7 +5231,7 @@ function StatsPanel({ adventures, students, suggestions }) {
   return (
     <div className="px-5 space-y-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
-        {[{ id: "all", label: "전체" }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji} ${p.title.split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
+        {[{ id: "all", label: tr("전체") }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji} ${p.title.split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
           <button
             key={o.id}
             onClick={() => setSel(o.id)}
@@ -4814,77 +5247,73 @@ function StatsPanel({ adventures, students, suggestions }) {
 
       {sum.total === 0 ? (
         <div className="bg-white rounded-2xl p-6 text-center">
-          <p className="f-body text-[17px] text-gray-400">아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.</p>
+          <p className="f-body text-[17px] text-gray-400">{tr("아직 체험에 등록된 아이가 없어서 통계가 비어 있어요.")}</p>
         </div>
       ) : (
         <>
-          <StatCard title="아이들은 어디까지 오나요?" hint="신청한 아이 중 단계마다 몇 명이 다음으로 넘어갔는지 보여요.">
+          <StatCard title={tr("아이들은 어디까지 오나요?")} hint={tr("신청한 아이 중 단계마다 몇 명이 다음으로 넘어갔는지 보여요.")}>
             {sum.funnel.map((f) => (
               <StatBar key={f.key} label={f.label} value={f.value} total={sum.total} />
             ))}
             {drop && (
-              <p className="f-body text-[14px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>
-                💡 "{drop.from.label}" → "{drop.to.label}" 단계에서 가장 많이 줄어요 ({drop.from.value}명 → {drop.to.value}명).
-              </p>
+              <p className="f-body text-[14px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>{tr("💡 \"{0}\" → \"{1}\" 단계에서 가장 많이 줄어요 ({2}명 → {3}명).", [drop.from.label, drop.to.label, drop.from.value, drop.to.value])}</p>
             )}
             {(sum.prepDays !== null || sum.afterDays !== null) && (
               <p className="f-body text-[14px] text-gray-500 mt-2">
-                {sum.prepDays !== null && <>등록 후 예습을 끝내기까지 평균 {oneDecimal(sum.prepDays)}일 </>}
-                {sum.afterDays !== null && <>· 출석 후 복습까지 평균 {oneDecimal(sum.afterDays)}일</>}
+                {sum.prepDays !== null && <>{tr("등록 후 예습을 끝내기까지 평균 {0}일 ", [oneDecimal(sum.prepDays)])}</>}
+                {sum.afterDays !== null && <>{tr("· 출석 후 복습까지 평균 {0}일", [oneDecimal(sum.afterDays)])}</>}
               </p>
             )}
           </StatCard>
 
-          <StatCard title="예습에 얼마나 참여했나요?" hint="예습은 단어 카드만 나와요. 아이들이 단어를 들어 보고 5칸을 체크한 기록이에요.">
+          <StatCard title={tr("예습에 얼마나 참여했나요?")} hint={tr("예습은 단어 카드만 나와요. 아이들이 단어를 들어 보고 5칸을 체크한 기록이에요.")}>
             {sum.practice.counted === 0 ? (
-              NO_DATA_YET
+              <NoDataYet />
             ) : (
               <>
-                <StatBar label="단어 연습을 시작한 아이" value={sum.practice.started} total={sum.practice.counted} sub={`${sum.practice.started}/${sum.practice.counted}명 · ${pctOf(sum.practice.started, sum.practice.counted)}%`} />
-                <StatBar label={`모든 단어를 ${WORD_PRACTICE_GOAL}회씩 끝낸 아이`} value={sum.practice.finished} total={sum.practice.counted} sub={`${sum.practice.finished}/${sum.practice.counted}명 · ${pctOf(sum.practice.finished, sum.practice.counted)}%`} />
+                <StatBar label={tr("단어 연습을 시작한 아이")} value={sum.practice.started} total={sum.practice.counted} sub={tr("{0}/{1}명 · {2}%", [sum.practice.started, sum.practice.counted, pctOf(sum.practice.started, sum.practice.counted)])} />
+                <StatBar label={tr("모든 단어를 {0}회씩 끝낸 아이", [WORD_PRACTICE_GOAL])} value={sum.practice.finished} total={sum.practice.counted} sub={tr("{0}/{1}명 · {2}%", [sum.practice.finished, sum.practice.counted, pctOf(sum.practice.finished, sum.practice.counted)])} />
               </>
             )}
           </StatCard>
 
-          <StatCard title="복습 퀴즈 점수" hint="체험 후 선생님이 만든 퀴즈를 아이들이 푼 결과예요.">
+          <StatCard title={tr("복습 퀴즈 점수")} hint={tr("체험 후 선생님이 만든 퀴즈를 아이들이 푼 결과예요.")}>
             {sum.reviewPct === null ? (
-              <p className="f-body text-[15px] text-gray-400">아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.</p>
+              <p className="f-body text-[15px] text-gray-400">{tr("아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.")}</p>
             ) : (
-              <StatBar label="평균 정답률" value={sum.reviewPct} total={100} sub={`${sum.reviewPct}% · ${sum.reviewN}명`} />
+              <StatBar label={tr("평균 정답률")} value={sum.reviewPct} total={100} sub={tr("{0}% · {1}명", [sum.reviewPct, sum.reviewN])} />
             )}
           </StatCard>
 
-          <StatCard title="체험 후 만족도" hint="체험을 마친 아이들이 직접 준 별점이에요 (5점 만점).">
+          <StatCard title={tr("체험 후 만족도")} hint={tr("체험을 마친 아이들이 직접 준 별점이에요 (5점 만점).")}>
             {sum.rating.n ? (
-              <StatBar label="체험 별점" value={sum.rating.avg} total={5} sub={`${oneDecimal(sum.rating.avg)} / 5 · ${sum.rating.n}명`} />
+              <StatBar label={tr("체험 별점")} value={sum.rating.avg} total={5} sub={tr("{0} / 5 · {1}명", [oneDecimal(sum.rating.avg), sum.rating.n])} />
             ) : (
-              <p className="f-body text-[15px] text-gray-400">아직 별점이 없어요.</p>
+              <p className="f-body text-[15px] text-gray-400">{tr("아직 별점이 없어요.")}</p>
             )}
           </StatCard>
 
-          <StatCard title="부모 만족도 설문" hint="체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.">
+          <StatCard title={tr("부모 만족도 설문")} hint={tr("체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.")}>
             {sum.survey.n === 0 ? (
-              <p className="f-body text-[15px] text-gray-400">아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.</p>
+              <p className="f-body text-[15px] text-gray-400">{tr("아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.")}</p>
             ) : (
               <>
-                <p className="f-body text-[15px] mb-3" style={{ color: C.charcoal }}>
-                  응답 <b>{sum.survey.n}</b>건 · 출석한 {sum.survey.attended}명 중 {pctOf(sum.survey.n, sum.survey.attended)}%
-                </p>
+                <p className="f-body text-[15px] mb-3" style={{ color: C.charcoal }}>{tr("응답 ")}<b>{sum.survey.n}</b>{tr("건 · 출석한 {0}명 중 {1}%", [sum.survey.attended, pctOf(sum.survey.n, sum.survey.attended)])}</p>
                 {sum.survey.avg.filter((x) => x.n > 0).map((x) => (
-                  <StatBar key={x.key} label={x.label} value={x.avg} total={5} sub={`${oneDecimal(x.avg)} / 5 · ${x.n}명`} />
+                  <StatBar key={x.key} label={tr(x.label)} value={x.avg} total={5} sub={tr("{0} / 5 · {1}명", [oneDecimal(x.avg), x.n])} />
                 ))}
                 {sum.survey.rejoinN > 0 && (
                   <div className="mt-4">
-                    <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.charcoal }}>다시 참여하고 싶으세요?</p>
+                    <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.charcoal }}>{tr("다시 참여하고 싶으세요?")}</p>
                     {sum.survey.rejoin.map((o) => (
-                      <StatBar key={o.key} label={o.label} value={o.count} total={sum.survey.rejoinN} />
+                      <StatBar key={o.key} label={tr(o.label)} value={o.count} total={sum.survey.rejoinN} />
                     ))}
                   </div>
                 )}
                 {[
-                  { k: "good", title: "좋았던 점", list: sum.survey.good },
-                  { k: "improve", title: "아쉬운 점·바라는 점", list: sum.survey.improve },
-                  { k: "wish", title: "가보고 싶은 체험·장소", list: sum.survey.wish },
+                  { k: "good", title: tr("좋았던 점"), list: sum.survey.good },
+                  { k: "improve", title: tr("아쉬운 점·바라는 점"), list: sum.survey.improve },
+                  { k: "wish", title: tr("가보고 싶은 체험·장소"), list: sum.survey.wish },
                 ].filter((g) => g.list.length > 0).map((g) => (
                   <div key={g.k} className="mt-4">
                     <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.title} ({g.list.length})</p>
@@ -4892,7 +5321,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                       {g.list.slice(0, 5).map((t, i) => (
                         <p key={i} className="f-body text-[15px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
                       ))}
-                      {g.list.length > 5 && <p className="f-body text-[14px] text-gray-400">외 {g.list.length - 5}개</p>}
+                      {g.list.length > 5 && <p className="f-body text-[14px] text-gray-400">{tr("외 {0}개", [g.list.length - 5])}</p>}
                     </div>
                   </div>
                 ))}
@@ -4901,7 +5330,7 @@ function StatsPanel({ adventures, students, suggestions }) {
           </StatCard>
 
           {!program && (
-            <StatCard title="프로그램별 비교" hint="어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.">
+            <StatCard title={tr("프로그램별 비교")} hint={tr("어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.")}>
               <div className="space-y-2">
                 {PROGRAMS.map((p) => {
                   const r = valid.filter((a) => a.programId === p.id);
@@ -4909,11 +5338,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                   return (
                     <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left rounded-xl p-3" style={{ background: C.cream }}>
                       <p className="f-body text-[16px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
-                      <p className="f-body text-[14px] text-gray-500 mt-0.5">
-                        등록 {sm.total}명 · 예습 {pctOf(sm.funnel[1].value, sm.total)}% · 출석 {pctOf(sm.funnel[2].value, sm.total)}% · 복습 {pctOf(sm.funnel[3].value, sm.total)}%
-                        {sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : ""}
-                        {wishCount(p) ? ` · ♥${wishCount(p)}` : ""}
-                      </p>
+                      <p className="f-body text-[14px] text-gray-500 mt-0.5">{tr("등록 {0}명 · 예습 {1}% · 출석 {2}% · 복습 {3}%{4}{5}", [sm.total, pctOf(sm.funnel[1].value, sm.total), pctOf(sm.funnel[2].value, sm.total), pctOf(sm.funnel[3].value, sm.total), sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : "", wishCount(p) ? ` · ♥${wishCount(p)}` : ""])}</p>
                     </button>
                   );
                 })}
@@ -4923,8 +5348,8 @@ function StatsPanel({ adventures, students, suggestions }) {
 
           {program && detail && (
             <>
-              <StatCard title="단어별 연습" hint={`단어마다 ${WORD_PRACTICE_GOAL}칸 체크를 몇 번 했는지 평균이에요. 연습이 적은 단어부터 보여요.`}>
-                {detail.insightN === 0 ? NO_DATA_YET : (
+              <StatCard title={tr("단어별 연습")} hint={tr("단어마다 {0}칸 체크를 몇 번 했는지 평균이에요. 연습이 적은 단어부터 보여요.", [WORD_PRACTICE_GOAL])}>
+                {detail.insightN === 0 ? <NoDataYet /> : (
                   detail.words
                     .slice()
                     .sort((x, y) => (x.avgChecks || 0) - (y.avgChecks || 0))
@@ -4934,15 +5359,15 @@ function StatsPanel({ adventures, students, suggestions }) {
                         label={`${w.emoji} ${w.en}`}
                         value={w.avgChecks || 0}
                         total={WORD_PRACTICE_GOAL}
-                        sub={`평균 ${oneDecimal(w.avgChecks || 0)} / ${WORD_PRACTICE_GOAL}회`}
-                        note={`${WORD_PRACTICE_GOAL}회 모두 한 아이 ${w.done}/${w.n}명 · 카드를 눌러 들은 횟수 평균 ${oneDecimal(w.avgTaps || 0)}번`}
+                        sub={tr("평균 {0} / {1}회", [oneDecimal(w.avgChecks || 0), WORD_PRACTICE_GOAL])}
+                        note={tr("{0}회 모두 한 아이 {1}/{2}명 · 카드를 눌러 들은 횟수 평균 {3}번", [WORD_PRACTICE_GOAL, w.done, w.n, oneDecimal(w.avgTaps || 0)])}
                       />
                     ))
                 )}
               </StatCard>
 
-              <StatCard title="복습 문제별 정답률" hint="아이들이 답한 기록이에요. 낮은 문제부터 보여요. 선생님이 다음 수업에서 다시 짚어 줄 부분을 찾아보세요.">
-                {detail.questions.every((q) => q.n === 0) ? NO_DATA_YET : (
+              <StatCard title={tr("복습 문제별 정답률")} hint={tr("아이들이 답한 기록이에요. 낮은 문제부터 보여요. 선생님이 다음 수업에서 다시 짚어 줄 부분을 찾아보세요.")}>
+                {detail.questions.every((q) => q.n === 0) ? <NoDataYet /> : (
                   detail.questions
                     .filter((q) => q.n > 0)
                     .sort((x, y) => x.correct / x.n - y.correct / y.n)
@@ -4952,38 +5377,38 @@ function StatsPanel({ adventures, students, suggestions }) {
                         label={q.prompt}
                         value={q.correct}
                         total={q.n}
-                        sub={`${pctOf(q.correct, q.n)}% · ${q.n}명`}
+                        sub={tr("{0}% · {1}명", [pctOf(q.correct, q.n), q.n])}
                         note={[
-                          q.topWrong ? `가장 많이 고른 오답: "${q.topWrong[0]}" (${q.topWrong[1]}명)` : null,
-                          q.avgSecs !== null ? `답하는 데 평균 ${oneDecimal(q.avgSecs)}초` : null,
+                          q.topWrong ? tr("가장 많이 고른 오답: \"{0}\" ({1}명)", [q.topWrong[0], q.topWrong[1]]) : null,
+                          q.avgSecs !== null ? tr("답하는 데 평균 {0}초", [oneDecimal(q.avgSecs)]) : null,
                         ].filter(Boolean).join(" · ") || null}
                       />
                     ))
                 )}
               </StatCard>
 
-              <StatCard title="현장 미션 달성률" hint="미션마다 몇 명이 해냈는지 보여요.">
+              <StatCard title={tr("현장 미션 달성률")} hint={tr("미션마다 몇 명이 해냈는지 보여요.")}>
                 {detail.missions.map((m) => (
-                  <StatBar key={m.id} label={m.text} value={m.done} total={m.n} sub={m.n ? `${m.done}/${m.n}명 · ${pctOf(m.done, m.n)}%` : "대상 없음"} />
+                  <StatBar key={m.id} label={m.text} value={m.done} total={m.n} sub={m.n ? tr("{0}/{1}명 · {2}%", [m.done, m.n, pctOf(m.done, m.n)]) : tr("대상 없음")} />
                 ))}
               </StatCard>
 
-              <StatCard title="큰 질문에 아이들은 뭐라고 답했나요?" hint="예습에서 고른 답이에요.">
+              <StatCard title={tr("큰 질문에 아이들은 뭐라고 답했나요?")} hint={tr("예습에서 고른 답이에요.")}>
                 {detail.bigQ.length === 0 ? (
-                  <p className="f-body text-[15px] text-gray-400">아직 답이 없어요.</p>
+                  <p className="f-body text-[15px] text-gray-400">{tr("아직 답이 없어요.")}</p>
                 ) : (
                   detail.bigQ.map(([answer, count]) => <StatBar key={answer} label={answer} value={count} total={sum.total} />)
                 )}
               </StatCard>
 
-              <StatCard title="관심">
-                <p className="f-body text-[16px]" style={{ color: C.charcoal }}>♥ {wishCount(program)}가족이 이 체험을 찜했어요.</p>
+              <StatCard title={tr("관심")}>
+                <p className="f-body text-[16px]" style={{ color: C.charcoal }}>{tr("♥ {0}가족이 이 체험을 찜했어요.", [wishCount(program)])}</p>
               </StatCard>
             </>
           )}
         </>
       )}
-      <p className="f-body text-[13px] text-gray-400 text-center pb-2">통계는 아이 개인이 아닌 전체 숫자만 보여줘요.</p>
+      <p className="f-body text-[13px] text-gray-400 text-center pb-2">{tr("통계는 아이 개인이 아닌 전체 숫자만 보여줘요.")}</p>
     </div>
   );
 }
@@ -4994,10 +5419,10 @@ const teacherUi = { tab: "overview", programId: null };
 const timeAgoKo = (iso) => {
   if (!iso) return "";
   const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  if (mins < 1) return "방금";
-  if (mins < 60) return `${mins}분 전`;
-  if (mins < 60 * 24) return `${Math.floor(mins / 60)}시간 전`;
-  return `${Math.floor(mins / (60 * 24))}일 전`;
+  if (mins < 1) return tr("방금");
+  if (mins < 60) return tr("{0}분 전", [mins]);
+  if (mins < 60 * 24) return tr("{0}시간 전", [Math.floor(mins / 60)]);
+  return tr("{0}일 전", [Math.floor(mins / (60 * 24))]);
 };
 
 /** Staff: new families waiting for approval. Compare with the application form, then accept or decline. */
@@ -5013,11 +5438,11 @@ function ApprovalPanel({ students, onAccept, onReject }) {
     setVerdict((v) => ({ ...v, [f.pin]: code === f.phoneCode ? "match" : "differ" }));
   };
   if (!families.length) {
-    return <div className="px-5"><div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[17px] text-gray-400">수락을 기다리는 가입이 없어요.</p></div></div>;
+    return <div className="px-5"><div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[17px] text-gray-400">{tr("수락을 기다리는 가입이 없어요.")}</p></div></div>;
   }
   return (
     <div className="px-5 space-y-3">
-      <p className="f-body text-[14px] text-gray-500">신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.</p>
+      <p className="f-body text-[14px] text-gray-500">{tr("신청서에서 이름과 전화번호를 확인한 뒤 수락해 주세요. 수락하기 전에는 부모님이 학습 자료를 볼 수 없어요.")}</p>
       {families.map((f) => (
         <div key={f.pin} className="bg-white rounded-2xl p-4">
           <div className="space-y-1.5 mb-2">
@@ -5028,12 +5453,11 @@ function ApprovalPanel({ students, onAccept, onReject }) {
               </div>
             ))}
           </div>
-          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>
-            신청 번호 뒷자리 <b>{f.phoneLast4 || "—"}</b>
-            {f.registeredAt && <span className="text-gray-400"> · {timeAgoKo(f.registeredAt)} 신청</span>}
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{tr("신청 번호 뒷자리 ")}<b>{f.phoneLast4 || "—"}</b>
+            {f.registeredAt && <span className="text-gray-400">{tr(" · {0} 신청", [timeAgoKo(f.registeredAt)])}</span>}
           </p>
           {f.sameNumber.length > 0 && (
-            <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>⚠️ 같은 번호로 이미 가입한 가족이 있어요: {f.sameNumber.join(", ")}</p>
+            <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>{tr("⚠️ 같은 번호로 이미 가입한 가족이 있어요: {0}", [f.sameNumber.join(", ")])}</p>
           )}
           {f.phoneCode && (
             <div className="mt-2">
@@ -5041,35 +5465,33 @@ function ApprovalPanel({ students, onAccept, onReject }) {
                 <input
                   value={typed[f.pin] || ""}
                   onChange={(e) => { setTyped((t) => ({ ...t, [f.pin]: e.target.value.replace(/[^\d+\-\s]/g, "").slice(0, 16) })); setVerdict((v) => ({ ...v, [f.pin]: null })); }}
-                  placeholder="신청서 번호를 붙여넣어 확인 (선택)"
+                  placeholder={tr("신청서 번호를 붙여넣어 확인 (선택)")}
                   inputMode="tel"
-                  aria-label={`신청서 번호 확인 ${f.kids[0].name}`}
+                  aria-label={tr("신청서 번호 확인 {0}", [f.kids[0].name])}
                   className="focus-ring flex-1 min-w-0 rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
                   style={{ background: C.cream, border: `1px solid ${C.beige}` }}
                 />
-                <button onClick={() => check(f)} disabled={!typed[f.pin]} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-lg px-3 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>확인</button>
+                <button onClick={() => check(f)} disabled={!typed[f.pin]} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-lg px-3 disabled:opacity-40" style={{ background: C.beige, color: C.green }}>{tr("확인")}</button>
               </div>
-              {verdict[f.pin] === "match" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#1F7A44" }}>✓ 가입할 때 입력한 번호와 같아요</p>}
-              {verdict[f.pin] === "differ" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>✗ 가입할 때 입력한 번호와 달라요</p>}
-              {verdict[f.pin] === "bad" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>전화번호를 끝까지 입력해 주세요</p>}
+              {verdict[f.pin] === "match" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#1F7A44" }}>{tr("✓ 가입할 때 입력한 번호와 같아요")}</p>}
+              {verdict[f.pin] === "differ" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>{tr("✗ 가입할 때 입력한 번호와 달라요")}</p>}
+              {verdict[f.pin] === "bad" && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#C0392B" }}>{tr("전화번호를 끝까지 입력해 주세요")}</p>}
             </div>
           )}
           <div className="flex gap-2 mt-3">
-            <button onClick={() => setDeclining(f.pin)} className="focus-ring tap flex-1 f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#C0674A" }}>거절</button>
-            <button onClick={() => onAccept(f.pin)} className="focus-ring tap flex-[2] f-display text-[16px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>수락</button>
+            <button onClick={() => setDeclining(f.pin)} className="focus-ring tap flex-1 f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#C0674A" }}>{tr("거절")}</button>
+            <button onClick={() => onAccept(f.pin)} className="focus-ring tap flex-[2] f-display text-[16px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>{tr("수락")}</button>
           </div>
         </div>
       ))}
       {declining && (
         <ConfirmDialog
-          title="가입을 거절할까요?"
+          title={tr("가입을 거절할까요?")}
           actions={[
-            { label: "거절하고 삭제", tone: "danger", onClick: () => { onReject(declining); setDeclining(null); } },
-            { label: "취소", tone: "plain", onClick: () => setDeclining(null) },
+            { label: tr("거절하고 삭제"), tone: "danger", onClick: () => { onReject(declining); setDeclining(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setDeclining(null) },
           ]}
-        >
-          거절하면 이 가입 신청이 삭제돼요. 신청이 맞다면 부모님이 다시 등록할 수 있어요.
-        </ConfirmDialog>
+        >{tr("거절하면 이 가입 신청이 삭제돼요. 신청이 맞다면 부모님이 다시 등록할 수 있어요.")}</ConfirmDialog>
       )}
     </div>
   );
@@ -5124,11 +5546,11 @@ function StatusPills({ status }) {
     <span key={key} className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: bg, color }}>{text}</span>
   );
   const look = STAGE_LOOK[status.stage];
-  const pills = [pill(look.label, look.bg, look.color, "stage")];
-  if (status.infoLate) pills.push(pill("안내 전", "#FFE9D2", "#B25A0B", "info"));
-  else if (status.infoSent && status.stage !== "done") pills.push(pill("안내 완료 ✓", "#EAF7EF", "#1F7A44", "info-ok"));
-  if (status.reportsLeft > 0) pills.push(pill(`피드백 ${status.reportsLeft}명 전`, "#FFE9D2", "#B25A0B", "report"));
-  else if (status.reportsDone) pills.push(pill("피드백 완료 ✓", "#EAF7EF", "#1F7A44", "report-ok"));
+  const pills = [pill(tr(look.label), look.bg, look.color, "stage")];
+  if (status.infoLate) pills.push(pill(tr("안내 전"), "#FFE9D2", "#B25A0B", "info"));
+  else if (status.infoSent && status.stage !== "done") pills.push(pill(tr("안내 완료 ✓"), "#EAF7EF", "#1F7A44", "info-ok"));
+  if (status.reportsLeft > 0) pills.push(pill(tr("피드백 {0}명 전", [status.reportsLeft]), "#FFE9D2", "#B25A0B", "report"));
+  else if (status.reportsDone) pills.push(pill(tr("피드백 완료 ✓"), "#EAF7EF", "#1F7A44", "report-ok"));
   return <div className="flex flex-col items-end justify-center gap-1.5 shrink-0" data-testid="status-pills">{pills}</div>;
 }
 
@@ -5146,23 +5568,23 @@ function recentActivity(programs, adventures, students, limit = 8) {
   const nameOf = (id) => students.find((x) => x.id === id)?.name || "";
   programs.forEach((p) => {
     const t = splitTitle(p.title)[0] || p.title;
-    if (p.info?.publishedAt) add(p.info.publishedAt, `${t} 체험 안내 공개`);
-    if (p.todayAt) add(p.todayAt, `${t} 오늘 진행 ${p.dateReached ? "켬" : "끔"}`);
-    if (p.reviewAt) add(p.reviewAt, `${t} 복습 ${p.reviewOpen ? "열림" : "닫힘"}`);
+    if (p.info?.publishedAt) add(p.info.publishedAt, tr("{0} 체험 안내 공개", [t]));
+    if (p.todayAt) add(p.todayAt, tr("{0} 오늘 진행 {1}", [t, p.dateReached ? tr("켬") : tr("끔")]));
+    if (p.reviewAt) add(p.reviewAt, tr("{0} 복습 {1}", [t, p.reviewOpen ? tr("열림") : tr("닫힘")]));
   });
   adventures.forEach((a) => {
     const who = nameOf(a.studentId);
     const t = titleOf(a.programId);
     if (!who || !t) return;
-    if (a.canceledAt && a.canceled) add(a.canceledAt, `${who} · ${t} 체험 취소`);
-    if (a.enrolledAt) add(a.enrolledAt, `${who} · ${t} 신청`);
-    if (a.attendedAt) add(a.attendedAt, `${who} · ${t} 출석`);
-    if (a.afterCompletedAt) add(a.afterCompletedAt, `${who} · ${t} 복습 완료`);
-    if (a.reportedAt) add(a.reportedAt, `${who} · ${t} 피드백 작성`);
+    if (a.canceledAt && a.canceled) add(a.canceledAt, tr("{0} · {1} 체험 취소", [who, t]));
+    if (a.enrolledAt) add(a.enrolledAt, tr("{0} · {1} 신청", [who, t]));
+    if (a.attendedAt) add(a.attendedAt, tr("{0} · {1} 출석", [who, t]));
+    if (a.afterCompletedAt) add(a.afterCompletedAt, tr("{0} · {1} 복습 완료", [who, t]));
+    if (a.reportedAt) add(a.reportedAt, tr("{0} · {1} 피드백 작성", [who, t]));
   });
   students.forEach((st) => {
-    if (st.acceptedAt) add(st.acceptedAt, `${st.name} 가입 수락`);
-    if (st.status === "pending" && st.registeredAt) add(st.registeredAt, `${st.name} 가입 신청`);
+    if (st.acceptedAt) add(st.acceptedAt, tr("{0} 가입 수락", [st.name]));
+    if (st.status === "pending" && st.registeredAt) add(st.registeredAt, tr("{0} 가입 신청", [st.name]));
   });
   return ev.sort((a, b) => b.at - a.at).slice(0, limit);
 }
@@ -5170,18 +5592,18 @@ function recentActivity(programs, adventures, students, limit = 8) {
 /** The single most useful next step for a program, plus where to go to do it. */
 function nextStep(program, st) {
   if (st.stage === "before") {
-    if (st.infoLate) return { text: "체험 전 안내를 보내야 해요", go: "info" };
-    if (st.enrolled === 0) return { text: "신청한 아이가 아직 없어요", go: "manage" };
-    if (st.unassigned > 0) return { text: `팀이 정해지지 않은 아이가 ${st.unassigned}명 있어요`, go: "manage" };
-    return { text: "체험 날에 '오늘 진행'을 켜 주세요", go: "manage" };
+    if (st.infoLate) return { text: tr("체험 전 안내를 보내야 해요"), go: "info" };
+    if (st.enrolled === 0) return { text: tr("신청한 아이가 아직 없어요"), go: "manage" };
+    if (st.unassigned > 0) return { text: tr("팀이 정해지지 않은 아이가 {0}명 있어요", [st.unassigned]), go: "manage" };
+    return { text: tr("체험 날에 '오늘 진행'을 켜 주세요"), go: "manage" };
   }
   if (st.stage === "live") {
-    if (st.attended < st.enrolled) return { text: `출석 체크 ${st.attended}/${st.enrolled}명`, go: "manage" };
-    return { text: "체험이 끝나면 '오늘 진행'을 꺼 주세요", go: "manage" };
+    if (st.attended < st.enrolled) return { text: tr("출석 체크 {0}/{1}명", [st.attended, st.enrolled]), go: "manage" };
+    return { text: tr("체험이 끝나면 '오늘 진행'을 꺼 주세요"), go: "manage" };
   }
-  if (!program.reviewOpen) return { text: "복습 퀴즈를 만들고 열어 주세요", go: "materials" };
-  if (st.reportsLeft > 0) return { text: `피드백 ${st.reportsLeft}명 작성이 남았어요`, go: "manage" };
-  return { text: "모두 마무리됐어요 🎉", go: null, done: true };
+  if (!program.reviewOpen) return { text: tr("복습 퀴즈를 만들고 열어 주세요"), go: "materials" };
+  if (st.reportsLeft > 0) return { text: tr("피드백 {0}명 작성이 남았어요", [st.reportsLeft]), go: "manage" };
+  return { text: tr("모두 마무리됐어요 🎉"), go: null, done: true };
 }
 
 /** Teacher home: every program at a glance, so nobody has to open each one to know where things stand. */
@@ -5212,13 +5634,13 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
   return (
     <div className="px-5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="f-body text-[14px] text-gray-500">마지막 확인 {timeAgoKo(new Date(lastSyncAt).toISOString())}</p>
+        <p className="f-body text-[14px] text-gray-500">{tr("마지막 확인 {0}", [timeAgoKo(new Date(lastSyncAt).toISOString())])}</p>
         <button onClick={refresh} disabled={busy} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 disabled:opacity-60" style={{ background: C.beige, color: C.green }}>
-          {busy ? "확인 중..." : "새로고침"}
+          {busy ? tr("확인 중...") : tr("새로고침")}
         </button>
       </div>
 
-      {programs.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">등록된 프로그램이 아직 없어요.</p></div>}
+      {programs.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("등록된 프로그램이 아직 없어요.")}</p></div>}
 
       {programs.map((p) => {
         const st = programStatus(p, adventures);
@@ -5232,17 +5654,17 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
                 <ProgramTitle program={p} size={21} />
                 <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date}{(p.locationKo || p.location) && ` · ${p.locationKo || p.location}`}</p>
               </div>
-              <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{look.label}</span>
+              <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              {cell("체험 전 안내", st.infoSent ? "보냄 ✓" : st.stage === "done" ? "—" : "아직 안 보냄", st.infoSent ? "ok" : st.stage === "done" ? "" : "warn")}
-              {cell("신청 · 출석", `${st.enrolled}명 · ${st.attended}명`, "")}
-              {cell("복습", p.reviewOpen ? "열림 ✓" : "닫힘", p.reviewOpen ? "ok" : "")}
-              {cell("피드백", st.attended === 0 ? "—" : st.reportsLeft > 0 ? `${st.reportsLeft}명 남음` : "모두 작성 ✓", st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
+              {cell(tr("체험 전 안내"), st.infoSent ? tr("보냄 ✓") : st.stage === "done" ? "—" : tr("아직 안 보냄"), st.infoSent ? "ok" : st.stage === "done" ? "" : "warn")}
+              {cell(tr("신청 · 출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
+              {cell(tr("복습"), p.reviewOpen ? tr("열림 ✓") : tr("닫힘"), p.reviewOpen ? "ok" : "")}
+              {cell(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
             </div>
             {st.teamCount > 0 && (
               <div className="mt-2">
-                {cell("팀 · 선생님", `${st.teamCount}팀 · ${teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", ")}${st.unassigned > 0 ? ` · 미배정 ${st.unassigned}명` : ""}`, st.unassigned > 0 ? "warn" : "ok")}
+                {cell(tr("팀 · 선생님"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
               </div>
             )}
             {next.go ? (
@@ -5258,10 +5680,10 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
       })}
 
       <div className="bg-white rounded-2xl p-4">
-        <p className="f-display font-semibold text-[17px] mb-1" style={{ color: C.green }}>최근 활동</p>
-        <p className="f-body text-[13px] text-gray-400 mb-3">다른 선생님이 한 일도 여기에 보여요. (누가 했는지는 기록되지 않아요)</p>
+        <p className="f-display font-semibold text-[17px] mb-1" style={{ color: C.green }}>{tr("최근 활동")}</p>
+        <p className="f-body text-[13px] text-gray-400 mb-3">{tr("다른 선생님이 한 일도 여기에 보여요. (누가 했는지는 기록되지 않아요)")}</p>
         {feed.length === 0 ? (
-          <p className="f-body text-[15px] text-gray-400">아직 기록이 없어요.</p>
+          <p className="f-body text-[15px] text-gray-400">{tr("아직 기록이 없어요.")}</p>
         ) : (
           <div className="space-y-2">
             {feed.map((e, i) => (
@@ -5280,10 +5702,10 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
 /** A big, simple list of the program's teams: tap one to place a child (or "no team"). */
 function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label={`${student.name} 팀 정하기`} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label={tr("{0} 팀 정하기", [student.name])} onClick={onClose}>
       <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 screen-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <p className="f-display text-[19px] font-semibold text-center mb-1" style={{ color: C.green }}>{student.name}의 팀</p>
-        <p className="f-body text-[14px] text-gray-500 text-center mb-4">Level {student.level} · 눌러서 정해요</p>
+        <p className="f-display text-[19px] font-semibold text-center mb-1" style={{ color: C.green }}>{tr("{0}의 팀", [student.name])}</p>
+        <p className="f-body text-[14px] text-gray-500 text-center mb-4">{tr("Level {0} · 눌러서 정해요", [student.level])}</p>
         <div className="space-y-2">
           {teams.map((t) => {
             const on = currentId === t.id;
@@ -5296,15 +5718,15 @@ function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
                 style={{ background: on ? C.green : C.cream, color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` }}
               >
                 <span className="f-headline text-[21px]">{teamLabel(t)}</span>
-                <span className="f-body text-[15px] font-bold shrink-0">{on ? "✓ 지금 이 팀" : `${counts[t.id] || 0}명`}</span>
+                <span className="f-body text-[15px] font-bold shrink-0">{on ? tr("✓ 지금 이 팀") : tr("{0}명", [counts[t.id] || 0])}</span>
               </button>
             );
           })}
           <button onClick={() => onPick("")} className="focus-ring tap w-full rounded-2xl px-4 py-3 f-body text-[16px] font-bold" style={{ background: "white", color: "#9C927D", border: `1px solid ${C.beige}` }}>
-            {currentId ? "팀에서 빼기" : "팀 없음"}
+            {currentId ? tr("팀에서 빼기") : tr("팀 없음")}
           </button>
         </div>
-        <button onClick={onClose} className="focus-ring tap w-full mt-3 f-body text-[16px] font-bold rounded-2xl py-3" style={{ background: C.cream, color: C.charcoal }}>닫기</button>
+        <button onClick={onClose} className="focus-ring tap w-full mt-3 f-body text-[16px] font-bold rounded-2xl py-3" style={{ background: C.cream, color: C.charcoal }}>{tr("닫기")}</button>
       </div>
     </div>
   );
@@ -5357,10 +5779,10 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
     <div className="px-5 mb-3">
       <div className="bg-white rounded-2xl p-4">
         <div className="flex items-center justify-between gap-2 mb-1">
-          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>팀 · 선생님</p>
-          {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>+ 팀 추가</button>}
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 선생님")}</p>
+          {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("+ 팀 추가")}</button>}
         </div>
-        {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.</p>}
+        {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">{tr("레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.")}</p>}
 
         <div className="space-y-2 mt-2">
           {teams.map((t) => {
@@ -5371,14 +5793,12 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="f-headline text-[21px] leading-snug" style={{ color: C.green }}>{teamLabel(t)}</p>
-                    <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{mem.length ? `${mem.length}명 · ${mem.map((m) => m.name).join(", ")}` : "아직 아이가 없어요"}</p>
+                    <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{mem.length ? tr("{0}명 · {1}", [mem.length, mem.map((m) => m.name).join(", ")]) : tr("아직 아이가 없어요")}</p>
                   </div>
-                  <button onClick={() => startEdit(t)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: C.orange }}>수정</button>
+                  <button onClick={() => startEdit(t)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: C.orange }}>{tr("수정")}</button>
                 </div>
                 {fillable > 0 && !form && (
-                  <button onClick={() => fillLevel(t)} className="focus-ring tap mt-2 f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>
-                    {t.level} 레벨 아이 {fillable}명 넣기
-                  </button>
+                  <button onClick={() => fillLevel(t)} className="focus-ring tap mt-2 f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.orange }}>{tr("{0} 레벨 아이 {1}명 넣기", [t.level, fillable])}</button>
                 )}
               </div>
             );
@@ -5387,7 +5807,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
 
         {teams.length > 0 && loose.length > 0 && !form && (
           <div className="mt-3">
-            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#B25A0B" }}>팀 미배정 {loose.length}명 · 이름을 눌러 팀을 정해요</p>
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#B25A0B" }}>{tr("팀 미배정 {0}명 · 이름을 눌러 팀을 정해요", [loose.length])}</p>
             <div className="flex flex-wrap gap-2">
               {loose.map((st) => (
                 <button key={st.id} onClick={() => setPicking(st)} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-2" style={{ background: "#FFE9D2", color: "#B25A0B" }}>
@@ -5400,7 +5820,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
 
         {form && (
           <div className="mt-3 rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
-            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>레벨</p>
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("레벨")}</p>
             <div className="flex gap-2 mb-3">
               {LEVEL_CHOICES.map((l) => (
                 <button
@@ -5414,8 +5834,8 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
                 </button>
               ))}
             </div>
-            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>선생님 이름</p>
-            <input value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder="예: Anna" aria-label="선생님 이름" className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+            <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("선생님 이름")}</p>
+            <input value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder={tr("예: Anna")} aria-label={tr("선생님 이름")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
             {teacherSuggestions.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {teacherSuggestions.map((n) => (
@@ -5425,15 +5845,15 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
             )}
 
             <div className="flex items-center justify-between gap-2 mt-4 mb-1.5">
-              <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>이 팀 아이들 <span style={{ color: C.orange }}>{form.picked.length}명 선택</span></p>
-              {form.picked.length > 0 && <button onClick={() => setForm({ ...form, touched: true, picked: [] })} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>모두 해제</button>}
+              <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("이 팀 아이들 ")}<span style={{ color: C.orange }}>{tr("{0}명 선택", [form.picked.length])}</span></p>
+              {form.picked.length > 0 && <button onClick={() => setForm({ ...form, touched: true, picked: [] })} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("모두 해제")}</button>}
             </div>
             {roster.length === 0 ? (
-              <p className="f-body text-[14px] text-gray-400">이 프로그램에 신청한 아이가 아직 없어요.</p>
+              <p className="f-body text-[14px] text-gray-400">{tr("이 프로그램에 신청한 아이가 아직 없어요.")}</p>
             ) : (
               <>
-                <p className="f-body text-[12.5px] text-gray-400 mb-1.5">{form.id ? "눌러서 넣거나 빼요." : `${form.level} 레벨 아이를 미리 골라 뒀어요. 눌러서 바꿀 수 있어요.`}</p>
-                <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-0.5" role="group" aria-label="이 팀에 넣을 아이">
+                <p className="f-body text-[12.5px] text-gray-400 mb-1.5">{form.id ? tr("눌러서 넣거나 빼요.") : tr("{0} 레벨 아이를 미리 골라 뒀어요. 눌러서 바꿀 수 있어요.", [form.level])}</p>
+                <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-0.5" role="group" aria-label={tr("이 팀에 넣을 아이")}>
                   {checklist.map(({ student: st, adv }) => {
                     const on = form.picked.includes(st.id);
                     const cur = teamsOf(program).find((t) => t.id === adv.teamId);
@@ -5449,7 +5869,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
                         {on ? <CheckCircle2 size={22} color="#1F7A44" className="shrink-0" /> : <Circle size={22} color="#D8CEB8" className="shrink-0" />}
                         <span className="flex-1 min-w-0">
                           <span className="block f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{st.name} <span className="font-normal text-gray-400">· {st.level}</span></span>
-                          {cur && cur.id !== form.id && <span className="block f-body text-[13px]" style={{ color: "#B25A0B" }}>지금 {teamLabel(cur)} 팀 → 이 팀으로 옮겨요</span>}
+                          {cur && cur.id !== form.id && <span className="block f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("지금 {0} 팀 → 이 팀으로 옮겨요", [teamLabel(cur)])}</span>}
                         </span>
                       </button>
                     );
@@ -5459,25 +5879,23 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
             )}
 
             <div className="flex gap-2 mt-3">
-              <button onClick={() => setForm(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>취소</button>
-              <button onClick={save} disabled={!form.teacher.trim()} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.orange }}>{form.id ? "저장" : "팀 만들기"}</button>
+              <button onClick={() => setForm(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
+              <button onClick={save} disabled={!form.teacher.trim()} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.orange }}>{form.id ? tr("저장") : tr("팀 만들기")}</button>
             </div>
             {form.id && (
-              <button onClick={() => setConfirmRemove(teams.find((t) => t.id === form.id))} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 mt-1" style={{ color: "#C0674A" }}>이 팀 삭제 (아이들은 미배정으로 돌아가요)</button>
+              <button onClick={() => setConfirmRemove(teams.find((t) => t.id === form.id))} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 mt-1" style={{ color: "#C0674A" }}>{tr("이 팀 삭제 (아이들은 미배정으로 돌아가요)")}</button>
             )}
           </div>
         )}
       </div>
       {confirmRemove && (
         <ConfirmDialog
-          title={`${teamLabel(confirmRemove)} 팀을 삭제할까요?`}
+          title={tr("{0} 팀을 삭제할까요?", [teamLabel(confirmRemove)])}
           actions={[
-            { label: "팀 삭제", tone: "danger", onClick: () => { const t = confirmRemove; setConfirmRemove(null); remove(t); } },
-            { label: "취소", tone: "plain", onClick: () => setConfirmRemove(null) },
+            { label: tr("팀 삭제"), tone: "danger", onClick: () => { const t = confirmRemove; setConfirmRemove(null); remove(t); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirmRemove(null) },
           ]}
-        >
-          {members(confirmRemove).length > 0 ? `이 팀의 아이 ${members(confirmRemove).length}명은 "팀 미배정"으로 돌아가요. ` : ""}아이들의 기록은 지워지지 않아요. 부모님 화면에서는 이 팀 표시가 사라져요.
-        </ConfirmDialog>
+        >{tr("{0}아이들의 기록은 지워지지 않아요. 부모님 화면에서는 이 팀 표시가 사라져요.", [members(confirmRemove).length > 0 ? tr("이 팀의 아이 {0}명은 \"팀 미배정\"으로 돌아가요. ", [members(confirmRemove).length]) : ""])}</ConfirmDialog>
       )}
       {picking && (
         <TeamPicker
@@ -5493,7 +5911,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -5543,8 +5961,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: "approvals",
       icon: "🙌",
-      title: `가입 수락 대기 ${waitingFamilies}건`,
-      text: "신청서와 맞는지 확인하고 수락해 주세요",
+      title: tr("가입 수락 대기 {0}건", [waitingFamilies]),
+      text: tr("신청서와 맞는지 확인하고 수락해 주세요"),
       onClick: () => setTab("approve"),
     });
   }
@@ -5552,7 +5970,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: "inquiries",
       icon: "🙋",
-      title: `새 신청 문의 ${pendingInquiries.length}건`,
+      title: tr("새 신청 문의 {0}건", [pendingInquiries.length]),
       text: pendingInquiries.slice(-2).map((x) => x.message).join(" / "),
       onClick: () => setTab("suggestions"),
       onDone: () => onResolveSuggestions(pendingInquiries.map((x) => x.id)),
@@ -5562,7 +5980,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: "other",
       icon: "💬",
-      title: `학부모 의견 ${pendingOther.length}건`,
+      title: tr("학부모 의견 {0}건", [pendingOther.length]),
       text: pendingOther.slice(-1)[0].message,
       onClick: () => setTab("suggestions"),
       onDone: () => onResolveSuggestions(pendingOther.map((x) => x.id)),
@@ -5572,7 +5990,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: `info-${p.id}`,
       icon: "📍",
-      title: "체험 안내를 보내야 해요",
+      title: tr("체험 안내를 보내야 해요"),
       text: p.title,
       onClick: () => { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
     });
@@ -5581,7 +5999,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: `review-${p.id}`,
       icon: "✏️",
-      title: "복습 퀴즈를 만들고 열어 주세요",
+      title: tr("복습 퀴즈를 만들고 열어 주세요"),
       text: p.title,
       onClick: () => { setMaterialsFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
     });
@@ -5590,7 +6008,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     teacherNotices.push({
       key: `report-${r.a.studentId}-${r.a.programId}`,
       icon: "📝",
-      title: "리포트 작성이 필요해요",
+      title: tr("리포트 작성이 필요해요"),
       text: `${r.student.name} · ${r.program.title}`,
       onClick: () => { setProgramId(r.program.id); setTab("manage"); },
     });
@@ -5599,39 +6017,42 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
   const pendingCount = pendingFamilies(students).length;
   const TABS = [
-    { key: "overview", label: "현황" },
-    ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? `수락 ${pendingCount}` : "수락" }] : []),
-    { key: "register", label: "현장등록" },
-    { key: "manage", label: needReport.length ? `학생관리 ${needReport.length}` : "학생관리" },
-    { key: "programs", label: "프로그램등록" },
-    { key: "suggestions", label: unresolvedCount ? `학부모의견 ${unresolvedCount}` : "학부모의견" },
-    { key: "stats", label: "통계" },
+    { key: "overview", label: tr("현황") },
+    ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
+    { key: "register", label: tr("현장등록") },
+    { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
+    { key: "programs", label: tr("프로그램등록") },
+    { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+    { key: "stats", label: tr("통계") },
   ];
 
   return (
     <div className="pb-6">
-      <ScreenHeader title="Teacher View" />
+      <ScreenHeader
+        title="Teacher View"
+        right={onOpenGuide && <button onClick={onOpenGuide} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>}
+      />
       {pendingNav && (() => {
         const dirtyApis = [dirtyNew && newApi.current, dirtyEdit && editApi.current].filter(Boolean);
         const canSaveAll = dirtyApis.length > 0 && dirtyApis.every((a) => a.canSave);
         const proceed = () => { const fn = pendingNav; setPendingNav(null); fn(); };
         return (
           <ConfirmDialog
-            title="저장하지 않은 내용이 있어요"
+            title={tr("저장하지 않은 내용이 있어요")}
             actions={[
-              ...(canSaveAll ? [{ label: "저장하고 이동", tone: "primary", onClick: () => { dirtyApis.forEach((a) => a.save()); proceed(); } }] : []),
-              { label: "저장 안 하고 이동", tone: "danger", onClick: () => { dirtyApis.forEach((a) => a.discard()); proceed(); } },
-              { label: "계속 작성하기", tone: "plain", onClick: () => setPendingNav(null) },
+              ...(canSaveAll ? [{ label: tr("저장하고 이동"), tone: "primary", onClick: () => { dirtyApis.forEach((a) => a.save()); proceed(); } }] : []),
+              { label: tr("저장 안 하고 이동"), tone: "danger", onClick: () => { dirtyApis.forEach((a) => a.discard()); proceed(); } },
+              { label: tr("계속 작성하기"), tone: "plain", onClick: () => setPendingNav(null) },
             ]}
           >
-            {canSaveAll ? "저장할까요?" : "이름·날짜·레벨·아이콘이 비어 있어 저장할 수 없어요."}
+            {canSaveAll ? tr("저장할까요?") : tr("이름·날짜·레벨·아이콘이 비어 있어 저장할 수 없어요.")}
           </ConfirmDialog>
         );
       })()}
 
       {teacherNotices.length > 0 && (
         <div className="px-5 mb-4">
-          <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>🔔 확인이 필요해요 {teacherNotices.length}</p>
+          <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</p>
           <div className="space-y-2">
             {teacherNotices.slice(0, 5).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
@@ -5644,13 +6065,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
                 </button>
                 {n.onDone && (
-                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>
-                    ✓ 확인함
-                  </button>
+                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>{tr("✓ 확인함")}</button>
                 )}
               </div>
             ))}
-            {teacherNotices.length > 5 && <p className="f-body text-[14px] text-gray-400 text-center">외 {teacherNotices.length - 5}건</p>}
+            {teacherNotices.length > 5 && <p className="f-body text-[14px] text-gray-400 text-center">{tr("외 {0}건", [teacherNotices.length - 5])}</p>}
           </div>
         </div>
       )}
@@ -5691,7 +6110,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       {tab === "register" && (
         <div className="px-5">
           <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
-          <p className="f-body text-[14px] text-gray-400 mt-2">보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 "학생관리" 탭에서 프로그램에 추가해주세요.</p>
+          <p className="f-body text-[14px] text-gray-400 mt-2">{tr("보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 \"학생관리\" 탭에서 프로그램에 추가해주세요.")}</p>
         </div>
       )}
 
@@ -5713,9 +6132,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 onClick={() => setTab("programs")}
                 className="focus-ring tap shrink-0 text-[15px] f-body font-bold px-3.5 py-2 rounded-full border-2 border-dashed"
                 style={{ borderColor: C.beige, color: C.orange }}
-              >
-                + 새 프로그램
-              </button>
+              >{tr("+ 새 프로그램")}</button>
             </div>
           </div>
 
@@ -5726,35 +6143,34 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 <div className="flex-1 min-w-0 py-0.5">
                   <ProgramTitle program={program} />
                   <p className="f-body text-[14px] text-gray-500 flex items-center gap-1.5 flex-wrap mt-0.5">
-                    <Users size={12} /> 신청한 아이 {roster.length}명
-                    {wishesFor(suggestions, programId).length > 0 && (
-                      <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, programId).length}가족</span>
+                    <Users size={12} />{tr(" 신청한 아이 {0}명", [roster.length])}{wishesFor(suggestions, programId).length > 0 && (
+                      <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, programId).length])}</span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { on: !!program.dateReached, label: "오늘 진행", onLabel: "진행 중", onClick: () => onSetProgramToday(programId, !program.dateReached) },
-                  { on: !!program.reviewOpen, label: "복습", onLabel: "열림", onClick: () => onSetProgramReview(programId, !program.reviewOpen) },
+                  { on: !!program.dateReached, label: tr("오늘 진행"), onLabel: tr("진행 중"), onClick: () => onSetProgramToday(programId, !program.dateReached) },
+                  { on: !!program.reviewOpen, label: tr("복습"), onLabel: tr("열림"), onClick: () => onSetProgramReview(programId, !program.reviewOpen) },
                 ].map((sw) => (
                   <button
                     key={sw.label}
                     onClick={sw.onClick}
                     aria-pressed={sw.on}
-                    aria-label={`${sw.label} ${sw.on ? "켜짐" : "꺼짐"}`}
+                    aria-label={`${sw.label} ${sw.on ? tr("켜짐") : tr("꺼짐")}`}
                     className="focus-ring tap flex items-center gap-2 rounded-xl px-3 py-2.5 text-left"
                     style={{ background: sw.on ? "#DCF3E4" : C.cream, border: `1px solid ${sw.on ? "#9FD6B2" : C.beige}` }}
                   >
                     {sw.on ? <CheckCircle2 size={18} color="#1F7A44" /> : <Circle size={18} color="#D8CEB8" />}
                     <span className="min-w-0">
                       <span className="block f-body text-[15px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.label}</span>
-                      <span className="block f-body text-[13px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onLabel : "꺼짐"}</span>
+                      <span className="block f-body text-[13px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onLabel : tr("꺼짐")}</span>
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="f-body text-[13px] text-gray-400 mt-2">한 번 누르면 이 프로그램에 신청한 아이 {roster.length}명 모두에게 바로 적용돼요.</p>
+              <p className="f-body text-[13px] text-gray-400 mt-2">{tr("한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.", [roster.length])}</p>
             </div>
           </div>
 
@@ -5789,7 +6205,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
             {canceledHere.length > 0 && (
               <div className="bg-white rounded-2xl p-4">
                 <button onClick={() => setShowCanceled((v) => !v)} aria-expanded={showCanceled} className="focus-ring tap w-full flex items-center justify-between">
-                  <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: "#9C927D" }}>취소한 신청 {canceledHere.length}명</span>
+                  <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: "#9C927D" }}>{tr("취소한 신청 {0}명", [canceledHere.length])}</span>
                   <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${showCanceled ? "rotate-90" : ""}`} />
                 </button>
                 {showCanceled && (
@@ -5798,12 +6214,10 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                       <div key={st.id} className="flex items-center gap-3">
                         <span className="text-[23px]">{st.avatar}</span>
                         <span className="flex-1 f-body text-[17px]" style={{ color: "#9C927D" }}>{st.name}</span>
-                        <button onClick={() => onRestoreEnrollment && onRestoreEnrollment(st.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
-                          되돌리기
-                        </button>
+                        <button onClick={() => onRestoreEnrollment && onRestoreEnrollment(st.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("되돌리기")}</button>
                       </div>
                     ))}
-                    <p className="f-body text-[13px] text-gray-400">되돌리면 예습 기록과 함께 다시 신청한 상태로 돌아가요.</p>
+                    <p className="f-body text-[13px] text-gray-400">{tr("되돌리면 예습 기록과 함께 다시 신청한 상태로 돌아가요.")}</p>
                   </div>
                 )}
               </div>
@@ -5811,18 +6225,16 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
             {unenrolled.length > 0 && (
               <div className="bg-white rounded-2xl p-4">
-                <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>이 프로그램에 없는 학생</p>
+                <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>{tr("이 프로그램에 없는 학생")}</p>
                 <div className="space-y-2">
                   {unenrolled.map((s) => (
                     <div key={s.id} className="flex items-center gap-3">
                       <span className="text-[23px]">{s.avatar}</span>
                       <span className="flex-1 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>
                         {s.name}
-                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>♥ 관심</span>}
+                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심")}</span>}
                       </span>
-                      <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>
-                        + 추가
-                      </button>
+                      <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("+ 추가")}</button>
                     </div>
                   ))}
                 </div>
@@ -5835,7 +6247,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       {tab === "programs" && (
         <div className="px-5 space-y-3">
           <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} />
-          <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">등록된 프로그램</p>
+          <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">{tr("등록된 프로그램")}</p>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
@@ -5848,7 +6260,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 onSave={(info) => { onEditProgram(p.id, info); setEditingProgramId(null); setInfoFocusId(null); setMaterialsFocusId(null); }}
                 deleteNote={(() => {
                   const n = adventures.filter((a) => a.programId === p.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended)).length;
-                  return n > 0 ? `아이 ${n}명의 피드백·복습·점수 기록이 함께 삭제돼요.` : "";
+                  return n > 0 ? tr("아이 {0}명의 피드백·복습·점수 기록이 함께 삭제돼요.", [n]) : "";
                 })()}
                 onDelete={() => { onDeleteProgram(p.id); setEditingProgramId(null); }}
                 onCancel={() => setEditingProgramId(null)}
@@ -5865,7 +6277,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
                   <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
                   {wishesFor(suggestions, p.id).length > 0 && (
-                    <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>♥ 관심 {wishesFor(suggestions, p.id).length}가족</p>
+                    <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, p.id).length])}</p>
                   )}
                 </div>
                 <StatusPills status={programStatus(p, adventures)} />
@@ -5885,33 +6297,31 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
-          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 들어온 의견이 없어요.</p>}
+          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-[17px] text-gray-400 text-center pt-8">{tr("아직 들어온 의견이 없어요.")}</p>}
           {unresolvedCount > 0 && (
             <button
               onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isSystemRow(x)).map((x) => x.id))}
               className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-2.5 text-white"
               style={{ background: C.green }}
-            >
-              ✓ 모두 확인함으로 표시 ({unresolvedCount}건)
-            </button>
+            >{tr("✓ 모두 확인함으로 표시 ({0}건)", [unresolvedCount])}</button>
           )}
           {suggestions.filter((x) => !isSystemRow(x)).reverse().map((s) => {
             const family = students.filter((st) => st.familyPin === s.familyPin).map((st) => st.name).join(", ");
             return (
               <div key={s.id} className="bg-white rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{s.type}</span>
+                  <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{tr(s.type)}</span>
                   <button
                     onClick={() => onToggleSuggestion(s.id)}
                     aria-pressed={s.resolved}
                     className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full"
                     style={{ background: s.resolved ? "#DCF3E4" : C.green, color: s.resolved ? "#1F7A44" : "white" }}
                   >
-                    {s.resolved ? "✓ 확인함 (되돌리기)" : "✓ 확인했어요"}
+                    {s.resolved ? tr("✓ 확인함 (되돌리기)") : tr("✓ 확인했어요")}
                   </button>
                 </div>
                 <p className="f-body text-[17px] mb-1" style={{ color: C.charcoal }}>{s.message}</p>
-                {family && <p className="f-body text-[14px] text-gray-400">{family} 가족</p>}
+                {family && <p className="f-body text-[14px] text-gray-400">{tr("{0} 가족", [family])}</p>}
               </div>
             );
           })}
@@ -6197,8 +6607,234 @@ function SplashScreen({ onDone }) {
 /* ================================================================== */
 /*  APP ROOT                                                            */
 /* ================================================================== */
+/* ================================================================== */
+/*  TEACHER MANUAL (English / 한국어). Written in both languages, not through tr(). */
+/* ================================================================== */
+const MANUAL = [
+  {
+    id: "start",
+    title: { en: "Quick start: the 5 steps of every trip", ko: "빠른 시작: 체험마다 하는 5단계" },
+    items: [
+      { t: "step", en: "Approve new sign-ups. Open the Approve tab, compare with the application form, tap Approve.", ko: "새 가입을 수락해요. 수락 탭에서 신청서와 맞는지 확인하고 수락을 눌러요." },
+      { t: "step", en: "Create the program and send the pre-trip info (Programs tab). Parents get an alert in the app.", ko: "프로그램을 만들고 체험 전 안내를 보내요 (프로그램등록 탭). 학부모 앱에 알림이 떠요." },
+      { t: "step", en: "Make teams (Students tab, pick the program, then Teams · Teachers). Parents see their child's team and teacher.", ko: "팀을 만들어요 (학생관리 탭에서 프로그램을 고르고 팀 · 선생님). 학부모가 우리 아이의 팀과 선생님을 볼 수 있어요." },
+      { t: "step", en: "On the trip day: switch on Live today and mark each child present (Students tab).", ko: "체험 날: 오늘 진행을 켜고 아이마다 출석을 체크해요 (학생관리 탭)." },
+      { t: "step", en: "After the trip: make the review quiz and tap Open review, then write the feedback reports.", ko: "체험 후: 복습 퀴즈를 만들고 복습 열기를 누른 뒤, 피드백 리포트를 써요." },
+      { t: "tip", en: "The Overview tab always shows the next thing to do for every program. Start there.", ko: "현황 탭에는 모든 프로그램의 다음 할 일이 항상 보여요. 거기서 시작하세요." },
+    ],
+  },
+  {
+    id: "tabs",
+    title: { en: "The tabs at a glance", ko: "탭 한눈에 보기" },
+    items: [
+      { t: "term", label: { en: "Overview", ko: "현황" }, en: "Every program on one screen: stage, what is done, and the next step. Also recent activity.", ko: "모든 프로그램의 단계, 완료된 것, 다음 할 일을 한 화면에서. 최근 활동도 보여요." },
+      { t: "term", label: { en: "Approve", ko: "수락" }, en: "Appears when new families wait for approval. Until you approve, parents see only a waiting screen.", ko: "새 가족이 기다릴 때만 나타나요. 수락하기 전에는 학부모에게 대기 화면만 보여요." },
+      { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Register a student on site who has no parent sign-up.", ko: "부모님 가입 없이 현장에 온 학생을 등록해요." },
+      { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Pick a program: Live today / Review switches, teams, and a card for every child (attendance, notes, feedback).", ko: "프로그램을 고르면 오늘 진행 / 복습 스위치, 팀, 아이별 카드(출석, 메모, 피드백)가 나와요." },
+      { t: "term", label: { en: "Programs", ko: "프로그램등록" }, en: "Create, edit and delete programs, pre-trip info and learning materials.", ko: "프로그램, 체험 전 안내, 학습 자료를 만들고 고치고 지워요." },
+      { t: "term", label: { en: "Parent notes", ko: "학부모의견" }, en: "Suggestions and inquiries from parents. Tap Done when you have read them.", ko: "학부모의 건의와 문의예요. 읽으면 확인함을 눌러요." },
+      { t: "term", label: { en: "Stats", ko: "통계" }, en: "How far the children get, scores, surveys, app visits, plus the Server save check and backup.", ko: "아이들의 진행, 점수, 설문, 앱 방문, 그리고 서버 저장 점검과 백업이 있어요." },
+    ],
+  },
+  {
+    id: "approve",
+    title: { en: "Approving sign-ups", ko: "가입 수락하기" },
+    items: [
+      { t: "p", en: "When a parent registers a child, they enter a phone number. Only the last 4 digits and a one-way code are saved, never the full number.", ko: "부모님이 자녀를 등록하면 전화번호를 입력해요. 전화번호 전체는 저장되지 않고, 뒷자리 4자리와 되돌릴 수 없는 코드만 저장돼요." },
+      { t: "step", en: "Open the Approve tab. You see the child, level, last 4 digits and how long ago they applied.", ko: "수락 탭을 열어요. 아이, 레벨, 신청 번호 뒷자리, 신청한 지 얼마나 됐는지가 보여요." },
+      { t: "step", en: "Find the family in your application form (name and phone).", ko: "신청서에서 그 가족(이름과 전화번호)을 찾아요." },
+      { t: "step", en: "Optional: paste the full number from the form and tap Check. It tells you whether it matches what the parent entered.", ko: "선택: 신청서의 전체 번호를 붙여넣고 확인을 누르면, 부모님이 입력한 번호와 같은지 알려 줘요." },
+      { t: "step", en: "Tap Approve. The family can now use the app. Or tap Decline to delete the request.", ko: "수락을 누르면 가족이 앱을 쓸 수 있어요. 거절을 누르면 신청이 삭제돼요." },
+      { t: "warn", en: "If you see a red warning that the same number is already used by another family, check before approving.", ko: "같은 번호로 이미 가입한 가족이 있다는 빨간 안내가 보이면, 수락하기 전에 확인하세요." },
+    ],
+  },
+  {
+    id: "program",
+    title: { en: "Creating a program", ko: "프로그램 만들기" },
+    items: [
+      { t: "step", en: "Programs tab, then Register new program. Enter the name. Add an English subtitle after a colon, e.g. Seoul Zoo: Animals Around the World. The name is shown big, the English line smaller.", ko: "프로그램등록 탭에서 새 프로그램 등록. 이름을 입력해요. 콜론 뒤에 영어 부제를 붙일 수 있어요. 예: 서울대공원: Animals Around the World. 이름은 크게, 영어는 작게 보여요." },
+      { t: "step", en: "Enter the date and place, pick a theme icon (it only chooses the colour bar), choose one or more levels, and write a one-sentence intro.", ko: "날짜와 장소를 넣고, 테마 아이콘(막대 색만 정해요)과 레벨을 고르고, 한 문장 소개를 써요." },
+      { t: "step", en: "Open Pre-trip info and Trip materials (see the next sections), then tap Register program.", ko: "체험 전 안내와 체험 자료 입력을 채우고(다음 항목 참고) 프로그램 등록을 눌러요." },
+      { t: "p", en: "Learning materials: ① Prep word cards, ② on-site missions and today's focus points, ③ the review quiz and big question. Words can be added one by one or pasted many at once (one per line: word - meaning - emoji).", ko: "학습 자료는 ① 예습 단어 카드, ② 현장 미션과 오늘의 집중 포인트, ③ 복습 퀴즈와 큰 질문이에요. 단어는 하나씩 넣거나 한 줄에 하나씩(단어 - 뜻 - 이모지) 한꺼번에 붙여넣을 수 있어요." },
+      { t: "p", en: "To edit, tap the program under Registered programs. To delete, open it and tap Delete program. It asks first, and a backup file is downloaded automatically when children already have records.", ko: "고치려면 등록된 프로그램에서 프로그램을 눌러요. 지우려면 열어서 프로그램 삭제를 눌러요. 먼저 한 번 묻고, 아이 기록이 있으면 백업 파일이 자동으로 내려받아져요." },
+      { t: "tip", en: "If you leave a form with unsaved text, the app asks first. If the phone closes the app, the text is kept: reopen the program and tap Continue writing.", ko: "저장하지 않은 글이 있는데 나가려고 하면 먼저 물어봐요. 앱이 꺼져도 글은 보관돼요. 프로그램을 다시 열고 이어서 작성을 누르세요." },
+    ],
+  },
+  {
+    id: "notice",
+    title: { en: "Sending the pre-trip info to parents", ko: "학부모에게 체험 전 안내 보내기" },
+    items: [
+      { t: "step", en: "Programs tab, open the program, expand Pre-trip info.", ko: "프로그램등록 탭에서 프로그램을 열고 체험 전 안내를 펼쳐요." },
+      { t: "step", en: "Fill in trip time, meeting time and place, address, what to bring, admission fee (None / Paid by parents + amount / Included) and other notes. Empty items are hidden.", ko: "체험 시간, 집합 시간과 장소, 주소, 준비물, 입장료(없음 / 부모님 부담 + 금액 / 프로그램비 포함), 기타 안내를 채워요. 비워 둔 항목은 보이지 않아요." },
+      { t: "step", en: "Turn on Share with parents and save. Parents of the children who applied get an alert in the app.", ko: "학부모에게 공개를 켜고 저장해요. 신청한 아이의 학부모 앱에 알림이 떠요." },
+      { t: "step", en: "Tap Send notice (phone share sheet, choose KakaoTalk) or Copy notice and paste it into your parent chat. The message text is in Korean for parents.", ko: "안내문 보내기(휴대폰 공유 창에서 카카오톡 선택) 또는 안내문 복사를 눌러 학부모 채팅방에 붙여넣어요. 메시지는 학부모를 위해 한국어로 만들어져요." },
+      { t: "tip", en: "The app does not send KakaoTalk messages by itself. The in-app alert is shown when parents open the app.", ko: "앱이 카카오톡을 자동으로 보내지는 않아요. 앱 알림은 학부모가 앱을 열면 보여요." },
+    ],
+  },
+  {
+    id: "teams",
+    title: { en: "Teams and teachers", ko: "팀과 선생님" },
+    items: [
+      { t: "p", en: "A team is a level group plus a teacher, for one program (for example A1 · Anna). Several teams can have the same level.", ko: "팀은 한 프로그램 안의 레벨 그룹과 선생님이에요 (예: A1 · Anna). 같은 레벨 팀이 여러 개여도 돼요." },
+      { t: "step", en: "Students tab, pick the program, find Teams · Teachers and tap Add team.", ko: "학생관리 탭에서 프로그램을 고르고 팀 · 선생님에서 팀 추가를 눌러요." },
+      { t: "step", en: "Choose the level and the teacher's name (names you used before appear as buttons).", ko: "레벨과 선생님 이름을 골라요 (전에 쓴 이름은 버튼으로 나와요)." },
+      { t: "step", en: "Tick the children for this team in the list. Children of the chosen level are ticked for you. Children already in another team are marked and will move.", ko: "목록에서 이 팀 아이들을 체크해요. 고른 레벨의 아이들은 미리 체크돼 있어요. 다른 팀에 있는 아이는 표시되고 옮겨져요." },
+      { t: "step", en: "Tap Create team. The team and the children are saved together.", ko: "팀 만들기를 누르면 팀과 아이들이 한꺼번에 저장돼요." },
+      { t: "p", en: "To place one child: tap the team button under the child's name (it says Choose team or the team name) and pick a team. Names under 'children without a team' are buttons too.", ko: "아이 한 명을 정하려면 이름 아래 팀 버튼(팀 정하기 또는 팀 이름)을 눌러 팀을 골라요. '팀 미배정' 아래의 이름도 버튼이에요." },
+      { t: "p", en: "To change a team, tap Edit on the team: level, teacher and members can all be changed. Delete team asks first; its children go back to unassigned and nothing else is erased.", ko: "팀을 바꾸려면 팀의 수정을 눌러요. 레벨, 선생님, 팀원을 모두 바꿀 수 있어요. 팀 삭제는 먼저 물어보고, 아이들은 미배정으로 돌아가며 다른 기록은 지워지지 않아요." },
+      { t: "tip", en: "Parents see the team and teacher in an alert, on their child's card and in the pre-trip info page.", ko: "학부모는 알림, 아이 카드, 체험 안내 페이지에서 팀과 선생님을 볼 수 있어요." },
+    ],
+  },
+  {
+    id: "tripday",
+    title: { en: "On the trip day", ko: "체험 날" },
+    items: [
+      { t: "step", en: "Students tab, pick the program. In the program card switch on Live today. One tap applies to every child who applied.", ko: "학생관리 탭에서 프로그램을 골라요. 프로그램 카드에서 오늘 진행을 켜요. 한 번 누르면 신청한 모든 아이에게 적용돼요." },
+      { t: "step", en: "Tap Mark present on each child's row. This also switches Live today on if it was off.", ko: "아이 줄의 출석 체크(Mark present)를 눌러요. 오늘 진행이 꺼져 있었다면 함께 켜져요." },
+      { t: "step", en: "Open a child's card to tick missions, add strengths and a teacher note. Typing is saved automatically a moment after you stop.", ko: "아이 카드를 펼쳐 미션을 체크하고, 강점과 메모를 남겨요. 입력은 멈춘 뒤 잠시 후 자동으로 저장돼요." },
+      { t: "step", en: "When the trip ends, switch Live today off. The program is then shown as Finished.", ko: "체험이 끝나면 오늘 진행을 꺼요. 그러면 프로그램이 진행 완료로 보여요." },
+      { t: "p", en: "If a child cancels: open the child's card and tap Cancel trip (it asks first). Nothing is deleted; the child moves to 'Cancelled applications' where you can Restore. A child who attended cannot be cancelled: un-mark attendance first.", ko: "아이가 취소하면: 아이 카드를 펼쳐 체험 취소를 눌러요 (먼저 물어봐요). 아무것도 지워지지 않고, '취소한 신청'으로 옮겨져 되돌리기를 할 수 있어요. 출석한 아이는 취소할 수 없어요. 먼저 출석 체크를 해제하세요." },
+    ],
+  },
+  {
+    id: "after",
+    title: { en: "After the trip", ko: "체험 후" },
+    items: [
+      { t: "step", en: "Programs tab, open the program, expand Trip materials and write the review quiz from what you taught (true/false or multiple choice) and the big question.", ko: "프로그램등록 탭에서 프로그램을 열고 체험 자료 입력에서 가르친 내용으로 복습 퀴즈(O/X 또는 객관식)와 큰 질문을 써요." },
+      { t: "step", en: "Turn on Open review and save (or use the Review switch on the Students tab). Children who attended can now do the review and see their score in %.", ko: "복습 열기를 켜고 저장해요 (학생관리 탭의 복습 스위치도 돼요). 출석한 아이들이 복습을 하고 점수(%)를 볼 수 있어요." },
+      { t: "step", en: "Write each child's feedback: open the card, tap Full feedback report. The parent sees it in their app.", ko: "아이별 피드백을 써요. 카드를 펼쳐 전체 피드백 리포트를 눌러요. 학부모가 앱에서 볼 수 있어요." },
+      { t: "p", en: "Parents of children who attended also get a short satisfaction survey. See the results in the Stats tab.", ko: "출석한 아이의 학부모에게는 짧은 만족도 설문도 떠요. 결과는 통계 탭에서 봐요." },
+    ],
+  },
+  {
+    id: "overview",
+    title: { en: "Reading the Overview tab", ko: "현황 탭 보는 법" },
+    items: [
+      { t: "term", label: { en: "Stage", ko: "단계" }, en: "Not started, Live (Live today is on), or Finished (review opened, or children attended and Live today is off).", ko: "시작 전, 진행 중(오늘 진행이 켜짐), 진행 완료(복습이 열렸거나 출석 후 오늘 진행이 꺼짐)예요." },
+      { t: "term", label: { en: "Boxes", ko: "칸" }, en: "Pre-trip info sent or not, applied and attended counts, review open or closed, feedback still to write, and teams.", ko: "체험 전 안내 발송 여부, 신청과 출석 수, 복습 열림 여부, 남은 피드백, 팀 현황이에요." },
+      { t: "term", label: { en: "Next step", ko: "다음 할 일" }, en: "The orange line says what to do now. Tap it to open the right screen.", ko: "주황색 줄이 지금 할 일이에요. 누르면 알맞은 화면이 열려요." },
+      { t: "term", label: { en: "Recent activity", ko: "최근 활동" }, en: "What was done lately, so you can see what other teachers did. The app does not record who did it.", ko: "최근에 한 일이에요. 다른 선생님이 한 일을 알 수 있어요. 누가 했는지는 기록되지 않아요." },
+      { t: "tip", en: "Last checked shows how fresh the numbers are. The screen also refreshes by itself about every 45 seconds. Tap Refresh to check now.", ko: "마지막 확인은 숫자가 얼마나 최근인지 보여 줘요. 화면은 약 45초마다 저절로도 새로고침돼요. 새로고침을 누르면 바로 확인해요." },
+    ],
+  },
+  {
+    id: "register",
+    title: { en: "Registering a student on site", ko: "현장에서 학생 등록하기" },
+    items: [
+      { t: "p", en: "Parents normally register in the app themselves. Use the Register tab only for a child who arrives without a parent sign-up.", ko: "보통은 부모님이 앱에서 직접 등록해요. 부모님 가입 없이 온 아이만 현장등록 탭을 쓰세요." },
+      { t: "step", en: "Enter the name, choose an avatar and level, and a 4-digit family login number. Siblings use the same number.", ko: "이름을 쓰고 아바타와 레벨, 가족 로그인 번호 4자리를 골라요. 형제는 같은 번호를 써요." },
+      { t: "step", en: "Registering does not put the child in any program. Go to the Students tab, pick the program and tap + Add under 'Students not in this program'.", ko: "등록만으로는 어떤 프로그램에도 들어가지 않아요. 학생관리 탭에서 프로그램을 고르고 '이 프로그램에 없는 학생' 아래 + 추가를 눌러요." },
+      { t: "tip", en: "A parent who forgot the login number: open the child's card, the number is shown in Student info.", ko: "부모님이 로그인 번호를 잊었다면: 아이 카드를 펼치면 학생 정보에 번호가 나와요." },
+    ],
+  },
+  {
+    id: "safety",
+    title: { en: "Keeping the data safe", ko: "자료를 안전하게 지키기" },
+    items: [
+      { t: "step", en: "Server save check: Stats tab, bottom. Press it right after you enter something, before refreshing. It compares the screen with the server. A ✗ item may disappear after a refresh: tell the developer.", ko: "서버 저장 점검: 통계 탭 맨 아래. 무언가 입력한 직후, 새로고침하기 전에 눌러요. 화면과 서버를 비교해요. ✗ 항목은 새로고침하면 사라질 수 있으니 개발자에게 알려 주세요." },
+      { t: "step", en: "Backup: Stats tab, Download all data. Do it after each program, and keep the file somewhere safe because it contains children's information.", ko: "백업: 통계 탭의 전체 자료 내려받기. 프로그램이 끝날 때마다 하고, 아이 정보가 들어 있으니 안전한 곳에 보관하세요." },
+      { t: "p", en: "Deleting a program or a student asks first and, if there are records, downloads a backup automatically. Cancelling a trip, and removing a team, never erase records.", ko: "프로그램이나 학생 삭제는 먼저 물어보고, 기록이 있으면 백업이 자동으로 내려받아져요. 체험 취소와 팀 삭제는 기록을 지우지 않아요." },
+      { t: "p", en: "Several teachers can work at the same time. If two people save the same program, the later save wins. Opening a program to edit always loads the latest version first.", ko: "여러 선생님이 동시에 쓸 수 있어요. 두 사람이 같은 프로그램을 저장하면 나중에 저장한 쪽이 이겨요. 프로그램을 열어 고칠 때는 항상 최신 내용을 먼저 불러와요." },
+      { t: "warn", en: "The teacher PIN opens everything. Share it only with teachers.", ko: "선생님 PIN으로 모든 것이 열려요. 선생님들께만 알려 주세요." },
+    ],
+  },
+  {
+    id: "faq",
+    title: { en: "Troubleshooting", ko: "문제가 생겼을 때" },
+    items: [
+      { t: "term", label: { en: "A parent cannot see the program", ko: "학부모가 프로그램을 못 봐요" }, en: "Check that the family is approved (Approve tab), the child is in the program (Students tab) and the trip was not cancelled.", ko: "가족이 수락됐는지(수락 탭), 아이가 프로그램에 들어 있는지(학생관리 탭), 체험이 취소되지 않았는지 확인하세요." },
+      { t: "term", label: { en: "Changes do not show on parents' phones", ko: "학부모 폰에 변경이 안 보여요" }, en: "Wait up to a minute. The app updates itself. A parent can also close and reopen it.", ko: "최대 1분 기다려 보세요. 앱이 저절로 갱신돼요. 학부모가 앱을 닫았다가 다시 열어도 돼요." },
+      { t: "term", label: { en: "I lost what I typed", ko: "쓰던 글이 사라졌어요" }, en: "Reopen the program form. If you see 'You have unsaved work from earlier', tap Continue writing.", ko: "프로그램 입력 화면을 다시 열어요. '저장하지 않고 나간 작성 내용이 있어요'가 보이면 이어서 작성을 누르세요." },
+      { t: "term", label: { en: "Wrong team or level", ko: "팀이나 레벨이 잘못됐어요" }, en: "Team: tap the team button under the child's name. Level: open the card, Student info, Edit.", ko: "팀: 이름 아래 팀 버튼을 눌러요. 레벨: 카드를 펼쳐 학생 정보에서 수정을 눌러요." },
+      { t: "term", label: { en: "Switch the language", ko: "언어 바꾸기" }, en: "Tap EN / 한국어 at the top right. It is remembered on this phone only. Parents and children are not affected.", ko: "오른쪽 위의 EN / 한국어를 눌러요. 이 폰에만 기억돼요. 학부모와 아이 화면에는 영향이 없어요." },
+      { t: "term", label: { en: "Opened from KakaoTalk and some things look limited", ko: "카카오톡에서 열었더니 일부가 안 돼요" }, en: "KakaoTalk's built-in browser is limited. Tap Open in browser, or open the address in Chrome or Safari.", ko: "카카오톡 안의 브라우저는 기능이 제한돼요. 브라우저로 열기를 누르거나 크롬이나 사파리에서 주소를 열어 주세요." },
+    ],
+  },
+];
+
+/** The manual page: sections open and close; the language follows the teacher's choice. */
+function TeacherManual({ lang, onClose }) {
+  const L = lang === "ko" ? "ko" : "en";
+  const [open, setOpen] = useState(() => ({ start: true }));
+  const allOpen = MANUAL.every((m) => open[m.id]);
+  const toggleAll = () => setOpen(allOpen ? {} : Object.fromEntries(MANUAL.map((m) => [m.id, true])));
+  let stepNo = 0;
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label={L === "ko" ? "선생님 사용법" : "Teacher guide"}>
+      <div className="max-w-md mx-auto px-5 pt-6 pb-12">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>{L === "ko" ? "선생님 사용법" : "Teacher guide"}</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>{L === "ko" ? "닫기" : "Close"}</button>
+        </div>
+        <p className="f-body text-[15px] text-gray-500 mb-3">{L === "ko" ? "처음 쓰는 선생님도 따라 할 수 있게 정리했어요. 항목을 눌러 펼치세요." : "Everything a new teacher needs. Tap a section to open it."}</p>
+        <button onClick={toggleAll} className="focus-ring tap f-body text-[15px] font-bold mb-3" style={{ color: C.orange }}>
+          {allOpen ? (L === "ko" ? "모두 접기" : "Collapse all") : L === "ko" ? "모두 펼치기" : "Expand all"}
+        </button>
+        <div className="space-y-3">
+          {MANUAL.map((sec) => {
+            const isOpen = !!open[sec.id];
+            stepNo = 0;
+            return (
+              <div key={sec.id} className="bg-white rounded-2xl overflow-hidden">
+                <button onClick={() => setOpen((o) => ({ ...o, [sec.id]: !o[sec.id] }))} aria-expanded={isOpen} className="focus-ring tap w-full flex items-center justify-between gap-3 px-4 py-4 text-left">
+                  <span className="f-display font-semibold text-[19px] leading-snug" style={{ color: C.green }}>{sec.title[L]}</span>
+                  <ChevronRight size={20} color="#C9BFA8" className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 space-y-3">
+                    {sec.items.map((it, i) => {
+                      if (it.t === "step") {
+                        stepNo += 1;
+                        return (
+                          <div key={i} className="flex gap-3 items-start">
+                            <span className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center f-display text-[15px] font-bold text-white" style={{ background: C.orange }}>{stepNo}</span>
+                            <p className="f-body text-[17px] leading-relaxed" style={{ color: C.charcoal }}>{it[L]}</p>
+                          </div>
+                        );
+                      }
+                      if (it.t === "tip") return <p key={i} className="f-body text-[16px] leading-relaxed rounded-xl px-3.5 py-3" style={{ background: "#EAF7EF", color: "#1F5F3A" }}>💡 {it[L]}</p>;
+                      if (it.t === "warn") return <p key={i} className="f-body text-[16px] leading-relaxed rounded-xl px-3.5 py-3" style={{ background: "#FFF1E2", color: "#9A4F0B" }}>⚠️ {it[L]}</p>;
+                      if (it.t === "term") {
+                        return (
+                          <div key={i}>
+                            <p className="f-body text-[17px] font-bold" style={{ color: C.green }}>{it.label[L]}</p>
+                            <p className="f-body text-[16px] leading-relaxed" style={{ color: C.charcoal }}>{it[L]}</p>
+                          </div>
+                        );
+                      }
+                      return <p key={i} className="f-body text-[17px] leading-relaxed" style={{ color: C.charcoal }}>{it[L]}</p>;
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="f-body text-[14px] text-gray-400 text-center mt-6">{L === "ko" ? "궁금한 점이나 이상한 점은 화면 캡처와 함께 알려 주세요." : "If something looks wrong, send a screenshot to the developer."}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function CarrotExplorer() {
   const [booting, setBooting] = useState(true);
+  // teachers can read the app in English or Korean (remembered on this phone); parents and children always see Korean
+  const [teacherLang, setTeacherLangState] = useState(() => {
+    try {
+      return localStorage.getItem("cw-lang-teacher") === "ko" ? "ko" : "en";
+    } catch (e) {
+      return "en";
+    }
+  });
+  const setTeacherLang = (l) => {
+    try {
+      localStorage.setItem("cw-lang-teacher", l);
+    } catch (e) {
+      /* the choice then lasts until the app is closed */
+    }
+    setTeacherLangState(l);
+  };
+  const [showManual, setShowManual] = useState(false);
   const [session, setSession] = useState(null); // { role: 'parent'|'teacher' }
   const [parentScreen, setParentScreen] = useState({ type: "list" }); // list | { type:'report', studentId } | { type:'student-mode', studentId }
   const [studentTab, setStudentTab] = useState("home");
@@ -6596,6 +7232,7 @@ export default function CarrotExplorer() {
     sync(api.deleteProgram(programId));
   };
 
+  setUiLang(session && session.role === "teacher" ? teacherLang : "ko"); // set before any screen below draws its text
   if (booting) {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
@@ -6628,10 +7265,19 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
             <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>Teacher</span>
-            <button onClick={logout} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: "#B9AE99" }}>Switch user</button>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center rounded-full overflow-hidden border" style={{ borderColor: C.beige }} role="group" aria-label="Language">
+                {[["en", "EN"], ["ko", "한국어"]].map(([code, label]) => (
+                  <button key={code} onClick={() => setTeacherLang(code)} aria-pressed={teacherLang === code} className="focus-ring tap f-body text-[13px] font-bold px-2.5 py-1" style={{ background: teacherLang === code ? C.green : "white", color: teacherLang === code ? "white" : "#9C927D" }}>{label}</button>
+                ))}
+              </span>
+              <button onClick={logout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>Switch user</button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto" key={programsVersion}>
+            {showManual && <TeacherManual lang={teacherLang} onClose={() => setShowManual(false)} />}
             <TeacherDashboard
+              onOpenGuide={() => setShowManual(true)}
               adventures={liveAdventures}
               students={students}
               updateAdventure={updateAdventure}

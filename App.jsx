@@ -457,7 +457,55 @@ const EN = {
 "기타": "Other",
 "신청 문의": "Application inquiry",
 "이미 사용 중인 번호예요. 다른 번호를 정해 주세요.": "This number is already in use. Please choose a different number.",
-"너무 쉬운 번호예요 (예: 1111, 1234). 다른 번호를 정해 주세요.": "This number is too easy to guess (e.g. 1111, 1234). Please choose a different number."
+"너무 쉬운 번호예요 (예: 1111, 1234). 다른 번호를 정해 주세요.": "This number is too easy to guess (e.g. 1111, 1234). Please choose a different number.",
+"학부모 학습 조언": "Parent advice",
+"아이의 예습·복습 기록과 선생님 평가로 초안을 만들어요. 학부모에게는 선생님이 확인하고 보내야 전달돼요.": "A draft is made from the child's prep and review records and your feedback. Parents receive it only after you check and send it.",
+"초안 · 보내기 전에 확인해 주세요": "Draft · please check before sending",
+"만든 방식: AI": "Made by: AI",
+"만든 방식: 규칙 기반": "Made by: rules",
+"기록이 많지 않아 일반적인 내용이에요.": "Not much data yet, so this draft is general.",
+"영어 미리보기 (확인용)": "English preview (for checking)",
+"영어는 한국어 글의 참고 번역이에요. 학부모에게는 한국어 글이 전달돼요.": "The English is a reference translation. Parents receive the Korean text.",
+"학부모에게 전달될 글 (한국어)": "Text the parent will receive (Korean)",
+"수정 저장": "Save edit",
+"수정했어요 · 영어 미리보기는 수정 내용과 다를 수 있어요": "Edited · the English preview may no longer match",
+"학부모에게 보내기": "Send to parent",
+"다시 만들기": "Regenerate",
+"초안 지우기": "Discard draft",
+"어떻게 바꿀까요?": "What should change?",
+"단어": "Vocabulary",
+"문장 말하기": "Sentences",
+"듣기": "Listening",
+"자신 있게 말하기": "Speaking",
+"발음": "Pronunciation",
+"더 짧게": "Shorter",
+"더 따뜻하게": "More encouraging",
+"집 활동 더": "One more home activity",
+"만드는 중...": "Drafting...",
+"이 내용으로 다시 만들기": "Generate again",
+"출석한 뒤 예습·복습 기록이나 피드백이 있으면 조언 초안을 만들 수 있어요.": "You can draft advice once the child has attended and has prep, review or feedback data.",
+"조언 초안 만들기": "Draft advice",
+"✓ 학부모에게 보냈어요": "✓ Sent to the parent",
+"학부모에게 보이는 글": "What the parent sees",
+"새 초안 만들기": "Write a new draft",
+"학부모 화면에서 내리기": "Take it off the parent's screen",
+"{0} 학생 보호자에게 보낼까요?": "Send this to {0}'s parent?",
+"보내기": "Send",
+"보내면 학부모 앱에 바로 보여요. 한국어 글을 한 번 더 읽어 주세요.": "The parent will see it in the app right away. Please read the Korean text once more.",
+"초안을 지울까요?": "Discard this draft?",
+"학부모에게는 아무것도 전달되지 않아요.": "Nothing has been sent to the parent.",
+"학부모 화면에서 내릴까요?": "Take it off the parent's screen?",
+"내리기": "Take down",
+"학부모 앱에서 이 조언이 사라져요.": "The advice disappears from the parent app.",
+"학부모 조언": "Parent advice",
+"{0}명 보냄 · {1}명 확인 대기": "{0} sent · {1} to check",
+"{0} / {1} 만드는 중...": "Drafting {0} / {1}...",
+"초안 한꺼번에 만들기 ({0}명)": "Draft for all ({0} children)",
+"초안은 아이 카드를 펼쳐 확인하고 보내요.": "Open each child's card to check a draft and send it.",
+"학부모 조언 초안 {0}개를 확인하고 보내 주세요": "Check and send the advice drafts: {0}",
+"학부모 조언 초안을 만들어 주세요 ({0}명)": "Draft advice for {0} children",
+"학부모 조언 초안 {0}개가 확인을 기다려요": "Advice drafts waiting for your check: {0}",
+"보내기 전에 내용을 확인해 주세요": "Please read them before sending"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -2800,6 +2848,9 @@ function parentNotices(children, adventures) {
           const when = [program.date, program.info.time].filter(Boolean).join(" ");
           list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
         }
+        if (FEATURES.parentAdvice && a.advice?.sent && Date.now() - Date.parse(a.advice.sent.sentAt) < 14 * 86400000) {
+          list.push({ key: `${base}-advice`, icon: "💬", title: "선생님이 학습 조언을 보냈어요", text: base, action: "읽어 보기", kind: "report", childId: child.id });
+        }
         const team = teamOf(program, a);
         if (team && !a.attended) {
           list.push({ key: `${base}-team`, icon: "🧑‍🏫", title: "팀과 담당 선생님이 정해졌어요", text: `${base} · ${teamForParent(team)}`, action: "확인하기", kind: "team", programId: program.id });
@@ -2817,7 +2868,7 @@ function parentNotices(children, adventures) {
         }
       });
   });
-  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "📝": 3, "📋": 4, "✏️": 5, "📚": 6 };
+  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "💬": 3, "📝": 4, "📋": 5, "✏️": 6, "📚": 7 };
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
@@ -3314,6 +3365,9 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                           <p className="f-body text-[15px] font-bold mt-0.5" style={{ color: team ? "#1F7A44" : "#9C927D" }}>
                             {team ? `🧑‍🏫 ${teamForParent(team)}` : "팀과 선생님을 정하고 있어요"}
                           </p>
+                          {FEATURES.parentAdvice && a.advice?.sent && (
+                            <button onClick={() => onViewReport(s.id)} className="focus-ring tap f-body text-[16px] font-bold mt-1" style={{ color: C.orange }}>💬 학습 조언이 도착했어요 · 보기</button>
+                          )}
                         </div>
                       </div>
                     );
@@ -3364,6 +3418,17 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   );
 }
 
+/** The advice a teacher has checked and sent. */
+function ParentAdviceCard({ a, program }) {
+  return (
+    <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
+      <p className="f-body text-[15px] font-bold mb-0.5" style={{ color: "#1F7A44" }}>💬 선생님의 학습 조언</p>
+      <p className="f-body text-[14px] text-gray-500 mb-2">{splitTitle(program.title)[0] || program.title}</p>
+      <p className="f-body text-[17px] leading-relaxed whitespace-pre-line" style={{ color: C.charcoal }}>{a.advice.sent.ko}</p>
+    </div>
+  );
+}
+
 function ParentDashboard({ adventures, studentId, onBack }) {
   const mine = adventures.filter((a) => a.studentId === studentId);
   const withProgram = mine.map((a) => ({ a, program: getProgram(a.programId) }));
@@ -3376,6 +3441,10 @@ function ParentDashboard({ adventures, studentId, onBack }) {
     <div className="pb-6">
       <ScreenHeader title="우리 아이의 체험" subtitle={`${rank.emoji} ${rank.label} · ${count}회 참여`} onBack={onBack} />
       <div className="px-5 space-y-3">
+        {withProgram
+          .filter(({ a, program }) => FEATURES.parentAdvice && program && a.advice?.sent)
+          .sort((x, y) => Date.parse(y.a.advice.sent.sentAt) - Date.parse(x.a.advice.sent.sentAt))
+          .map(({ a, program }) => <ParentAdviceCard key={`advice-${program.id}`} a={a} program={program} />)}
         {completed.map(({ a, program }) => <ParentAdventureReport key={program.id} a={a} program={program} />)}
 
         {inProgress.length > 0 && (
@@ -3405,6 +3474,173 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 /* ================================================================== */
 /*  TEACHER VIEW                                                        */
 /* ================================================================== */
+/** Teacher: draft, read (English and Korean), edit, regenerate and send the advice for one child. */
+function AdviceBox({ student, program, adv, onSave }) {
+  const advice = adv.advice || {};
+  const draft = advice.draft || null;
+  const sent = advice.sent || null;
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [regen, setRegen] = useState(false);
+  const [pick, setPick] = useState({ focus: [], shorter: false, encouraging: false, moreActivities: false });
+  const [confirm, setConfirm] = useState(null); // "send" | "discard" | "withdraw"
+  const ready = adviceReady(adv);
+  const make = async (opts) => {
+    setBusy(true);
+    try {
+      onSave({ ...advice, draft: await draftAdviceFor(student, program, adv, opts) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const small = "focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-2";
+  const toggleFocus = (k) => setPick((p) => ({ ...p, focus: p.focus.includes(k) ? p.focus.filter((x) => x !== k) : [...p.focus, k] }));
+  const chip = (on) => ({ background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` });
+  return (
+    <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
+      <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.green }}>{tr("학부모 학습 조언")}</p>
+      <p className="f-body text-[14px] text-gray-500 mb-3">{tr("아이의 예습·복습 기록과 선생님 평가로 초안을 만들어요. 학부모에게는 선생님이 확인하고 보내야 전달돼요.")}</p>
+
+      {draft ? (
+        <div className="rounded-2xl p-3.5 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="f-body text-[14px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFE9D2", color: "#B25A0B" }}>{tr("초안 · 보내기 전에 확인해 주세요")}</span>
+            <span className="f-body text-[13px] text-gray-400">{draft.source === "ai" ? tr("만든 방식: AI") : tr("만든 방식: 규칙 기반")}</span>
+          </div>
+          {draft.thin && <p className="f-body text-[14px] mb-2" style={{ color: "#B25A0B" }}>{tr("기록이 많지 않아 일반적인 내용이에요.")}</p>}
+
+          <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("영어 미리보기 (확인용)")}</p>
+          <p className="f-body text-[15px] whitespace-pre-line mb-1 p-3 rounded-xl" style={{ background: "white", color: C.charcoal }}>{draft.en}</p>
+          <p className="f-body text-[13px] text-gray-400 mb-3">{tr("영어는 한국어 글의 참고 번역이에요. 학부모에게는 한국어 글이 전달돼요.")}</p>
+
+          <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("학부모에게 전달될 글 (한국어)")}</p>
+          {editing ? (
+            <>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={12} aria-label="Advice text (Korean)" data-keep="1" className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none mb-2" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+              <div className="flex gap-2 mb-1">
+                <button onClick={() => setEditing(false)} className={`${small} flex-1`} style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
+                <button onClick={() => { onSave({ ...advice, draft: { ...draft, ko: text.trim(), edited: true } }); setEditing(false); }} disabled={text.trim().length < 20} className={`${small} flex-[2] text-white disabled:opacity-50`} style={{ background: C.orange }}>{tr("수정 저장")}</button>
+              </div>
+            </>
+          ) : (
+            <p data-keep="1" className="f-body text-[16px] whitespace-pre-line p-3 rounded-xl mb-1" style={{ background: "white", color: C.charcoal }}>{draft.ko}</p>
+          )}
+          {draft.edited && !editing && <p className="f-body text-[13px] mb-1" style={{ color: "#B25A0B" }}>{tr("수정했어요 · 영어 미리보기는 수정 내용과 다를 수 있어요")}</p>}
+
+          {!editing && (
+            <div className="space-y-2 mt-3">
+              <button onClick={() => setConfirm("send")} className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.orange }}>{tr("학부모에게 보내기")}</button>
+              <div className="flex gap-2">
+                <button onClick={() => { setText(draft.ko); setEditing(true); }} className={`${small} flex-1`} style={{ background: C.beige, color: C.green }}>{tr("수정")}</button>
+                <button onClick={() => setRegen((v) => !v)} aria-expanded={regen} className={`${small} flex-1`} style={{ background: C.beige, color: C.green }}>{tr("다시 만들기")}</button>
+                <button onClick={() => setConfirm("discard")} className={`${small} flex-1`} style={{ background: "white", color: "#C0674A", border: `1px solid ${C.beige}` }}>{tr("초안 지우기")}</button>
+              </div>
+            </div>
+          )}
+
+          {regen && !editing && (
+            <div className="mt-3 rounded-xl p-3" style={{ background: "white", border: `1px solid ${C.beige}` }}>
+              <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.charcoal }}>{tr("어떻게 바꿀까요?")}</p>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {ADVICE_AREAS.map((k) => (
+                  <button key={k} onClick={() => toggleFocus(k)} aria-pressed={pick.focus.includes(k)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={chip(pick.focus.includes(k))}>{tr(AREA_LABEL[k].ko)}</button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {[["shorter", "더 짧게"], ["encouraging", "더 따뜻하게"], ["moreActivities", "집 활동 더"]].map(([k, label]) => (
+                  <button key={k} onClick={() => setPick((p) => ({ ...p, [k]: !p[k] }))} aria-pressed={pick[k]} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={chip(pick[k])}>{tr(label)}</button>
+                ))}
+              </div>
+              <button onClick={async () => { await make({ ...pick, variant: (draft.variant || 0) + 1 }); setRegen(false); }} disabled={busy} className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-2.5 text-white disabled:opacity-60" style={{ background: C.green }}>{busy ? tr("만드는 중...") : tr("이 내용으로 다시 만들기")}</button>
+            </div>
+          )}
+        </div>
+      ) : !ready ? (
+        <p className="f-body text-[14px] text-gray-400 mb-3">{tr("출석한 뒤 예습·복습 기록이나 피드백이 있으면 조언 초안을 만들 수 있어요.")}</p>
+      ) : (
+        <button onClick={() => make({})} disabled={busy} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-3 mb-3 text-white disabled:opacity-60" style={{ background: C.green }}>{busy ? tr("만드는 중...") : tr("조언 초안 만들기")}</button>
+      )}
+
+      {sent && (
+        <div className="rounded-2xl p-3.5" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
+          <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>{tr("✓ 학부모에게 보냈어요")} · {timeAgoKo(sent.sentAt)}</p>
+          <p className="f-body text-[13px] text-gray-500 mb-1">{tr("학부모에게 보이는 글")}</p>
+          <p data-keep="1" className="f-body text-[15px] whitespace-pre-line p-3 rounded-xl mb-2" style={{ background: "white", color: C.charcoal }}>{sent.ko}</p>
+          <div className="flex gap-2">
+            {!draft && ready && <button onClick={() => make({})} disabled={busy} className={`${small} flex-1`} style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}>{busy ? tr("만드는 중...") : tr("새 초안 만들기")}</button>}
+            <button onClick={() => setConfirm("withdraw")} className={`${small} flex-1`} style={{ background: "white", color: "#C0674A", border: `1px solid ${C.beige}` }}>{tr("학부모 화면에서 내리기")}</button>
+          </div>
+        </div>
+      )}
+
+      {confirm === "send" && (
+        <ConfirmDialog
+          title={tr("{0} 학생 보호자에게 보낼까요?", [student.name])}
+          actions={[
+            { label: tr("보내기"), tone: "primary", onClick: () => { onSave({ draft: null, sent: { ko: draft.ko, en: draft.en, source: draft.source, edited: !!draft.edited, sentAt: new Date().toISOString() } }); setConfirm(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >
+          {tr("보내면 학부모 앱에 바로 보여요. 한국어 글을 한 번 더 읽어 주세요.")}
+        </ConfirmDialog>
+      )}
+      {confirm === "discard" && (
+        <ConfirmDialog
+          title={tr("초안을 지울까요?")}
+          actions={[
+            { label: tr("초안 지우기"), tone: "danger", onClick: () => { onSave({ ...advice, draft: null }); setConfirm(null); setRegen(false); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >
+          {tr("학부모에게는 아무것도 전달되지 않아요.")}
+        </ConfirmDialog>
+      )}
+      {confirm === "withdraw" && (
+        <ConfirmDialog
+          title={tr("학부모 화면에서 내릴까요?")}
+          actions={[
+            { label: tr("내리기"), tone: "danger", onClick: () => { onSave({ ...advice, sent: null }); setConfirm(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >
+          {tr("학부모 앱에서 이 조언이 사라져요.")}
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+/** Program card strip: how many are sent / waiting for a check, and "draft for everyone". */
+function AdviceStrip({ program, roster, onSave }) {
+  const [progress, setProgress] = useState(null);
+  const attended = roster.filter((r) => r.adv.attended);
+  if (attended.length === 0) return null;
+  const sentN = attended.filter((r) => r.adv.advice?.sent).length;
+  const draftN = attended.filter((r) => r.adv.advice?.draft).length;
+  const todo = attended.filter((r) => adviceReady(r.adv) && !r.adv.advice?.draft && !r.adv.advice?.sent);
+  const run = async () => {
+    for (let i = 0; i < todo.length; i++) {
+      setProgress([i + 1, todo.length]);
+      const { student, adv } = todo[i];
+      onSave(student.id, { ...(adv.advice || {}), draft: await draftAdviceFor(student, program, adv, {}) });
+    }
+    setProgress(null);
+  };
+  return (
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }}>
+      <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("학부모 조언")}</p>
+      <p className="f-body text-[14px]" style={{ color: draftN > 0 ? "#B25A0B" : C.charcoal }}>{tr("{0}명 보냄 · {1}명 확인 대기", [sentN, draftN])}</p>
+      {todo.length > 0 && (
+        <button onClick={run} disabled={!!progress} className="focus-ring tap mt-2 f-body text-[15px] font-bold rounded-full px-4 py-2 text-white disabled:opacity-60" style={{ background: C.green }}>
+          {progress ? tr("{0} / {1} 만드는 중...", progress) : tr("초안 한꺼번에 만들기 ({0}명)", [todo.length])}
+        </button>
+      )}
+      {draftN > 0 && <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("초안은 아이 카드를 펼쳐 확인하고 보내요.")}</p>}
+    </div>
+  );
+}
+
 function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssignTeam, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -3721,6 +3957,8 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
               </div>
             )}
           </div>
+
+          {FEATURES.parentAdvice && <AdviceBox student={student} program={program} adv={adv} onSave={(advice) => onUpdate({ advice })} />}
 
           {onCancelEnrollment && (
             <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
@@ -4932,6 +5170,7 @@ const ADVENTURE_CHECKS = [
   ["attendedAt", "출석 시각"],
   ["afterCompletedAt", "복습 완료 시각"],
   ["teamId", "팀 배정"],
+  ["advice", "학부모 조언"],
 ];
 /** Compares what the screen holds with what the server returns right now. */
 function compareWithServer(local, fresh) {
@@ -5510,6 +5749,215 @@ const teamLabel = (t) => `${t.level} · ${t.teacher}`;
 const teamForParent = (t) => `${t.level} 팀 · ${teachersCall(t.teacher)}`;
 const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf(p).map((t) => t.teacher)).filter(Boolean))];
 
+/* ================================================================== */
+/*  PARENT ADVICE                                                      */
+/*  A short, kind learning tip for parents, drafted from the child's    */
+/*  prep, review and the teacher's feedback. Staff read it (in English  */
+/*  and Korean) and only then send it. Nothing reaches a parent unseen. */
+/* ================================================================== */
+const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
+const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
+const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
+const AREA_LABEL = {
+  vocabulary: { ko: "단어", en: "Vocabulary" },
+  sentence: { ko: "문장 말하기", en: "Sentences" },
+  listening: { ko: "듣기", en: "Listening" },
+  fluency: { ko: "자신 있게 말하기", en: "Speaking" },
+  pronunciation: { ko: "발음", en: "Pronunciation" },
+};
+const STRENGTH_BY_AREA = {
+  vocabulary: { ko: "새로 배운 단어를 잘 기억하고 있어요.", en: "Remembers new words well." },
+  sentence: { ko: "단어를 이어 문장으로 말하려는 힘이 좋아요.", en: "Is good at putting words together into sentences." },
+  listening: { ko: "영어를 듣고 이해하는 힘이 좋아요.", en: "Understands spoken English well." },
+  fluency: { ko: "막힘 없이 말해 보려는 모습이 보여요.", en: "Tries to speak without long pauses." },
+  pronunciation: { ko: "소리를 또렷하게 내려고 노력해요.", en: "Works hard to pronounce clearly." },
+};
+const FOCUS_BY_AREA = {
+  vocabulary: { ko: "배운 단어를 자주 만나며 오래 기억하기", en: "Meeting the new words often so they stay in memory" },
+  sentence: { ko: "단어를 두세 개 이어서 짧은 문장으로 말해 보기", en: "Putting two or three words together into short sentences" },
+  listening: { ko: "영어 소리를 더 자주, 편하게 들어 보기", en: "Hearing English more often in a relaxed way" },
+  fluency: { ko: "틀려도 괜찮다는 마음으로 말하는 횟수 늘리기", en: "Speaking more often, with mistakes welcome" },
+  pronunciation: { ko: "소리를 따라 말하며 귀와 입 익히기", en: "Repeating after a model to train ear and mouth" },
+  review: { ko: "체험에서 배운 내용을 한 번 더 떠올려 보기", en: "Recalling what was learned on the trip once more" },
+};
+// home activities: short, free, no equipment, 5-10 minutes. {words} is filled with the child's least-practised words.
+const ACTIVITIES = {
+  vocabulary: [
+    { ko: "오늘 배운 단어({words})를 하루 5분, 그림을 보며 소리 내어 따라 말해요.", en: "Spend 5 minutes a day saying today's words ({words}) aloud while looking at their pictures." },
+    { ko: "단어마다 그림 카드를 만들어 냉장고에 붙여 두고, 지나갈 때마다 하나씩 말해요.", en: "Make a picture card for each word, stick them on the fridge and say one each time you pass." },
+    { ko: "숨은 물건 찾기 놀이: \"Where is the ___?\"라고 묻고 집 안에서 찾아요.", en: "Play a hide-and-find game: ask \"Where is the ___?\" and look for it around the house." },
+  ],
+  sentence: [
+    { low: { ko: "\"I see a ___.\"에 단어를 바꿔 넣으며 하루 세 문장을 말해요.", en: "Say three sentences a day with \"I see a ___.\", changing the word each time." }, mid: { ko: "\"I like ___ because ___.\"처럼 이유를 붙여 하루 두 문장을 말해요.", en: "Say two sentences a day that give a reason, like \"I like ___ because ___.\"" }, high: { ko: "하루 한 가지 의견을 \"I think ... because ...\"로 말해 봐요.", en: "Share one opinion a day with \"I think ... because ...\"." } },
+    { low: { ko: "가족에게 \"I want a ___.\"로 필요한 것을 영어로 말해 봐요.", en: "Ask family for what you need in English with \"I want a ___.\"" }, mid: { ko: "그림책 한 장을 보고 보이는 것을 세 문장으로 말해요.", en: "Look at one picture-book page and describe it in three sentences." }, high: { ko: "오늘 있었던 일을 세 문장으로 이어서 말해 봐요.", en: "Tell three connected sentences about something that happened today." } },
+  ],
+  listening: [
+    { ko: "하루 10분, 아이가 좋아하는 영어 영상을 함께 보세요. 처음엔 자막 없이 한 번, 다음엔 자막과 함께 보고 들린 단어를 하나씩 말해 봐요.", en: "Watch an English video your child likes together for 10 minutes: once without subtitles, once with, then each say one word you heard." },
+    { ko: "식사 시간이나 차 안에서 짧은 영어 노래나 이야기를 틀어 두고, 알아들은 단어를 서로 말해 봐요.", en: "Play a short English song or story at mealtime or in the car, and tell each other the words you caught." },
+  ],
+  fluency: [
+    { ko: "1분 말하기: 오늘 한 일을 영어 단어나 짧은 문장으로 말해요. 고쳐 주기보다 먼저 칭찬해 주세요.", en: "One-minute talk: tell what you did today in English words or short sentences. Praise first instead of correcting." },
+    { ko: "저녁에 하루 한 번 \"영어로 한 마디\" 시간을 정해, 가족 모두 영어로 한 문장씩 말해요.", en: "Set a daily \"one English sentence\" moment each evening, where everyone says one sentence in English." },
+  ],
+  pronunciation: [
+    { ko: "따라 말하기 5분: 짧은 문장을 듣고 바로 따라 읽어요. 휴대폰으로 녹음해 들어 보면 더 좋아요.", en: "Five minutes of repeat-after-me: listen to a short sentence and say it right back. Recording it on a phone helps." },
+    { ko: "좋아하는 단어 세 개를 골라 입 모양을 거울로 보며 천천히 말해요.", en: "Pick three favourite words and say them slowly while watching your mouth in a mirror." },
+  ],
+  review: [
+    { ko: "아이가 선생님이 되어 오늘 배운 단어 세 개를 가족에게 설명해 주는 시간을 가져요.", en: "Let your child be the teacher and explain three words they learned to the family." },
+    { ko: "체험 사진이나 기억을 떠올리며 \"What did you see?\"라고 물어봐 주세요.", en: "Look back at the trip together and ask \"What did you see?\"" },
+  ],
+  speaking: [
+    { ko: "하루에 한 번, 부담 없이 영어 한 문장 말하기 (예: \"Good morning!\", \"I'm hungry.\").", en: "Once a day, say one English sentence with no pressure (e.g. \"Good morning!\", \"I'm hungry.\")." },
+  ],
+  generic: [
+    { ko: "아이가 좋아하는 주제의 짧은 영어 그림책이나 영상을 하루 10분 함께 보세요.", en: "Share a short English picture book or video on a topic your child loves for 10 minutes a day." },
+  ],
+};
+const levelBand = (level) => (level === "A2" ? "mid" : level === "B1" ? "high" : "low");
+const adviceReady = (adv) => !!(adv && adv.attended && (adv.feedback || adv.reviewScore || adv.insights));
+
+/** What the draft is based on. No name, no login number, no phone: safe to describe the child to an outside service. */
+function adviceContext(student, program, adv) {
+  const words = program.vocabulary || [];
+  const checks = adv.insights?.wordChecks || {};
+  const counted = words.map((w) => ({ en: w.en, n: checks[w.id] || 0 }));
+  const full = counted.filter((w) => w.n >= WORD_PRACTICE_GOAL).length;
+  const leastPracticed = adv.insights ? counted.filter((w) => w.n < WORD_PRACTICE_GOAL).sort((a, b) => a.n - b.n).slice(0, 3).map((w) => w.en) : [];
+  const rs = reviewScoreOf(adv);
+  const results = adv.insights?.reviewResults || {};
+  const missed = (program.remember || []).filter((q) => results[q.id] && results[q.id].correct === false).map((q) => q.prompt).slice(0, 3);
+  const missions = adv.missionsCompleted || [];
+  const fb = adv.feedback || {};
+  const notes = [fb.overview, fb.guideNotes, adv.teacherNote].filter((t) => t && String(t).trim()).map((t) => String(t).trim()).join(" / ").slice(0, 500);
+  return {
+    level: student.level,
+    cefr: fb.cefrLevel || "",
+    program: splitTitle(program.title)[0] || program.title,
+    words: { total: words.length, full, leastPracticed, practiced: !!adv.insights },
+    review: rs ? { percent: rs.percent, correct: rs.correct, total: rs.total, missed } : null,
+    missions: { done: missions.filter((m) => m.done).length, total: missions.length },
+    bigQuestion: adv.bigQuestionAnswer || adv.insights?.bigQuestion?.answer || "",
+    language: Object.fromEntries(ADVICE_AREAS.filter((k) => Number(fb.language?.[k]) > 0).map((k) => [k, Number(fb.language[k])])),
+    personality: { ...(fb.personality || {}) },
+    strengths: [...(adv.teacherTags || [])],
+    teacherNotes: notes,
+  };
+}
+
+/** Rule-based draft: always available, free, and easy to predict. Returns { ko, en, thin }. */
+function makeAdviceRules(ctx, name, options = {}) {
+  const variant = options.variant || 0;
+  const band = levelBand(ctx.level);
+  const maxS = options.shorter ? 1 : options.encouraging ? 4 : 3;
+  const maxF = options.shorter ? 1 : 2;
+  const maxA = options.shorter ? 1 : options.moreActivities ? 3 : 2;
+
+  const S = [];
+  (ctx.strengths || []).slice(0, 2).forEach((tag) => S.push({ ko: `${TAG_KO[tag] || tag}: 선생님이 현장에서 직접 본 모습이에요.`, en: `${tag}: seen by the teacher on the trip.` }));
+  const rated = Object.entries(ctx.language || {});
+  const top = rated.filter(([, v]) => v >= 4).sort((a, b) => b[1] - a[1])[0];
+  if (top) S.push(STRENGTH_BY_AREA[top[0]]);
+  if (ctx.review && ctx.review.percent >= 80) S.push({ ko: `체험 후 복습 퀴즈에서 ${ctx.review.percent}%를 맞혔어요.`, en: `Scored ${ctx.review.percent}% on the review quiz after the trip.` });
+  if (ctx.words.total > 0 && ctx.words.practiced && ctx.words.full / ctx.words.total >= 0.75) S.push({ ko: `예습 단어 ${ctx.words.full}개를 꾸준히 연습했어요.`, en: `Practised ${ctx.words.full} prep words steadily.` });
+  if (ctx.missions.total > 0 && ctx.missions.done === ctx.missions.total) S.push({ ko: "현장 미션을 모두 해냈어요.", en: "Completed every on-site mission." });
+  if (["High", "Good"].includes(ctx.personality?.speaking)) S.push({ ko: "영어로 말하는 데 자신감이 보여요.", en: "Shows confidence in speaking English." });
+
+  // growth areas: the ones the teacher asked for first, then the lowest ratings, then what the quiz and prep show
+  const F = [];
+  const addFocus = (area) => { if (area && !F.includes(area)) F.push(area); };
+  (options.focus || []).forEach(addFocus);
+  rated.filter(([, v]) => v <= 3).sort((a, b) => a[1] - b[1]).forEach(([k]) => addFocus(k));
+  if (["Low", "Medium Low"].includes(ctx.personality?.speaking)) addFocus("fluency");
+  if (ctx.review && (ctx.review.percent < 60 || (ctx.review.missed || []).length >= 2)) addFocus("review");
+  if (ctx.words.total > 0 && ctx.words.practiced && ctx.words.full / ctx.words.total < 0.5) addFocus("vocabulary");
+  const focus = F.slice(0, maxF);
+
+  const pick = (area) => {
+    const bank = ACTIVITIES[area] || ACTIVITIES.generic;
+    const item = bank[variant % bank.length];
+    const chosen = item.low ? item[band] : item;
+    if (chosen.ko.includes("{words}")) {
+      const w = ctx.words.leastPracticed.join(", ");
+      return w
+        ? { ko: chosen.ko.replace("{words}", w), en: chosen.en.replace("{words}", w) }
+        : { ko: "앱의 예습 카드를 열어 단어를 눌러 듣고 따라 말해요.", en: "Open the app's prep cards, tap each word to listen and repeat." };
+    }
+    return chosen;
+  };
+  const A = [];
+  const seen = new Set();
+  const addAct = (area) => { const a = pick(area); if (!seen.has(a.ko) && A.length < maxA) { seen.add(a.ko); A.push(a); } };
+  focus.forEach(addAct);
+  if (A.length < maxA) addAct("review");
+  if (A.length < maxA) addAct(ctx.language?.fluency ? "fluency" : "speaking");
+  if (A.length < maxA) addAct("generic");
+
+  const thin = S.length === 0 && focus.length === 0;
+  const strengths = S.slice(0, maxS);
+  const bullet = (arr, lang) => arr.map((x) => `• ${x[lang]}`).join("\n");
+  const prog = ctx.program;
+  const koParts = [
+    `안녕하세요, ${name} 학생 보호자님.\n${prog} 체험과 예습·복습 기록을 바탕으로, 집에서 부담 없이 해 보실 수 있는 영어 학습 팁을 정리했어요.`,
+  ];
+  const enParts = [`Hello, parent of ${name}.\nBased on the ${prog} trip and the prep and review records, here are a few easy tips to try at home.`];
+  if (thin) {
+    koParts.push("이번에는 확인할 수 있는 기록이 많지 않아서, 가볍게 시작할 수 있는 팁 위주로 드려요.");
+    enParts.push("There was not much data this time, so these tips are general and easy to start with.");
+  }
+  if (strengths.length) {
+    koParts.push(`👍 잘하고 있어요\n${bullet(strengths, "ko")}`);
+    enParts.push(`👍 Doing well\n${bullet(strengths, "en")}`);
+  }
+  if (focus.length) {
+    const fk = focus.map((a) => FOCUS_BY_AREA[a]);
+    koParts.push(`🌱 조금 더 키워 볼 부분\n${bullet(fk, "ko")}`);
+    enParts.push(`🌱 To grow a little more\n${bullet(fk, "en")}`);
+  }
+  koParts.push(`🏠 집에서 해 보세요\n${bullet(A, "ko")}`);
+  enParts.push(`🏠 Try at home\n${bullet(A, "en")}`);
+  koParts.push(options.encouraging ? "아이는 자기 속도로 잘 자라고 있어요. 틀려도 먼저 칭찬해 주시면 영어가 더 즐거워져요. 궁금한 점은 언제든 카카오톡으로 문의해 주세요." : "아이의 속도를 믿고, 틀려도 먼저 칭찬해 주세요. 궁금한 점은 언제든 카카오톡으로 문의해 주세요.");
+  enParts.push(options.encouraging ? "Your child is growing at their own pace. Praising first, even when there are mistakes, makes English more fun. Message us on KakaoTalk any time." : "Trust your child's pace and praise first, even when there are mistakes. Message us on KakaoTalk any time.");
+  return { ko: koParts.join("\n\n"), en: enParts.join("\n\n"), thin };
+}
+
+/** Takes names, numbers and the like out of free text before it leaves the phone. The name becomes the token {name}. */
+const scrubForAi = (text, name) => {
+  let s = String(text || "");
+  if (name && name.trim()) s = s.split(name.trim()).join("{name}");
+  return s.replace(/\+?\d[\d\s-]{6,}\d/g, "[number]").replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]");
+};
+const putNameBack = (text, name) => String(text).split("{name}").join(name);
+
+/** Draft from the server function when it is switched on and answers properly; otherwise the rules draft. */
+async function requestAdvice(ctx, name, options = {}) {
+  const rules = () => ({ ...makeAdviceRules(ctx, name, options), source: "rules" });
+  if (!adviceConfig.ai) return rules();
+  let timer = null;
+  try {
+    const safe = { ...ctx, teacherNotes: scrubForAi(ctx.teacherNotes, name), bigQuestion: scrubForAi(ctx.bigQuestion, name) };
+    const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (ctl) timer = setTimeout(() => ctl.abort(), adviceConfig.timeoutMs);
+    const res = await fetch(adviceConfig.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: safe, options }), signal: ctl ? ctl.signal : undefined });
+    if (!res.ok) return rules();
+    const data = await res.json();
+    if (data && typeof data.ko === "string" && typeof data.en === "string" && data.ko.trim().length > 20 && data.en.trim().length > 20) {
+      return { ko: putNameBack(data.ko, name), en: putNameBack(data.en, name), thin: false, source: "ai" };
+    }
+    return rules();
+  } catch (e) {
+    return rules();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** One finished draft for a child (used by the single button and by "draft for all"). */
+async function draftAdviceFor(student, program, adv, opts = {}) {
+  const res = await requestAdvice(adviceContext(student, program, adv), student.name, opts);
+  return { ko: res.ko, en: res.en, source: res.source, thin: !!res.thin, variant: opts.variant || 0, draftedAt: new Date().toISOString(), edited: false };
+}
+
 /** Where a program stands, worked out from existing data (nothing extra is stored). */
 function programStatus(program, adventures) {
   const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
@@ -5523,7 +5971,13 @@ function programStatus(program, adventures) {
   const reportsLeft = attended.filter((a) => !a.feedback).length;
   const teams = teamsOf(program);
   const unassigned = teams.length ? mine.filter((a) => !teams.some((t) => t.id === a.teamId)).length : 0;
+  const adviceSent = attended.filter((a) => a.advice?.sent).length;
+  const adviceDrafts = attended.filter((a) => a.advice?.draft).length;
+  const adviceTodo = attended.filter((a) => adviceReady(a) && !a.advice?.draft && !a.advice?.sent).length;
   return {
+    adviceSent,
+    adviceDrafts,
+    adviceTodo,
     stage, // before | live | done
     teamCount: teams.length,
     unassigned,
@@ -5603,6 +6057,8 @@ function nextStep(program, st) {
   }
   if (!program.reviewOpen) return { text: tr("복습 퀴즈를 만들고 열어 주세요"), go: "materials" };
   if (st.reportsLeft > 0) return { text: tr("피드백 {0}명 작성이 남았어요", [st.reportsLeft]), go: "manage" };
+  if (FEATURES.parentAdvice && st.adviceDrafts > 0) return { text: tr("학부모 조언 초안 {0}개를 확인하고 보내 주세요", [st.adviceDrafts]), go: "manage" };
+  if (FEATURES.parentAdvice && st.adviceTodo > 0) return { text: tr("학부모 조언 초안을 만들어 주세요 ({0}명)", [st.adviceTodo]), go: "manage" };
   return { text: tr("모두 마무리됐어요 🎉"), go: null, done: true };
 }
 
@@ -5662,6 +6118,11 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
               {cell(tr("복습"), p.reviewOpen ? tr("열림 ✓") : tr("닫힘"), p.reviewOpen ? "ok" : "")}
               {cell(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
             </div>
+            {FEATURES.parentAdvice && st.attended > 0 && (
+              <div className="mt-2">
+                {cell(tr("학부모 조언"), tr("{0}명 보냄 · {1}명 확인 대기", [st.adviceSent, st.adviceDrafts]), st.adviceDrafts > 0 ? "warn" : st.adviceSent > 0 ? "ok" : "")}
+              </div>
+            )}
             {st.teamCount > 0 && (
               <div className="mt-2">
                 {cell(tr("팀 · 선생님"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
@@ -5966,6 +6427,17 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => setTab("approve"),
     });
   }
+  const waitingAdvice = !FEATURES.parentAdvice ? [] : PROGRAMS.map((p) => ({ p, n: adventures.filter((a) => a.programId === p.id && a.advice?.draft).length })).filter((x) => x.n > 0);
+  if (waitingAdvice.length) {
+    const total = waitingAdvice.reduce((sum, x) => sum + x.n, 0);
+    teacherNotices.push({
+      key: "advice-drafts",
+      icon: "💬",
+      title: tr("학부모 조언 초안 {0}개가 확인을 기다려요", [total]),
+      text: tr("보내기 전에 내용을 확인해 주세요"),
+      onClick: () => { setProgramId(waitingAdvice[0].p.id); setTab("manage"); },
+    });
+  }
   if (pendingInquiries.length) {
     teacherNotices.push({
       key: "inquiries",
@@ -6171,6 +6643,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 ))}
               </div>
               <p className="f-body text-[13px] text-gray-400 mt-2">{tr("한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.", [roster.length])}</p>
+              {FEATURES.parentAdvice && <AdviceStrip program={program} roster={roster} onSave={(studentId, advice) => updateAdventure(studentId, programId, { advice })} />}
             </div>
           </div>
 
@@ -6707,6 +7180,20 @@ const MANUAL = [
     ],
   },
   {
+    id: "advice",
+    title: { en: "Parent advice (checked before it is sent)", ko: "학부모 학습 조언 (보내기 전에 확인)" },
+    items: [
+      { t: "p", en: "After a trip the app can draft a short, kind learning tip for each child's parent. It uses the child's prep and review records and your feedback. Nothing reaches a parent until you press Send.", ko: "체험 후 앱이 아이마다 학부모에게 보낼 짧고 따뜻한 학습 조언 초안을 만들어요. 아이의 예습·복습 기록과 선생님 평가를 바탕으로 해요. 보내기를 누르기 전에는 학부모에게 아무것도 전달되지 않아요." },
+      { t: "step", en: "Students tab, pick the program. In the program card tap Draft for all, or open one child's card and tap Draft advice. A draft is possible once the child has attended and has prep, review or feedback data.", ko: "학생관리 탭에서 프로그램을 골라요. 프로그램 카드에서 초안 한꺼번에 만들기를 누르거나, 아이 카드를 펼쳐 조언 초안 만들기를 눌러요. 출석한 뒤 예습·복습 기록이나 피드백이 있으면 만들 수 있어요." },
+      { t: "step", en: "Read the English preview to check the meaning, then the Korean text that the parent will receive.", ko: "영어 미리보기로 내용을 확인하고, 학부모에게 전달될 한국어 글을 읽어요." },
+      { t: "step", en: "If it is good, tap Send to parent and confirm. The parent gets an alert in the app and can read it on their child's card and in the report.", ko: "괜찮으면 학부모에게 보내기를 누르고 확인해요. 학부모 앱에 알림이 뜨고, 아이 카드와 리포트에서 읽을 수 있어요." },
+      { t: "step", en: "If it is not right: Edit changes the Korean text, Regenerate makes a new version (first choose a focus, Shorter, More encouraging or One more home activity), Discard draft throws it away.", ko: "마음에 들지 않으면: 수정은 한국어 글을 직접 고치고, 다시 만들기는 새 버전을 만들어요(먼저 초점, 더 짧게, 더 따뜻하게, 집 활동 더 중에서 고를 수 있어요). 초안 지우기는 초안을 없애요." },
+      { t: "warn", en: "Always read the Korean text. The English is only a reference translation for checking.", ko: "항상 한국어 글을 읽어 보세요. 영어는 확인용 참고 번역일 뿐이에요." },
+      { t: "tip", en: "Drafts are short and kind. If the records and feedback are thin, the draft is general and says so. Drafts waiting for your check show at the top of the screen and in the Overview tab.", ko: "초안은 짧고 따뜻하게 만들어져요. 기록과 피드백이 적으면 일반적인 내용이라고 알려 줘요. 확인을 기다리는 초안은 화면 위쪽과 현황 탭에 보여요." },
+      { t: "p", en: "To take back something already sent, open the child's card and tap Take it off the parent's screen.", ko: "이미 보낸 조언을 거두려면 아이 카드를 펼쳐 학부모 화면에서 내리기를 눌러요." },
+    ],
+  },
+  {
     id: "overview",
     title: { en: "Reading the Overview tab", ko: "현황 탭 보는 법" },
     items: [
@@ -6756,8 +7243,9 @@ const MANUAL = [
 function TeacherManual({ lang, onClose }) {
   const L = lang === "ko" ? "ko" : "en";
   const [open, setOpen] = useState(() => ({ start: true }));
-  const allOpen = MANUAL.every((m) => open[m.id]);
-  const toggleAll = () => setOpen(allOpen ? {} : Object.fromEntries(MANUAL.map((m) => [m.id, true])));
+  const sections = MANUAL.filter((m) => m.id !== "advice" || FEATURES.parentAdvice);
+  const allOpen = sections.every((m) => open[m.id]);
+  const toggleAll = () => setOpen(allOpen ? {} : Object.fromEntries(sections.map((m) => [m.id, true])));
   let stepNo = 0;
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label={L === "ko" ? "선생님 사용법" : "Teacher guide"}>
@@ -6771,7 +7259,7 @@ function TeacherManual({ lang, onClose }) {
           {allOpen ? (L === "ko" ? "모두 접기" : "Collapse all") : L === "ko" ? "모두 펼치기" : "Expand all"}
         </button>
         <div className="space-y-3">
-          {MANUAL.map((sec) => {
+          {sections.map((sec) => {
             const isOpen = !!open[sec.id];
             stepNo = 0;
             return (

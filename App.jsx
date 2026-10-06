@@ -511,7 +511,37 @@ const EN = {
 "{0} 내용 복사해 오기": "Copy from {0}",
 "{0} 내용을 복사해 올까요?": "Copy the {0} materials?",
 "복사해 오기": "Copy",
-"지금 {0} 탭에 적은 내용이 {1}의 내용으로 바뀌어요.": "What you wrote in the {0} tab will be replaced by the {1} materials."
+"지금 {0} 탭에 적은 내용이 {1}의 내용으로 바뀌어요.": "What you wrote in the {0} tab will be replaced by the {1} materials.",
+"시간대": "Time slots",
+"(같은 날 여러 타임이면)": "(if the trip runs several times in one day)",
+"시간대마다 신청한 아이, 팀, 선생님, 안내가 따로 나뉘어요. 한 타임만 있으면 비워 두세요.": "Each time slot has its own children, teams, teachers and notice. Leave this empty if there is only one time.",
+"이름 (예: 오전)": "Name (e.g. Morning)",
+"시간대 이름": "Time slot name",
+"시간대 체험 시간": "Time slot trip time",
+"시간대 삭제": "Delete time slot",
+"시간대 집합 시간": "Time slot meeting time",
+"모이는 곳 (다르면)": "Meeting place (if different)",
+"시간대 모이는 곳": "Time slot meeting place",
+"+ 시간대 추가": "+ Add time slot",
+"집합 시간과 모이는 곳은 비워 두면 아래 체험 전 안내의 값을 써요.": "If the meeting time and place are empty, the pre-trip info below is used.",
+"아래 시간·집합 정보는 모든 시간대의 기본값이에요. 시간대에 따로 적은 값이 있으면 그 값을 써요.": "The time and meeting info below are the defaults for every time slot. A value written for a slot is used instead.",
+"안내를 보낼 시간대": "Time slot to send the notice to",
+"학부모에게 공개 · {0}": "Share with parents · {0}",
+"켜고 저장하면 이 시간대에 신청한 아이의 학부모 앱에만 \"체험 안내가 도착했어요\" 알림이 떠요.": "Turn on and save to send a \"Trip notice has arrived\" alert only to the parent apps of children in this time slot.",
+"{0} {1}명": "{0}: {1} children",
+"미정 {0}명": "Not set: {0}",
+"미정": "Not set",
+"아직": "not yet",
+"{0}의 시간대": "{0}'s time slot",
+"✓ 지금 이 시간대": "✓ Current time slot",
+"눌러서 정해요": "Tap to choose",
+"시간대 없음": "No time slot",
+"시간대에서 빼기": "Remove from time slot",
+"시간대 정하기": "Choose time slot",
+"시간대가 정해지지 않은 아이가 {0}명 있어요": "Children without a time slot: {0}",
+"팀은 시간대를 하나 골라서 만들어요.": "Pick one time slot to make teams.",
+"시간대 배정": "Time slot assignment",
+"{0} 시간대 정하기": "Choose time slot for {0}"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -2996,17 +3026,22 @@ function parentNotices(children, adventures) {
         if (a.feedback) {
           list.push({ key: `${base}-report`, icon: "📝", title: "선생님 리포트가 도착했어요", text: base, action: "리포트 보기", kind: "report", childId: child.id });
         }
-        if (program.info?.published && hasInfo(program.info) && !a.attended && !infoShown.has(program.id)) {
-          infoShown.add(program.id);
-          const when = [program.date, program.info.time].filter(Boolean).join(" ");
-          list.push({ key: `${program.id}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id });
+        // with time slots the notice is the slot's own, and only children of a slot whose notice was shared get it
+        const slots = sessionsOf(program);
+        const slot = sessionOf(program, a);
+        const shown = slots.length ? (slot && slot.published ? infoForSession(infoFrom(program), slot) : null) : program.info?.published ? program.info : null;
+        const infoKey = `${program.id}-${slot ? slot.id : ""}`;
+        if (shown && hasInfo(shown) && !a.attended && !infoShown.has(infoKey)) {
+          infoShown.add(infoKey);
+          const when = [program.date, shown.time].filter(Boolean).join(" ");
+          list.push({ key: `${infoKey}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${slot ? `${slot.label} · ` : ""}${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id, sessionId: slot ? slot.id : null });
         }
         if (FEATURES.parentAdvice && a.advice?.sent && Date.now() - Date.parse(a.advice.sent.sentAt) < 14 * 86400000) {
           list.push({ key: `${base}-advice`, icon: "💬", title: "선생님이 학습 조언을 보냈어요", text: base, action: "읽어 보기", kind: "report", childId: child.id });
         }
         const team = teamOf(program, a);
         if (team && !a.attended) {
-          list.push({ key: `${base}-team`, icon: "🧑‍🏫", title: "팀과 담당 선생님이 정해졌어요", text: `${base} · ${teamForParent(team)}`, action: "확인하기", kind: "team", programId: program.id });
+          list.push({ key: `${base}-team`, icon: "🧑‍🏫", title: "팀과 담당 선생님이 정해졌어요", text: `${base} · ${teamForParent(team)}`, action: "확인하기", kind: "team", programId: program.id, sessionId: a.sessionId || null });
         }
         if (a.attended && !a.parentSurvey) {
           list.push({ key: `${base}-survey`, icon: "📋", title: "체험 후 설문을 남겨 주세요", text: `${base} · 1~2분이면 돼요`, action: "설문하기", kind: "survey", childId: child.id, programId: program.id });
@@ -3508,6 +3543,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
   const [infoId, setInfoId] = useState(null);
+  const [infoSessionId, setInfoSessionId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
   const closeGuide = () => {
     markGuideSeen();
@@ -3540,6 +3576,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
       {infoId && getProgram(infoId) && (
         <ProgramInfoSheet
           program={getProgram(infoId)}
+          sessionId={infoSessionId}
           teamRows={myChildren
             .map((c) => ({ c, a: adventures.find((x) => x.studentId === c.id && x.programId === infoId) }))
             .filter((x) => x.a && teamOf(getProgram(infoId), x.a))
@@ -3559,7 +3596,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
               {notices.map((n) => (
                 <button
                   key={n.key}
-                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" || n.kind === "team" ? setInfoId(n.programId) : onStartAdventure(n.childId))}
+                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" || n.kind === "team" ? (setInfoId(n.programId), setInfoSessionId(n.sessionId || null)) : onStartAdventure(n.childId))}
                   className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
                   style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
                 >
@@ -3621,6 +3658,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                         <div className="min-w-0 py-0.5">
                           <p className="f-headline text-[20px] leading-snug" style={{ color: C.green }}>{splitTitle(prog.title)[0] || prog.title}</p>
                           <p className="f-body text-[14px] text-gray-400">{prog.date}</p>
+                          {sessionsOf(prog).length > 0 && (
+                            <p className="f-body text-[15px] font-bold" style={{ color: sessionOf(prog, a) ? "#B25A0B" : "#9C927D" }}>
+                              {sessionOf(prog, a) ? `🕘 ${sessionName(sessionOf(prog, a))}` : "시간대를 정하고 있어요"}
+                            </p>
+                          )}
                           <p className="f-body text-[15px] font-bold mt-0.5" style={{ color: team ? "#1F7A44" : "#9C927D" }}>
                             {team ? `🧑‍🏫 ${teamForParent(team)}` : "팀과 선생님을 정하고 있어요"}
                           </p>
@@ -3900,13 +3942,14 @@ function AdviceStrip({ program, roster, onSave }) {
   );
 }
 
-function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssignTeam, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
+function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssignTeam, onAssignSession, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [pickTeam, setPickTeam] = useState(false);
+  const [pickSession, setPickSession] = useState(false);
   const [editName, setEditName] = useState(student.name);
   const [editAvatar, setEditAvatar] = useState(student.avatar);
   const [editLevel, setEditLevel] = useState(student.level);
@@ -3964,7 +4007,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
       </div>
 
       <div className="px-4 pb-2.5 -mt-1">
-        {teamsOf(program).length > 0 && (
+        {teamsForAdv(program, adv).length > 0 && (
           onAssignTeam ? (
             <button
               onClick={() => setPickTeam(true)}
@@ -3979,11 +4022,30 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
             </p>
           )
         )}
+        {sessionsOf(program).length > 0 && onAssignSession && (
+          <button
+            onClick={() => setPickSession(true)}
+            className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 mb-1.5 mr-1.5"
+            style={{ background: sessionOf(program, adv) ? "#FFF1E2" : "#FFE9D2", color: "#B25A0B" }}
+          >
+            {sessionOf(program, adv) ? `🕘 ${sessionOf(program, adv).label}` : tr("시간대 정하기")} ▾
+          </button>
+        )}
+        {pickSession && (
+          <SessionPicker
+            student={student}
+            slots={sessionsOf(program)}
+            counts={Object.fromEntries(sessionsOf(program).map((x) => [x.id, adventures.filter((y) => y.programId === program.id && y.sessionId === x.id && !y.canceled).length]))}
+            currentId={sessionOf(program, adv)?.id}
+            onPick={(id) => { onAssignSession(id); setPickSession(false); }}
+            onClose={() => setPickSession(false)}
+          />
+        )}
         {pickTeam && (
           <TeamPicker
             student={student}
-            teams={teamsOf(program)}
-            counts={Object.fromEntries(teamsOf(program).map((t) => [t.id, adventures.filter((x) => x.programId === program.id && x.teamId === t.id && !x.canceled).length]))}
+            teams={teamsForAdv(program, adv)}
+            counts={Object.fromEntries(teamsForAdv(program, adv).map((t) => [t.id, adventures.filter((x) => x.programId === program.id && x.teamId === t.id && !x.canceled).length]))}
             currentId={teamOf(program, adv)?.id}
             onPick={(teamId) => { onAssignTeam(teamId); setPickTeam(false); }}
             onClose={() => setPickTeam(false)}
@@ -5009,8 +5071,8 @@ function feeText(info) {
 const hasInfo = (info) => !!info && [info.time, info.meetingTime, info.meetingPoint, info.venue, info.bring, info.feeType, info.note].some((v) => v && String(v).trim());
 
 /** A ready-to-send KakaoTalk message built from the same fields. */
-function buildInfoMessage(program, info) {
-  const lines = [`[체험 안내] ${program.title}`];
+function buildInfoMessage(program, info, session) {
+  const lines = [`[체험 안내] ${program.title}${session ? ` · ${session.label}` : ""}`];
   const when = [program.date, info.time].filter(Boolean).join(" ");
   if (when) lines.push(`📅 일시: ${when}`);
   if (info.meetingPoint || info.meetingTime) lines.push(`🧭 모이는 곳: ${[info.meetingPoint, info.meetingTime && `${info.meetingTime}까지`].filter(Boolean).join(" · ")}`);
@@ -5026,12 +5088,16 @@ function buildInfoMessage(program, info) {
   return lines.join("\n");
 }
 
-function InfoEditor({ program, value, onChange }) {
+function InfoEditor({ program, value, onChange, sessions = [], onSessionChange }) {
   const [status, setStatus] = useState("");
   const [fallback, setFallback] = useState("");
+  const [selSlot, setSelSlot] = useState(null);
   const set = (p) => onChange({ ...value, ...p });
   const ready = !!program.title.trim();
-  const message = buildInfoMessage(program, value);
+  // with time slots every slot has its own message and its own "share with parents"
+  const slot = sessions.length ? sessions.find((x) => x.id === selSlot) || sessions[0] : null;
+  const shownInfo = infoForSession(value, slot);
+  const message = buildInfoMessage(program, shownInfo, slot);
 
   const copy = async () => {
     try {
@@ -5063,6 +5129,19 @@ function InfoEditor({ program, value, onChange }) {
     <div className="rounded-xl p-3 mb-3 space-y-3" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
       <p className="f-body text-[14px] text-gray-500">{tr("학부모에게 보내는 안내예요. 비워 둔 항목은 보이지 않아요. 아래 \"학부모에게 공개\"를 켜고 저장하면 학부모 앱에 알림이 떠요.")}</p>
 
+      {slot && (
+        <div className="rounded-lg p-2.5" style={{ background: "#FFF1E2" }}>
+          <p className={label} style={{ color: C.charcoal }}>{tr("안내를 보낼 시간대")}</p>
+          <div className="flex gap-2 flex-wrap" role="tablist" aria-label="Notice time slots">
+            {sessions.map((x) => (
+              <button key={x.id} role="tab" aria-selected={slot.id === x.id} onClick={() => { setSelSlot(x.id); setStatus(""); setFallback(""); }} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-1.5" style={{ background: slot.id === x.id ? C.green : "white", color: slot.id === x.id ? "white" : C.charcoal, border: `1px solid ${slot.id === x.id ? C.green : C.beige}` }}>
+                {x.label}{x.published ? " ✓" : ""}
+              </button>
+            ))}
+          </div>
+          <p className="f-body text-[13px] text-gray-600 mt-1.5">{tr("아래 시간·집합 정보는 모든 시간대의 기본값이에요. 시간대에 따로 적은 값이 있으면 그 값을 써요.")}</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <div>
           <p className={label} style={{ color: C.charcoal }}>{tr("⏰ 체험 시간")}</p>
@@ -5123,9 +5202,13 @@ function InfoEditor({ program, value, onChange }) {
         <textarea value={value.note} onChange={(e) => set({ note: e.target.value })} rows={2} aria-label={tr("기타 안내")} className={field} style={fieldStyle} />
       </div>
 
-      <button onClick={() => set({ published: !value.published })} aria-pressed={value.published} className="focus-ring tap flex items-start gap-2 text-left">
-        {value.published ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
-        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("학부모에게 공개")}<span className="block font-normal text-gray-400">{tr("켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 \"체험 안내가 도착했어요\" 알림이 떠요.")}</span>
+      <button
+        onClick={() => (slot ? onSessionChange && onSessionChange(slot.id, { published: !slot.published }) : set({ published: !value.published }))}
+        aria-pressed={slot ? !!slot.published : value.published}
+        className="focus-ring tap flex items-start gap-2 text-left"
+      >
+        {(slot ? slot.published : value.published) ? <CheckCircle2 size={20} color={C.orange} /> : <Circle size={20} color="#D8CEB8" />}
+        <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{slot ? tr("학부모에게 공개 · {0}", [slot.label]) : tr("학부모에게 공개")}<span className="block font-normal text-gray-400">{slot ? tr("켜고 저장하면 이 시간대에 신청한 아이의 학부모 앱에만 \"체험 안내가 도착했어요\" 알림이 떠요.") : tr("켜고 저장하면 이 체험에 등록된 아이의 학부모 앱에 \"체험 안내가 도착했어요\" 알림이 떠요.")}</span>
         </span>
       </button>
 
@@ -5144,8 +5227,9 @@ function InfoEditor({ program, value, onChange }) {
 }
 
 /** What parents see: one clear page, only the rows that were filled in. */
-function ProgramInfoSheet({ program, teamRows = [], onClose }) {
-  const info = infoFrom(program);
+function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
+  const slot = sessionsOf(program).find((x) => x.id === sessionId) || null;
+  const info = infoForSession(infoFrom(program), slot);
   const place = info.venue || program.locationKo || program.location;
   const bring = splitBring(info.bring);
   const fee = feeText(info);
@@ -5164,6 +5248,7 @@ function ProgramInfoSheet({ program, teamRows = [], onClose }) {
           <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
         </div>
         <div className="mb-5"><ProgramHeadline program={program} size={34} /></div>
+        {slot && <p className="f-display text-[20px] font-semibold mb-3 -mt-2" style={{ color: C.orange }}>🕘 {sessionName(slot)}</p>}
         <div className="space-y-2.5">
           {rows.slice(0, 3).map((r) => (
             <InfoRow key={r.label} {...r} />
@@ -5228,20 +5313,21 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [levelSets, setLevelSets] = useState(() => levelSetsFrom(initial)); // one set per level once two or more levels are chosen
   const [activeLevel, setActiveLevel] = useState(null);
+  const [sessions, setSessions] = useState(() => (initial && Array.isArray(initial.sessions) ? initial.sessions.map((x) => ({ ...x })) : [])); // time slots of the same day
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
-  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, levelSets, noticeInfo };
+  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, levelSets, sessions, noticeInfo };
   const snap = stableJson(formState);
   const startSnap = useRef(null);
   if (startSnap.current === null) startSnap.current = snap;
   const dirty = snap !== startSnap.current;
   const [draft, setDraft] = useState(() => {
     const d = draftGet(draftKey);
-    return d && d.state && stableJson({ levelSets: {}, ...d.state }) !== snap ? d : null;
+    return d && d.state && stableJson({ levelSets: {}, sessions: [], ...d.state }) !== snap ? d : null;
   });
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
@@ -5289,7 +5375,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const restoreDraft = () => {
     const d = draft.state;
     setTitle(d.title); setDate(d.date); setLocation(d.location); setLevels(d.levels); setIcons(d.icons); setThemeKo(d.themeKo);
-    setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setNoticeInfo(d.noticeInfo);
+    setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setSessions(d.sessions || []); setNoticeInfo(d.noticeInfo);
     setShowMaterials(true);
     setDraft(null);
   };
@@ -5307,13 +5393,13 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
     const built = multi ? Object.fromEntries(lv.map((l) => [l, buildMaterials({ ...(levelSets[l] || materials), reviewOpen: materials.reviewOpen })])) : null;
     const shared = multi ? built[lv[0]] : buildMaterials(lv.length === 1 && levelSets[lv[0]] ? { ...levelSets[lv[0]], reviewOpen: materials.reviewOpen } : materials);
     const levelMaterials = multi ? Object.fromEntries(lv.map((l) => [l, pickLevelFields(built[l])])) : null;
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
       startSnap.current = null; // the cleared form below becomes the new "nothing typed yet"
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setSessions([]); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
@@ -5420,6 +5506,33 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
 
+      <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }}>
+        <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("시간대")} <span className="font-normal text-gray-400">{tr("(같은 날 여러 타임이면)")}</span></p>
+        <p className="f-body text-[13px] text-gray-500 mb-2">{tr("시간대마다 신청한 아이, 팀, 선생님, 안내가 따로 나뉘어요. 한 타임만 있으면 비워 두세요.")}</p>
+        <div className="space-y-2">
+          {sessions.map((x, i) => {
+            const upd = (p) => setSessions((prev) => prev.map((y, k) => (k === i ? { ...y, ...p } : y)));
+            const small = "focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[16px] outline-none";
+            const st = { background: "white", border: `1px solid ${C.beige}` };
+            return (
+              <div key={x.id || i} className="rounded-xl p-2.5" style={{ background: "white", border: `1px solid ${C.beige}` }}>
+                <div className="flex gap-2 mb-2">
+                  <input value={x.label} onChange={(e) => upd({ label: e.target.value })} placeholder={tr("이름 (예: 오전)")} aria-label={tr("시간대 이름")} className={small} style={{ ...st, flex: 1 }} />
+                  <input value={x.time || ""} onChange={(e) => upd({ time: e.target.value })} placeholder="10:00 ~ 12:00" aria-label={tr("시간대 체험 시간")} className={small} style={{ ...st, flex: 1.3 }} />
+                  <button onClick={() => setSessions((prev) => prev.filter((_, k) => k !== i))} aria-label={tr("시간대 삭제")} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-1" style={{ color: "#C0674A" }}>{tr("삭제")}</button>
+                </div>
+                <div className="flex gap-2">
+                  <input value={x.meetingTime || ""} onChange={(e) => upd({ meetingTime: e.target.value })} placeholder={tr("집합 시간")} aria-label={tr("시간대 집합 시간")} className={small} style={{ ...st, flex: 1 }} />
+                  <input value={x.meetingPoint || ""} onChange={(e) => upd({ meetingPoint: e.target.value })} placeholder={tr("모이는 곳 (다르면)")} aria-label={tr("시간대 모이는 곳")} className={small} style={{ ...st, flex: 1.3 }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => setSessions((prev) => [...prev, { id: newId("s"), label: "", time: "", meetingTime: "", meetingPoint: "", published: false }])} className="focus-ring tap mt-2 f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("+ 시간대 추가")}</button>
+        {sessions.length > 0 && <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("집합 시간과 모이는 곳은 비워 두면 아래 체험 전 안내의 값을 써요.")}</p>}
+      </div>
+
       <button
         onClick={() => setShowInfo((v) => !v)}
         aria-expanded={showInfo}
@@ -5432,7 +5545,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         </span>
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
-      {showInfo && <InfoEditor program={{ title, date, location, locationKo: location, focus: materials.focus, levelMaterials: tabbed ? Object.fromEntries(sortedLv.map((l) => [l, { focus: (levelSets[l] || materials).focus || [] }])) : null }} value={noticeInfo} onChange={setNoticeInfo} />}
+      {showInfo && <InfoEditor sessions={sessions.filter((x) => x.label.trim())} onSessionChange={(id, p) => setSessions((prev) => prev.map((y) => (y.id === id ? { ...y, ...p } : y)))} program={{ title, date, location, locationKo: location, focus: materials.focus, levelMaterials: tabbed ? Object.fromEntries(sortedLv.map((l) => [l, { focus: (levelSets[l] || materials).focus || [] }])) : null }} value={noticeInfo} onChange={setNoticeInfo} />}
 
       <button
         onClick={() => setShowMaterials((v) => !v)}
@@ -5517,6 +5630,7 @@ const PROGRAM_CHECKS = [
   ["reviewOpen", "복습 열기"],
   ["info", "체험 전 안내"],
   ["teams", "팀 구성"],
+  ["sessions", "시간대"],
 ];
 const ADVENTURE_CHECKS = [
   ["insights", "단어 연습·답 기록"],
@@ -5527,6 +5641,7 @@ const ADVENTURE_CHECKS = [
   ["attendedAt", "출석 시각"],
   ["afterCompletedAt", "복습 완료 시각"],
   ["teamId", "팀 배정"],
+  ["sessionId", "시간대 배정"],
   ["advice", "학부모 조언"],
 ];
 /** Compares what the screen holds with what the server returns right now. */
@@ -6321,6 +6436,23 @@ async function draftAdviceFor(student, program, adv, opts = {}) {
   return { ko: res.ko, en: res.en, source: res.source, thin: !!res.thin, variant: opts.variant || 0, draftedAt: new Date().toISOString(), edited: false };
 }
 
+/* ================================================================== */
+/*  TIME SLOTS: one trip, several times in the same day                 */
+/*  `program.sessions` = [{ id, label, time, meetingTime, meetingPoint,  */
+/*  published, publishedAt }]. A child's slot is `sessionId` on their    */
+/*  record; teams belong to a slot (`team.sessionId`).                   */
+/* ================================================================== */
+const sessionsOf = (program) => (program && Array.isArray(program.sessions) ? program.sessions : []);
+const sessionOf = (program, adv) => sessionsOf(program).find((x) => x.id === adv?.sessionId) || null;
+const sessionName = (x) => [x.label, x.time].filter(Boolean).join(" ");
+/** The notice a child of this slot reads: the slot's own times and meeting place where it has them. */
+const infoForSession = (info, session) =>
+  session
+    ? { ...info, time: session.time || info.time, meetingTime: session.meetingTime || info.meetingTime, meetingPoint: session.meetingPoint || info.meetingPoint, published: !!session.published, publishedAt: session.publishedAt }
+    : info;
+/** The teams a child can be in: only those of their own slot (teams made before slots existed are open to every slot). */
+const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(program).filter((t) => !t.sessionId || t.sessionId === adv?.sessionId) : teamsOf(program));
+
 /** Where a program stands, worked out from existing data (nothing extra is stored). */
 function programStatus(program, adventures) {
   const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
@@ -6330,14 +6462,20 @@ function programStatus(program, adventures) {
   else if (program.dateReached) stage = "live";
   else if (attended.length > 0) stage = "done";
   else stage = "before";
-  const infoSent = !!program.info?.published;
+  const slots = sessionsOf(program);
+  const sessionInfo = slots.map((x) => ({ id: x.id, label: x.label, count: mine.filter((a) => a.sessionId === x.id).length, published: !!x.published }));
+  const sessionUnset = slots.length ? mine.filter((a) => !sessionOf(program, a)).length : 0;
+  const withKids = sessionInfo.filter((x) => x.count > 0);
+  const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : !!program.info?.published;
   const reportsLeft = attended.filter((a) => !a.feedback).length;
   const teams = teamsOf(program);
-  const unassigned = teams.length ? mine.filter((a) => !teams.some((t) => t.id === a.teamId)).length : 0;
+  const unassigned = teams.length ? mine.filter((a) => !teamsForAdv(program, a).some((t) => t.id === a.teamId)).length : 0;
   const adviceSent = attended.filter((a) => a.advice?.sent).length;
   const adviceDrafts = attended.filter((a) => a.advice?.draft).length;
   const adviceTodo = attended.filter((a) => adviceReady(a) && !a.advice?.draft && !a.advice?.sent).length;
   return {
+    sessionInfo,
+    sessionUnset,
     adviceSent,
     adviceDrafts,
     adviceTodo,
@@ -6409,6 +6547,7 @@ function recentActivity(programs, adventures, students, limit = 8) {
 /** The single most useful next step for a program, plus where to go to do it. */
 function nextStep(program, st) {
   if (st.stage === "before") {
+    if (st.sessionUnset > 0 && st.enrolled > 0) return { text: tr("시간대가 정해지지 않은 아이가 {0}명 있어요", [st.sessionUnset]), go: "manage" };
     if (st.infoLate) return { text: tr("체험 전 안내를 보내야 해요"), go: "info" };
     if (st.enrolled === 0) return { text: tr("신청한 아이가 아직 없어요"), go: "manage" };
     if (st.unassigned > 0) return { text: tr("팀이 정해지지 않은 아이가 {0}명 있어요", [st.unassigned]), go: "manage" };
@@ -6476,7 +6615,13 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
               <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              {cell(tr("체험 전 안내"), st.infoSent ? tr("보냄 ✓") : st.stage === "done" ? "—" : tr("아직 안 보냄"), st.infoSent ? "ok" : st.stage === "done" ? "" : "warn")}
+              {cell(
+                tr("체험 전 안내"),
+                st.sessionInfo.length
+                  ? st.sessionInfo.filter((x) => x.count > 0).map((x) => `${x.label} ${x.published ? "✓" : tr("아직")}`).join(" · ") || "—"
+                  : st.infoSent ? tr("보냄 ✓") : st.stage === "done" ? "—" : tr("아직 안 보냄"),
+                st.infoSent ? "ok" : st.stage === "done" ? "" : "warn"
+              )}
               {cell(tr("신청 · 출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
               {cell(tr("복습"), p.reviewOpen ? tr("열림 ✓") : tr("닫힘"), p.reviewOpen ? "ok" : "")}
               {cell(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
@@ -6484,6 +6629,11 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
             {FEATURES.parentAdvice && st.attended > 0 && (
               <div className="mt-2">
                 {cell(tr("학부모 조언"), tr("{0}명 보냄 · {1}명 확인 대기", [st.adviceSent, st.adviceDrafts]), st.adviceDrafts > 0 ? "warn" : st.adviceSent > 0 ? "ok" : "")}
+              </div>
+            )}
+            {st.sessionInfo.length > 0 && (
+              <div className="mt-2">
+                {cell(tr("시간대"), st.sessionInfo.map((x) => tr("{0} {1}명", [x.label, x.count])).join(" · ") + (st.sessionUnset > 0 ? ` · ${tr("미정 {0}명", [st.sessionUnset])}` : ""), st.sessionUnset > 0 ? "warn" : "")}
               </div>
             )}
             {st.teamCount > 0 && (
@@ -6523,6 +6673,39 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
   );
 }
 
+/** A big, simple list of the program's time slots: tap one to place a child (or "no slot"). */
+function SessionPicker({ student, slots, counts, currentId, onPick, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(23,76,53,0.55)" }} role="dialog" aria-modal="true" aria-label={tr("{0} 시간대 정하기", [student.name])} onClick={onClose}>
+      <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-5 screen-in max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <p className="f-display text-[19px] font-semibold text-center mb-1" style={{ color: C.green }}>{tr("{0}의 시간대", [student.name])}</p>
+        <p className="f-body text-[14px] text-gray-500 text-center mb-4">{tr("눌러서 정해요")}</p>
+        <div className="space-y-2">
+          {slots.map((x) => {
+            const on = currentId === x.id;
+            return (
+              <button
+                key={x.id}
+                onClick={() => onPick(x.id)}
+                aria-pressed={on}
+                className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left"
+                style={{ background: on ? C.green : C.cream, color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` }}
+              >
+                <span className="f-headline text-[21px]">{sessionName(x)}</span>
+                <span className="f-body text-[15px] font-bold shrink-0">{on ? tr("✓ 지금 이 시간대") : tr("{0}명", [counts[x.id] || 0])}</span>
+              </button>
+            );
+          })}
+          <button onClick={() => onPick("")} className="focus-ring tap w-full rounded-2xl px-4 py-3 f-body text-[16px] font-bold" style={{ background: "white", color: "#9C927D", border: `1px solid ${C.beige}` }}>
+            {currentId ? tr("시간대에서 빼기") : tr("시간대 없음")}
+          </button>
+        </div>
+        <button onClick={onClose} className="focus-ring tap w-full mt-3 f-body text-[16px] font-bold rounded-2xl py-3" style={{ background: C.cream, color: C.charcoal }}>{tr("닫기")}</button>
+      </div>
+    </div>
+  );
+}
+
 /** A big, simple list of the program's teams: tap one to place a child (or "no team"). */
 function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
   return (
@@ -6557,8 +6740,12 @@ function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
 }
 
 /** Teacher: make teams (level + teacher), pick their children from a list, see who is where. */
-function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign }) {
-  const teams = teamsOf(program);
+function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: saveAllTeams, onAssign }) {
+  // with time slots a team belongs to one slot: this panel shows and changes only the slot it is opened for
+  const allTeams = teamsOf(program);
+  const inSlot = (t) => !session || !t.sessionId || t.sessionId === session.id;
+  const teams = allTeams.filter(inSlot);
+  const onSaveTeams = (next) => saveAllTeams([...allTeams.filter((t) => !inSlot(t)), ...next]);
   const [form, setForm] = useState(null); // { id|null, level, teacher, picked: [studentId], touched }
   const [picking, setPicking] = useState(null); // a student being placed from the "not placed yet" list
   const [confirmRemove, setConfirmRemove] = useState(null); // a team waiting for "yes, delete it"
@@ -6582,7 +6769,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
     if (!teacher) return;
     const id = form.id || `t-${Date.now().toString(36)}`;
     const before = form.id ? members(teams.find((t) => t.id === form.id)).map((st) => st.id) : [];
-    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher } : t)) : [...teams, { id, level: form.level, teacher }]);
+    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher } : t)) : [...teams, { id, level: form.level, teacher, ...(session ? { sessionId: session.id } : {}) }]);
     form.picked.forEach((sid) => { if (teamIdOf(sid) !== id) onAssign(sid, id); }); // includes children moved over from another team
     before.filter((sid) => !form.picked.includes(sid)).forEach((sid) => onAssign(sid, ""));
     setForm(null);
@@ -6603,7 +6790,7 @@ function TeamPanel({ program, roster, teacherSuggestions, onSaveTeams, onAssign 
     <div className="px-5 mb-3">
       <div className="bg-white rounded-2xl p-4">
         <div className="flex items-center justify-between gap-2 mb-1">
-          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 선생님")}</p>
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 선생님")}{session ? ` · ${session.label}` : ""}</p>
           {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("+ 팀 추가")}</button>}
         </div>
         {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">{tr("레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.")}</p>}
@@ -6771,6 +6958,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     .map((a) => students.find((s) => s.id === a.studentId))
     .filter(Boolean);
   const [showCanceled, setShowCanceled] = useState(false);
+  const [slotFilter, setSlotFilter] = useState(null); // a time-slot id, "all" or "none"; the first slot until one is chosen
+  const slots = sessionsOf(program);
+  const slotNow = slots.length ? (slotFilter === "all" || slotFilter === "none" || slots.some((x) => x.id === slotFilter) ? slotFilter : slots[0].id) : null;
+  const unsetCount = slots.length ? roster.filter((r) => !sessionOf(program, r.adv)).length : 0;
+  const rosterShown = !slots.length || slotNow === "all" ? roster : slotNow === "none" ? roster.filter((r) => !sessionOf(program, r.adv)) : roster.filter((r) => r.adv.sessionId === slotNow);
 
   // Things waiting on the teacher (worked out from existing data, nothing extra stored)
   const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
@@ -6821,13 +7013,20 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onDone: () => onResolveSuggestions(pendingOther.map((x) => x.id)),
     });
   }
-  PROGRAMS.filter((p) => !p.dateReached && !p.info?.published && adventures.some((a) => a.programId === p.id)).forEach((p) => {
-    teacherNotices.push({
-      key: `info-${p.id}`,
-      icon: "📍",
-      title: tr("체험 안내를 보내야 해요"),
-      text: p.title,
-      onClick: () => { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
+  PROGRAMS.filter((p) => !p.dateReached).forEach((p) => {
+    const mine = adventures.filter((a) => a.programId === p.id);
+    if (!mine.length) return;
+    const slots = sessionsOf(p);
+    // with time slots, each slot (that has children) needs its own notice; without, the program has one
+    const late = slots.length ? slots.filter((x) => !x.published && mine.some((a) => a.sessionId === x.id)) : p.info?.published ? [] : [null];
+    late.forEach((x) => {
+      teacherNotices.push({
+        key: `info-${p.id}-${x ? x.id : ""}`,
+        icon: "📍",
+        title: tr("체험 안내를 보내야 해요"),
+        text: x ? `${p.title} · ${x.label}` : p.title,
+        onClick: () => { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
+      });
     });
   });
   PROGRAMS.filter((p) => !p.reviewOpen && adventures.some((a) => a.programId === p.id && a.attended && !a.afterCompleted)).forEach((p) => {
@@ -7010,16 +7209,41 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
             </div>
           </div>
 
-          <TeamPanel
-            program={program}
-            roster={roster}
-            teacherSuggestions={teacherNamesIn(PROGRAMS)}
-            onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
-            onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
-          />
+          {slots.length > 0 && (
+            <div className="px-5 mb-3">
+              <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Time slots">
+                {[{ id: "all", label: tr("전체"), n: roster.length }, ...slots.map((x) => ({ id: x.id, label: x.label, n: roster.filter((r) => r.adv.sessionId === x.id).length })), ...(unsetCount > 0 ? [{ id: "none", label: tr("미정"), n: unsetCount }] : [])].map((c) => (
+                  <button
+                    key={c.id}
+                    role="tab"
+                    aria-selected={slotNow === c.id}
+                    onClick={() => setSlotFilter(c.id)}
+                    className="focus-ring tap shrink-0 f-body text-[16px] font-bold px-4 py-2 rounded-full whitespace-nowrap"
+                    style={{ background: slotNow === c.id ? C.green : "white", color: slotNow === c.id ? "white" : C.charcoal, border: `1px solid ${slotNow === c.id ? C.green : C.beige}` }}
+                  >
+                    {c.label} {c.n}
+                  </button>
+                ))}
+              </div>
+              {slotNow !== "all" && slotNow !== "none" && slots.find((x) => x.id === slotNow) && <p className="f-body text-[14px] text-gray-500 mt-1.5">🕘 {sessionName(slots.find((x) => x.id === slotNow))}</p>}
+            </div>
+          )}
+
+          {!slots.length || (slotNow !== "all" && slotNow !== "none") ? (
+            <TeamPanel
+              program={program}
+              roster={rosterShown}
+              session={slots.length ? slots.find((x) => x.id === slotNow) : null}
+              teacherSuggestions={teacherNamesIn(PROGRAMS)}
+              onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
+              onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
+            />
+          ) : (
+            <p className="px-5 mb-3 f-body text-[14px] text-gray-500">{tr("팀은 시간대를 하나 골라서 만들어요.")}</p>
+          )}
 
           <div className="px-5 space-y-3">
-            {roster.map(({ student, adv }) => (
+            {rosterShown.map(({ student, adv }) => (
               <TeacherStudentCard
                 key={student.id}
                 student={student}
@@ -7027,6 +7251,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 adv={adv}
                 program={program}
                 onAssignTeam={(teamId) => updateAdventure(student.id, programId, { teamId })}
+                onAssignSession={slots.length ? (sessionId) => { const t = teamOf(program, adv); updateAdventure(student.id, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 programTitle={program.title}
                 onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
                 adventures={adventures}
@@ -7070,7 +7295,15 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                         {s.name}
                         {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심")}</span>}
                       </span>
+                      {slots.length > 0 ? (
+                        <span className="flex gap-1.5 flex-wrap justify-end">
+                          {slots.map((x) => (
+                            <button key={x.id} onClick={() => onEnrollStudent(s.id, programId, undefined, x.id)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>+ {x.label}</button>
+                          ))}
+                        </span>
+                      ) : (
                       <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("+ 추가")}</button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -7493,6 +7726,7 @@ const MANUAL = [
       { t: "step", en: "Open Pre-trip info and Trip materials (see the next sections), then tap Register program.", ko: "체험 전 안내와 체험 자료 입력을 채우고(다음 항목 참고) 프로그램 등록을 눌러요." },
       { t: "step", en: "Choosing two or more levels adds a tab for each level inside Trip materials. Write the words, missions, focus points and quiz of each level in its own tab. A new level starts as a copy of the first one; use Copy from A1 (or another level) to copy again.", ko: "레벨을 두 개 이상 고르면 체험 자료 입력 안에 레벨마다 탭이 생겨요. 단어, 미션, 집중 포인트, 퀴즈를 레벨별 탭에 따로 써요. 새로 고른 레벨은 첫 레벨 내용을 복사해서 시작하고, 'A1 내용 복사해 오기'(다른 레벨도 가능)로 다시 복사할 수 있어요." },
       { t: "tip", en: "Children get the materials of their own level. They can look at the other levels by tapping a tab (words and missions only; the quiz is only for their own level). If you change a child's level before the trip, they get the new level's materials.", ko: "아이는 자기 레벨의 자료를 써요. 다른 레벨은 탭하면 볼 수 있어요(단어와 미션만 볼 수 있고, 퀴즈는 자기 레벨만 풀어요). 체험 전에 아이의 레벨을 바꾸면 새 레벨의 자료가 열려요." },
+      { t: "step", en: "If the trip runs several times on the same day, add time slots in the program form (Time slots, + Add time slot). Give each a name (for example Morning), the trip time, and a meeting time and place if they differ. Each slot has its own children, teams, teachers and pre-trip notice. With only one time, leave it empty.", ko: "같은 날 체험이 여러 타임이면 프로그램 입력 화면의 시간대에서 + 시간대 추가를 눌러요. 이름(예: 오전), 체험 시간, 다르면 집합 시간과 모이는 곳을 적어요. 시간대마다 신청한 아이, 팀, 선생님, 체험 전 안내가 따로 나뉘어요. 한 타임뿐이면 비워 두세요." },
       { t: "p", en: "Learning materials: ① Prep word cards, ② on-site missions and today's focus points, ③ the review quiz and big question. Words can be added one by one or pasted many at once (one per line: word - meaning - emoji).", ko: "학습 자료는 ① 예습 단어 카드, ② 현장 미션과 오늘의 집중 포인트, ③ 복습 퀴즈와 큰 질문이에요. 단어는 하나씩 넣거나 한 줄에 하나씩(단어 - 뜻 - 이모지) 한꺼번에 붙여넣을 수 있어요." },
       { t: "p", en: "To edit, tap the program under Registered programs. To delete, open it and tap Delete program. It asks first, and a backup file is downloaded automatically when children already have records.", ko: "고치려면 등록된 프로그램에서 프로그램을 눌러요. 지우려면 열어서 프로그램 삭제를 눌러요. 먼저 한 번 묻고, 아이 기록이 있으면 백업 파일이 자동으로 내려받아져요." },
       { t: "tip", en: "If you leave a form with unsaved text, the app asks first. If the phone closes the app, the text is kept: reopen the program and tap Continue writing.", ko: "저장하지 않은 글이 있는데 나가려고 하면 먼저 물어봐요. 앱이 꺼져도 글은 보관돼요. 프로그램을 다시 열고 이어서 작성을 누르세요." },
@@ -7506,6 +7740,7 @@ const MANUAL = [
       { t: "step", en: "Fill in trip time, meeting time and place, address, what to bring, admission fee (None / Paid by parents + amount / Included) and other notes. Empty items are hidden.", ko: "체험 시간, 집합 시간과 장소, 주소, 준비물, 입장료(없음 / 부모님 부담 + 금액 / 프로그램비 포함), 기타 안내를 채워요. 비워 둔 항목은 보이지 않아요." },
       { t: "step", en: "Turn on Share with parents and save. Parents of the children who applied get an alert in the app.", ko: "학부모에게 공개를 켜고 저장해요. 신청한 아이의 학부모 앱에 알림이 떠요." },
       { t: "step", en: "Tap Send notice (phone share sheet, choose KakaoTalk) or Copy notice and paste it into your parent chat. The message text is in Korean for parents.", ko: "안내문 보내기(휴대폰 공유 창에서 카카오톡 선택) 또는 안내문 복사를 눌러 학부모 채팅방에 붙여넣어요. 메시지는 학부모를 위해 한국어로 만들어져요." },
+      { t: "step", en: "With time slots, Pre-trip info shows a tab for each slot. Choose a slot: Share with parents turns the notice on only for the children of that slot, and Send notice / Copy notice makes the message for that slot with its own time. Do it once for every slot.", ko: "시간대가 있으면 체험 전 안내에 시간대마다 탭이 생겨요. 시간대를 고르면 학부모에게 공개는 그 시간대 아이의 학부모에게만 알림이 가고, 안내문 보내기와 복사는 그 시간대의 시간이 들어간 메시지를 만들어요. 시간대마다 한 번씩 해 주세요." },
       { t: "tip", en: "The app does not send KakaoTalk messages by itself. The in-app alert is shown when parents open the app.", ko: "앱이 카카오톡을 자동으로 보내지는 않아요. 앱 알림은 학부모가 앱을 열면 보여요." },
     ],
   },
@@ -7518,6 +7753,7 @@ const MANUAL = [
       { t: "step", en: "Choose the level and the teacher's name (names you used before appear as buttons).", ko: "레벨과 선생님 이름을 골라요 (전에 쓴 이름은 버튼으로 나와요)." },
       { t: "step", en: "Tick the children for this team in the list. Children of the chosen level are ticked for you. Children already in another team are marked and will move.", ko: "목록에서 이 팀 아이들을 체크해요. 고른 레벨의 아이들은 미리 체크돼 있어요. 다른 팀에 있는 아이는 표시되고 옮겨져요." },
       { t: "step", en: "Tap Create team. The team and the children are saved together.", ko: "팀 만들기를 누르면 팀과 아이들이 한꺼번에 저장돼요." },
+      { t: "step", en: "With time slots, first put each child in a slot: use the + Morning / + Afternoon buttons when adding a child to the program, or tap the 🕘 button under the child's name. At the top of the Students tab choose All, a slot, or Not set. Make the teams inside one slot: a child can only be in a team of their own slot, and moving a child to another slot takes them out of their old team.", ko: "시간대가 있으면 먼저 아이마다 시간대를 정해요. 프로그램에 아이를 넣을 때 + 오전 / + 오후 버튼을 쓰거나, 이름 아래 🕘 버튼을 눌러요. 학생관리 탭 위쪽에서 전체, 시간대, 미정을 골라 볼 수 있어요. 팀은 시간대 하나를 골라서 그 안에서 만들어요. 아이는 자기 시간대의 팀에만 들어갈 수 있고, 다른 시간대로 옮기면 이전 팀에서 빠져요." },
       { t: "p", en: "To place one child: tap the team button under the child's name (it says Choose team or the team name) and pick a team. Names under 'children without a team' are buttons too.", ko: "아이 한 명을 정하려면 이름 아래 팀 버튼(팀 정하기 또는 팀 이름)을 눌러 팀을 골라요. '팀 미배정' 아래의 이름도 버튼이에요." },
       { t: "p", en: "To change a team, tap Edit on the team: level, teacher and members can all be changed. Delete team asks first; its children go back to unassigned and nothing else is erased.", ko: "팀을 바꾸려면 팀의 수정을 눌러요. 레벨, 선생님, 팀원을 모두 바꿀 수 있어요. 팀 삭제는 먼저 물어보고, 아이들은 미배정으로 돌아가며 다른 기록은 지워지지 않아요." },
       { t: "tip", en: "Parents see the team and teacher in an alert, on their child's card and in the pre-trip info page.", ko: "학부모는 알림, 아이 카드, 체험 안내 페이지에서 팀과 선생님을 볼 수 있어요." },
@@ -7865,7 +8101,7 @@ export default function CarrotExplorer() {
     return updated;
   };
 
-  const enrollStudent = (studentId, programId, levelHint) => {
+  const enrollStudent = (studentId, programId, levelHint, sessionId) => {
     // decided from the current list, not inside the state update: when several updates happen together
     // (e.g. registering a child and enrolling them at once) the update runs later and nothing would be sent to the server
     const existing = adventures.find((a) => a.studentId === studentId && a.programId === programId);
@@ -7876,7 +8112,7 @@ export default function CarrotExplorer() {
     const prog = getProgram(programId);
     if (!prog) return;
     const who = students.find((x) => x.id === studentId) || (levelHint ? { level: levelHint } : null);
-    const created = { ...blankAdventure(studentId, prog, levelFor(prog, who)), enrolledAt: new Date().toISOString() };
+    const created = { ...blankAdventure(studentId, prog, levelFor(prog, who)), ...(sessionId ? { sessionId } : {}), enrolledAt: new Date().toISOString() };
     setAdventures((prev) => (prev.some((a) => a.studentId === studentId && a.programId === programId) ? prev : [...prev, created]));
     sync(api.createAdventure(created));
   };
@@ -7977,7 +8213,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -7999,6 +8235,7 @@ export default function CarrotExplorer() {
       icons,
       coverPhoto: coverPhoto || null,
       levelMaterials: levelMaterials || null,
+      sessions: sessions || [],
       vocabulary: vocabulary || dm.vocabulary,
       bigQuestion: bigQuestion || dm.bigQuestion,
       bigQuestionOptions: bigQuestionOptions || dm.bigQuestionOptions,
@@ -8014,7 +8251,7 @@ export default function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -8034,6 +8271,23 @@ export default function CarrotExplorer() {
       coverPhoto: coverPhoto || null,
     };
     if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;
+    let slotFixes = [];
+    if (sessions !== undefined) {
+      // a slot that was taken away: its teams go with it, and its children are put back to "no slot / no team"
+      patch.sessions = sessions;
+      const slotIds = new Set(sessions.map((x) => x.id));
+      const oldTeams = PROGRAMS[idx].teams || [];
+      const keptTeams = oldTeams.filter((t) => !t.sessionId || slotIds.has(t.sessionId));
+      if (keptTeams.length !== oldTeams.length) patch.teams = keptTeams;
+      const keptIds = new Set(keptTeams.map((t) => t.id));
+      adventures.forEach((a) => {
+        if (a.programId !== programId) return;
+        const lost = {};
+        if (a.sessionId && !slotIds.has(a.sessionId)) lost.sessionId = "";
+        if (a.teamId && !keptIds.has(a.teamId)) lost.teamId = "";
+        if (Object.keys(lost).length) slotFixes.push({ studentId: a.studentId, ...lost });
+      });
+    }
     if (vocabulary) patch.vocabulary = vocabulary;
     if (bigQuestion) patch.bigQuestion = bigQuestion;
     if (bigQuestionOptions) patch.bigQuestionOptions = bigQuestionOptions;
@@ -8068,6 +8322,10 @@ export default function CarrotExplorer() {
         );
         fixes.forEach((f) => sync(api.updateAdventure(f.studentId, programId, { missionsCompleted: f.missionsCompleted, ...(f.materialLevel ? { materialLevel: f.materialLevel } : {}) })));
       }
+    }
+    if (slotFixes.length) {
+      setAdventures((prev) => prev.map((a) => { const f = a.programId === programId ? slotFixes.find((x) => x.studentId === a.studentId) : null; if (!f) return a; const { studentId: _s, ...rest } = f; return { ...a, ...rest }; }));
+      slotFixes.forEach((f) => { const { studentId: sid, ...rest } = f; sync(api.updateAdventure(sid, programId, rest)); });
     }
     setProgramsVersion((v) => v + 1);
     sync(api.updateProgram(programId, patch));

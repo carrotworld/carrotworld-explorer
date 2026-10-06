@@ -161,7 +161,7 @@ const EN = {
 "체험 소개": "Trip intro",
 "체험 전 안내": "Pre-trip info",
 "시간 · 모이는 곳 · 준비물 · 입장료": "Time · meeting place · what to bring · fee",
-"접기 ▴": "Collapse ▴",
+"접기 ▴": "Hide ▴",
 "펼치기 ▾": "Expand ▾",
 "체험 자료 입력": "Trip materials",
 "단어 · 질문 · 퀴즈 · 미션": "Words · questions · quiz · missions",
@@ -541,7 +541,13 @@ const EN = {
 "시간대가 정해지지 않은 아이가 {0}명 있어요": "Children without a time slot: {0}",
 "팀은 시간대를 하나 골라서 만들어요.": "Pick one time slot to make teams.",
 "시간대 배정": "Time slot assignment",
-"{0} 시간대 정하기": "Choose time slot for {0}"
+"{0} 시간대 정하기": "Choose time slot for {0}",
+"단어 퀴즈 자동 만들기": "Make a word quiz automatically",
+"입력한 단어와 뜻으로 객관식 문제를 만들어요. 뜻이 있는 단어가 3개 이상일 때 만들어져요.": "Multiple-choice questions are made from the words and meanings you entered. It needs 3 or more words that have a meaning.",
+"뜻이 있는 단어가 3개 이상 필요해요.": "You need 3 or more words with a meaning.",
+"만들어질 문제 {0}개": "Questions that will be made: {0}",
+"문제 보기 ▾": "Show the questions ▾",
+"붙여넣은 단어 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.": "{0} pasted words are not in the list yet. They are saved together when you save."
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -4647,14 +4653,16 @@ function defaultMaterials() {
     remember: [], // review quiz: written by the teacher after the trip
     focus: [],
     reviewOpen: false,
-    autoMatch: false,
+    autoWords: true, // a new program makes its word quiz by itself
+    bulk: "",
   };
 }
 function materialsFrom(program) {
   if (!program) return defaultMaterials();
   const d = defaultMaterials();
   const challenge = program.challenge || d.challenge;
-  const remember = (program.remember || d.remember).map((q) => ({ ...q, options: q.options ? [...q.options] : q.options }));
+  // the questions made from the words are not edited by hand: they come back from the words when the program is saved
+  const remember = (program.remember || d.remember).filter((q) => !q.auto && q.id !== "match-auto").map((q) => ({ ...q, options: q.options ? [...q.options] : q.options }));
   return {
     vocabulary: (program.vocabulary || d.vocabulary).map((v) => ({ ...v })),
     bigQuestion: program.bigQuestion || d.bigQuestion,
@@ -4664,7 +4672,7 @@ function materialsFrom(program) {
     remember,
     focus: [...(program.focus || [])],
     reviewOpen: !!program.reviewOpen,
-    autoMatch: remember.some((q) => q.id === "match-auto"),
+    autoWords: (program.remember || []).some((q) => q.auto),
   };
 }
 /** A copy of one level's set to start another level from: every item gets a new id so the two sets never get mixed up in the stats. */
@@ -4678,6 +4686,7 @@ function cloneMaterials(m) {
     bigQuestionOptions: [...(m.bigQuestionOptions || [])],
     focus: [...(m.focus || [])],
     challenge: m.challenge || [],
+    bulk: "",
   };
 }
 /** The editor sets of a saved program, one per level (empty while it has a single shared set). */
@@ -4687,9 +4696,35 @@ function levelSetsFrom(program) {
 }
 const pickLevelFields = (built) => Object.fromEntries(LEVEL_FIELDS.map((k) => [k, built[k]]));
 
+/** Multiple-choice questions made from the words and their meanings, alternating "What does X mean?" and "Which word means ...?".
+ *  No randomness: the same words always give the same questions, so the stats of a question stay comparable. */
+const AUTO_QUIZ_MAX = 8;
+function autoWordQuestions(words) {
+  const L = (words || []).filter((w) => (w.en || "").trim() && (w.meaning || "").trim());
+  if (L.length < 3) return [];
+  const out = [];
+  L.slice(0, AUTO_QUIZ_MAX).forEach((w, i) => {
+    const asMeaning = i % 2 === 0; // even: word -> meaning, odd: meaning -> word
+    const pick = (x) => (asMeaning ? x.meaning.trim() : x.en.trim());
+    // "Which word means ...?" must have exactly one right answer: skip a meaning that another word shares
+    if (!asMeaning && L.some((x) => x !== w && x.meaning.trim().toLowerCase() === w.meaning.trim().toLowerCase())) return;
+    const correct = pick(w);
+    const wrong = [];
+    for (let k = 1; k < L.length && wrong.length < 2; k++) {
+      const t = pick(L[(i + k) % L.length]);
+      if (t !== correct && !wrong.includes(t)) wrong.push(t);
+    }
+    if (wrong.length < 2) return; // not enough different answers for this word
+    const options = [...wrong];
+    options.splice(i % 3, 0, correct); // the right answer moves around
+    out.push({ id: `auto-w-${w.id || w.en.trim()}`, type: "mc", auto: true, prompt: asMeaning ? `What does "${w.en.trim()}" mean?` : `Which word means "${w.meaning.trim()}"?`, options, answer: i % 3 });
+  });
+  return out;
+}
 function cleanQuiz(list) {
   const out = [];
   list.forEach((q) => {
+    if (q.auto) return; // made again from the words every time it is saved
     if (q.type === "mc") {
       const opts = (q.options || []).map((o, i) => ({ text: (o || "").trim(), correct: i === q.answer })).filter((o) => o.text);
       if (!(q.prompt || "").trim() || opts.length < 2) return;
@@ -4707,7 +4742,7 @@ function cleanQuiz(list) {
 /** Turns the editor state into the fields stored on the program. Empty parts fall back to defaults. */
 function buildMaterials(m) {
   const d = defaultMaterials();
-  const vocabRaw = m.vocabulary.filter((v) => (v.en || "").trim());
+  const vocabRaw = [...m.vocabulary.filter((v) => (v.en || "").trim()), ...parseBulkWords(m.bulk)]; // words pasted but not yet added are kept too
   const vocabulary = vocabRaw.map((v) => ({
     ...v,
     id: v.id || newId("v"),
@@ -4717,18 +4752,7 @@ function buildMaterials(m) {
   }));
   const challenge = cleanQuiz(m.challenge); // kept as-is for old programs, not shown any more
   const remember = cleanQuiz(m.remember);
-  if (m.autoMatch) {
-    const seen = new Set();
-    const pairs = [];
-    vocabRaw.forEach((v) => {
-      const e = (v.emoji || "").trim();
-      if (e && !seen.has(e) && pairs.length < 4) {
-        seen.add(e);
-        pairs.push({ key: v.id || v.en.trim(), word: v.en.trim(), emoji: e });
-      }
-    });
-    if (pairs.length >= 3) remember.push({ id: "match-auto", type: "match", prompt: "Match each word to its picture!", pairs });
-  }
+  if (m.autoWords) remember.push(...autoWordQuestions(vocabulary));
   const missions = m.missions
     .filter((x) => (x.text || "").trim())
     .map((x) => ({ ...x, id: x.id || newId("m"), text: x.text.trim() }));
@@ -4780,25 +4804,35 @@ function RemoveButton({ onClick }) {
   );
 }
 
-function VocabEditor({ items, onChange }) {
-  const [bulk, setBulk] = useState("");
+/** Reads pasted lines ("word - meaning - emoji", one per line) into word cards. */
+function parseBulkWords(text) {
+  return String(text || "")
+    .split("\n")
+    .map((l) => l.trim().replace(/^([-–—•*·]|\d+[.)])\s+/, "")) // a pasted list may have bullets or numbers in front
+    .filter(Boolean)
+    .map((line) => {
+      const [en, meaning, emoji] = line.split(/\s+[-–—]\s+|\t/).map((p) => (p || "").trim());
+      return { id: newId("v"), en: en || "", meaning: meaning || "", emoji: emoji || "" };
+    })
+    .filter((v) => v.en);
+}
+
+function VocabEditor({ items, onChange, bulk: bulkProp, onBulk }) {
+  // the pasted text lives with the rest of the materials (when the editor is given it), so it is kept in drafts,
+  // counted as unsaved work and saved together with the program even if "붙여넣은 단어 추가" was not pressed
+  const [localBulk, setLocalBulk] = useState("");
+  const bulk = onBulk ? bulkProp || "" : localBulk;
+  const setBulk = onBulk || setLocalBulk;
+  const pendingCount = parseBulkWords(bulk).length;
   const update = (i, p) => onChange(items.map((v, idx) => (idx === i ? { ...v, ...p } : v)));
   const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
   const add = () => onChange([...items, { id: newId("v"), en: "", meaning: "", emoji: "" }]);
   const addBulk = () => {
-    const rows = bulk
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [en, meaning, emoji] = line.split(/\s+[-–—]\s+|\t/).map((p) => (p || "").trim());
-        return { id: newId("v"), en: en || "", meaning: meaning || "", emoji: emoji || "" };
-      })
-      .filter((v) => v.en);
+    const rows = parseBulkWords(bulk);
     if (!rows.length) return;
     const existing = items.filter((v) => (v.en || "").trim() || (v.meaning || "").trim());
-    onChange([...existing, ...rows]);
-    setBulk("");
+    onChange([...existing, ...rows], onBulk ? { bulk: "" } : undefined); // one update, so neither change overwrites the other
+    if (!onBulk) setBulk("");
   };
   return (
     <div>
@@ -4827,13 +4861,16 @@ function VocabEditor({ items, onChange }) {
         <textarea
           value={bulk}
           onChange={(e) => setBulk(e.target.value)}
-          rows={3}
+          rows={4}
           placeholder={tr("한 줄에 하나씩 적어요\nairplane - A machine that flies. - ✈️\npilot - The person who flies the plane. - 🧑‍✈️")}
           aria-label={tr("단어 한꺼번에 붙여넣기")}
           className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
           style={{ ...editorFieldStyle, background: "white" }}
         />
         <p className="f-body text-[13px] text-gray-400 mt-1">{tr("형식: 단어 - 뜻 - 이모지 (이모지는 생략 가능, 가운데 \" - \" 앞뒤에 띄어쓰기)")}</p>
+        {pendingCount > 0 && (
+          <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: "#B25A0B" }}>{tr("붙여넣은 단어 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.", [pendingCount])}</p>
+        )}
         <div className="mt-1.5"><AddButton onClick={addBulk}>{tr("붙여넣은 단어 추가")}</AddButton></div>
       </div>
     </div>
@@ -4918,6 +4955,7 @@ const FOCUS_IDEAS = ["전시를 천천히, 자세히 보기", "워크북을 끝�
 function MaterialsEditor({ value, onChange, levelTabs }) {
   const set = (p) => onChange({ ...value, ...p });
   const [copyFrom, setCopyFrom] = useState(null);
+  const [showAuto, setShowAuto] = useState(false);
   const bqOpts = value.bigQuestionOptions.length >= 3 ? value.bigQuestionOptions : [...value.bigQuestionOptions, "", "", ""].slice(0, 3);
   const focus = value.focus || [];
   return (
@@ -4962,7 +5000,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
 
       <div>
         <EditorHeading hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")}>{tr("① 예습 · 단어 카드")}</EditorHeading>
-        <VocabEditor items={value.vocabulary} onChange={(vocabulary) => set({ vocabulary })} />
+        <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
       </div>
 
       <div>
@@ -5012,11 +5050,36 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
       <div>
         <EditorHeading hint={tr("체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.")}>{tr("③ 복습 · 퀴즈")}</EditorHeading>
         <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
-        <button onClick={() => set({ autoMatch: !value.autoMatch })} aria-pressed={value.autoMatch} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
-          {value.autoMatch ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-          <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("단어-그림 맞추기 문제 자동 추가")}<span className="block font-normal text-gray-400">{tr("서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.")}</span>
+        <button onClick={() => set({ autoWords: !value.autoWords })} aria-pressed={!!value.autoWords} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
+          {value.autoWords ? <CheckCircle2 size={20} color={C.orange} className="shrink-0" /> : <Circle size={20} color="#D8CEB8" className="shrink-0" />}
+          <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("단어 퀴즈 자동 만들기")}<span className="block font-normal text-gray-500">{tr("입력한 단어와 뜻으로 객관식 문제를 만들어요. 뜻이 있는 단어가 3개 이상일 때 만들어져요.")}</span>
           </span>
         </button>
+        {value.autoWords && (() => {
+          const made = autoWordQuestions([...(value.vocabulary || []), ...parseBulkWords(value.bulk)].filter((v) => (v.en || "").trim()));
+          return made.length === 0 ? (
+            <p className="f-body text-[14px] mt-2" style={{ color: "#B25A0B" }}>{tr("뜻이 있는 단어가 3개 이상 필요해요.")}</p>
+          ) : (
+            <div className="mt-2 rounded-xl p-3" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
+              <button onClick={() => setShowAuto((v) => !v)} aria-expanded={showAuto} className="focus-ring tap w-full flex items-center justify-between gap-2 text-left">
+                <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>{tr("만들어질 문제 {0}개", [made.length])}</span>
+                <span className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>{showAuto ? tr("접기 ▴") : tr("문제 보기 ▾")}</span>
+              </button>
+              {showAuto && (
+                <div className="space-y-2.5 mt-2.5">
+                  {made.map((q, i) => (
+                    <div key={q.id}>
+                      <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{i + 1}. {q.prompt}</p>
+                      {q.options.map((o, k) => (
+                        <p key={k} className="f-body text-[14px]" style={{ color: k === q.answer ? "#1F7A44" : "#6B7280", fontWeight: k === q.answer ? 700 : 400 }}>{k === q.answer ? "✓ " : "• "}{o}</p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div>
@@ -7727,6 +7790,7 @@ const MANUAL = [
       { t: "step", en: "Choosing two or more levels adds a tab for each level inside Trip materials. Write the words, missions, focus points and quiz of each level in its own tab. A new level starts as a copy of the first one; use Copy from A1 (or another level) to copy again.", ko: "레벨을 두 개 이상 고르면 체험 자료 입력 안에 레벨마다 탭이 생겨요. 단어, 미션, 집중 포인트, 퀴즈를 레벨별 탭에 따로 써요. 새로 고른 레벨은 첫 레벨 내용을 복사해서 시작하고, 'A1 내용 복사해 오기'(다른 레벨도 가능)로 다시 복사할 수 있어요." },
       { t: "tip", en: "Children get the materials of their own level. They can look at the other levels by tapping a tab (words and missions only; the quiz is only for their own level). If you change a child's level before the trip, they get the new level's materials.", ko: "아이는 자기 레벨의 자료를 써요. 다른 레벨은 탭하면 볼 수 있어요(단어와 미션만 볼 수 있고, 퀴즈는 자기 레벨만 풀어요). 체험 전에 아이의 레벨을 바꾸면 새 레벨의 자료가 열려요." },
       { t: "step", en: "If the trip runs several times on the same day, add time slots in the program form (Time slots, + Add time slot). Give each a name (for example Morning), the trip time, and a meeting time and place if they differ. Each slot has its own children, teams, teachers and pre-trip notice. With only one time, leave it empty.", ko: "같은 날 체험이 여러 타임이면 프로그램 입력 화면의 시간대에서 + 시간대 추가를 눌러요. 이름(예: 오전), 체험 시간, 다르면 집합 시간과 모이는 곳을 적어요. 시간대마다 신청한 아이, 팀, 선생님, 체험 전 안내가 따로 나뉘어요. 한 타임뿐이면 비워 두세요." },
+      { t: "tip", en: "The review quiz can make itself from your words: keep Make a word quiz automatically switched on and give each word its English meaning. With 3 or more words that have a meaning, the app makes up to 8 multiple-choice questions (\"What does lion mean?\" and \"Which word means ...?\"). Tap Show the questions to read them. You can still add your own O/X or multiple-choice questions.", ko: "복습 퀴즈는 입력한 단어로 저절로 만들어져요. '단어 퀴즈 자동 만들기'를 켜 두고 단어마다 영어 뜻을 적으세요. 뜻이 있는 단어가 3개 이상이면 객관식 문제를 최대 8개까지 만들어요('lion은 무슨 뜻일까요?', '이 뜻의 단어는?'). '문제 보기'를 누르면 미리 볼 수 있어요. 직접 쓴 O/X나 객관식 문제도 함께 넣을 수 있어요." },
       { t: "p", en: "Learning materials: ① Prep word cards, ② on-site missions and today's focus points, ③ the review quiz and big question. Words can be added one by one or pasted many at once (one per line: word - meaning - emoji).", ko: "학습 자료는 ① 예습 단어 카드, ② 현장 미션과 오늘의 집중 포인트, ③ 복습 퀴즈와 큰 질문이에요. 단어는 하나씩 넣거나 한 줄에 하나씩(단어 - 뜻 - 이모지) 한꺼번에 붙여넣을 수 있어요." },
       { t: "p", en: "To edit, tap the program under Registered programs. To delete, open it and tap Delete program. It asks first, and a backup file is downloaded automatically when children already have records.", ko: "고치려면 등록된 프로그램에서 프로그램을 눌러요. 지우려면 열어서 프로그램 삭제를 눌러요. 먼저 한 번 묻고, 아이 기록이 있으면 백업 파일이 자동으로 내려받아져요." },
       { t: "tip", en: "If you leave a form with unsaved text, the app asks first. If the phone closes the app, the text is kept: reopen the program and tap Continue writing.", ko: "저장하지 않은 글이 있는데 나가려고 하면 먼저 물어봐요. 앱이 꺼져도 글은 보관돼요. 프로그램을 다시 열고 이어서 작성을 누르세요." },

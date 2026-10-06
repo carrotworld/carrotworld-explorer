@@ -505,7 +505,13 @@ const EN = {
 "학부모 조언 초안 {0}개를 확인하고 보내 주세요": "Check and send the advice drafts: {0}",
 "학부모 조언 초안을 만들어 주세요 ({0}명)": "Draft advice for {0} children",
 "학부모 조언 초안 {0}개가 확인을 기다려요": "Advice drafts waiting for your check: {0}",
-"보내기 전에 내용을 확인해 주세요": "Please read them before sending"
+"보내기 전에 내용을 확인해 주세요": "Please read them before sending",
+"레벨별 자료": "Materials by level",
+"지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.": "You are editing the {0} materials. Each child gets the set for their own level, and can look at the other levels by tapping a tab.",
+"{0} 내용 복사해 오기": "Copy from {0}",
+"{0} 내용을 복사해 올까요?": "Copy the {0} materials?",
+"복사해 오기": "Copy",
+"지금 {0} 탭에 적은 내용이 {1}의 내용으로 바뀌어요.": "What you wrote in the {0} tab will be replaced by the {1} materials."
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -825,19 +831,52 @@ const PROGRAMS = [
 ];
 
 /* ---- initial adventures (enrollments) ---- */
+/* ================================================================== */
+/*  MATERIALS PER LEVEL                                                 */
+/*  A program can keep one set of words, missions, focus points, quiz    */
+/*  and big question for each level (`levelMaterials`). A child gets the */
+/*  set of their own level; without levelMaterials everyone shares one.  */
+/* ================================================================== */
+const LEVEL_FIELDS = ["vocabulary", "bigQuestion", "bigQuestionOptions", "missions", "remember", "focus"];
+/** The levels that have their own set ([] while the program uses one shared set). */
+const materialLevels = (program) => (program && program.levelMaterials ? sortLevels(Object.keys(program.levelMaterials)) : []);
+/** The program as a child of this level sees it. */
+function programForLevel(program, level) {
+  const m = program && program.levelMaterials && program.levelMaterials[level];
+  return m ? { ...program, ...m } : program;
+}
+/** Which level's set this child uses: the one saved on their record, else their own level, else the first. */
+function levelFor(program, student, adv) {
+  const lv = materialLevels(program);
+  if (!lv.length) return null;
+  if (adv && adv.materialLevel && lv.includes(adv.materialLevel)) return adv.materialLevel;
+  return lv.includes(student && student.level) ? student.level : lv[0];
+}
+const programFor = (program, student, adv) => programForLevel(program, levelFor(program, student, adv));
+/** The focus points of every level; one entry when they are all the same. */
+function focusSets(program) {
+  const lv = materialLevels(program);
+  if (!lv.length) return (program.focus || []).length ? [{ level: null, items: program.focus }] : [];
+  const sets = lv.map((l) => ({ level: l, items: program.levelMaterials[l].focus || [] })).filter((x) => x.items.length);
+  if (sets.length > 1 && sets.every((x) => JSON.stringify(x.items) === JSON.stringify(sets[0].items)) && sets.length === lv.length) return [{ level: null, items: sets[0].items }];
+  return sets;
+}
+
 function emptyMissions(program) {
   return program.missions.map((m) => ({ missionId: m.id, done: false, photo: null }));
 }
-function blankAdventure(studentId, program) {
+function blankAdventure(studentId, program, level) {
+  const view = programForLevel(program, level);
   return {
     studentId,
     programId: program.id,
+    ...(level && materialLevels(program).length ? { materialLevel: level } : {}),
     beforeCompleted: false,
     bigQuestionAnswer: "",
     bigQuestionCustom: false,
     challengeScore: null, // { correct, total }
     attended: false,
-    missionsCompleted: emptyMissions(program),
+    missionsCompleted: emptyMissions(view),
     afterCompleted: false,
     reflection: null, // { rememberScore:{correct,total}, favoriteText, favoriteReason, photo, discovery, rating }
     photos: [], // teacher-uploaded { id, url }
@@ -999,7 +1038,7 @@ const BADGE_DEFS = [
       advs.some((a) => {
         const sc = a.reviewScore || a.challengeScore;
         if (sc && sc.total > 0 && sc.correct === sc.total) return true;
-        const words = getProgram(a.programId)?.vocabulary || [];
+        const words = programForLevel(getProgram(a.programId), a.materialLevel)?.vocabulary || [];
         return words.length > 0 && !!a.insights && words.every((w) => (a.insights.wordChecks?.[w.id] || 0) >= WORD_PRACTICE_GOAL);
       }),
   },
@@ -1012,6 +1051,41 @@ const BADGE_DEFS = [
   { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
   { id: "stamp50", name: "도장판 완성 (50회)", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
 ];
+
+/* ================================================================== */
+/*  LEVEL GUIDE DATA (parents and teachers read the same facts)         */
+/* ================================================================== */
+// Carrot World Speaking Levels, as on the level poster. Not a test: based on what the child can actually say.
+const CW_LEVELS = [
+  { name: "Seed", speak: 1, cefr: "Pre-A1", tag: "Starter", emoji: "🌱", ko: "영어 시작 단계, 단어 중심 반응", en: "First steps in English; responds with single words" },
+  { name: "Sprout", speak: 2, cefr: "A1 Low", tag: "Beginner", emoji: "🌿", ko: "간단한 문장 사용 가능, 기본 표현 시작", en: "Can use simple sentences; starting basic expressions" },
+  { name: "Walker", speak: 3, cefr: "A1 High ~ A2", tag: "Basic Communication", emoji: "🚶", ko: "짧은 문장 연결 가능, 질문 이해 및 답변 가능", en: "Can link short sentences; understands and answers questions" },
+  { name: "Explorer", speak: 4, cefr: "A2 High", tag: "Express Ideas", emoji: "🔍", ko: "경험과 생각을 설명, 이유를 간단히 표현", en: "Explains experiences and thoughts; gives simple reasons" },
+  { name: "Speaker", speak: 5, cefr: "B1", tag: "Opinion", emoji: "🎤", ko: "자신의 의견 표현 가능, 문장 확장 및 설명", en: "Expresses own opinions; extends and explains sentences" },
+  { name: "Thinker", speak: 6, cefr: "B2", tag: "Logical Speaking", emoji: "🧠", ko: "논리적인 주장 및 복잡한 주제 이해 가능", en: "Understands logical arguments and complex topics" },
+  { name: "Leader", speak: 7, cefr: "C1 ~ C2", tag: "Advanced", emoji: "🎓", ko: "유창하고 자연스러운 의사소통, 복잡하고 전문적인 주제 소화 가능", en: "Fluent, natural communication; handles complex, specialised topics" },
+];
+/** "0~9회", "10~19회", ... "40회 이상": always follows the real RANKS steps used by the app. */
+const rankRanges = () => RANKS.map((r, i) => ({ ...r, to: RANKS[i + 1] ? RANKS[i + 1].min - 1 : null }));
+/** One plain sentence per badge, in both languages. A test checks that every badge in the app has one. */
+const BADGE_HELP = {
+  first: { ko: "첫 체험의 복습까지 마쳤어요.", en: "Finished the review of the first trip.", enName: "First Adventure" },
+  museum: { ko: "박물관 체험의 복습을 마쳤어요.", en: "Finished the review of a museum trip." },
+  science: { ko: "과학 체험의 복습을 마쳤어요.", en: "Finished the review of a science trip." },
+  nature: { ko: "자연 체험의 복습을 마쳤어요.", en: "Finished the review of a nature trip." },
+  history: { ko: "역사 체험의 복습을 마쳤어요.", en: "Finished the review of a history trip." },
+  word: { ko: "복습 퀴즈를 모두 맞혔거나, 예습 단어를 전부 5번씩 연습했어요.", en: "Got every review question right, or practised every prep word 5 times." },
+  curious: { ko: "직접 만든 큰 질문을 2번 이상 남겼어요.", en: "Wrote their own big question 2 or more times." },
+  missionmaster: { ko: "현장 미션을 모두 해낸 체험이 2번 이상이에요.", en: "Completed every mission on 2 or more trips." },
+  stamp10: { ko: "체험에 10번 출석했어요.", en: "Attended 10 trips.", enName: "Stamp board (10 trips)" },
+  stamp20: { ko: "체험에 20번 출석했어요.", en: "Attended 20 trips.", enName: "Stamp board (20 trips)" },
+  stamp30: { ko: "체험에 30번 출석했어요.", en: "Attended 30 trips.", enName: "Stamp board (30 trips)" },
+  stamp40: { ko: "체험에 40번 출석했어요.", en: "Attended 40 trips.", enName: "Stamp board (40 trips)" },
+  stamp50: { ko: "체험에 50번 출석했어요.", en: "Attended 50 trips.", enName: "Stamp board (50 trips)" },
+};
+/** The badges shown in the guides (retired ones are left out). */
+const badgeGuide = () => BADGE_DEFS.filter((b) => !b.retired && BADGE_HELP[b.id]).map((b) => ({ id: b.id, emoji: b.emoji, name: b.name, enName: BADGE_HELP[b.id].enName || b.name, ko: BADGE_HELP[b.id].ko, en: BADGE_HELP[b.id].en }));
+
 function computeBadges(adventures, studentId) {
   const mine = adventures.filter((a) => a.studentId === studentId);
   // retired badges (photos are no longer taken in the app) only show for children who already earned one
@@ -2091,7 +2165,7 @@ function BadgeCollection({ adventures, studentId }) {
 /* ================================================================== */
 /*  GET READY  (Before)                                                 */
 /* ================================================================== */
-function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
+function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly }) {
   const [isReplay, setIsReplay] = useState(false);
   // Usage insights: recorded the moment the child acts, so nothing is lost if they leave half-way.
   const insRef = useRef({ wordTaps: {}, wordChecks: {}, ...(adv.insights || {}) });
@@ -2103,6 +2177,20 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
   };
   const checksOf = (id) => insRef.current.wordChecks?.[id] || 0;
   const wordsDone = program.vocabulary.filter((v) => checksOf(v.id) >= WORD_PRACTICE_GOAL).length;
+
+  if (readOnly) {
+    // another level's words: listen and look, nothing is recorded
+    return (
+      <div className="px-5 pb-10">
+        <p className="f-body text-[16px] text-gray-500 mb-3">Tap a card to listen 🔊</p>
+        <div className="grid grid-cols-2 gap-3">
+          {program.vocabulary.map((v) => (
+            <VocabularyCard key={v.id} v={v} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (adv.beforeCompleted && !isReplay) {
     return (
@@ -2162,7 +2250,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights }) {
 /* ================================================================== */
 /*  EXPLORE  (Field Trip Mode)                                          */
 /* ================================================================== */
-function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
+function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
   const doneCount = missionsDoneCount(adv);
   const allDone = doneCount === adv.missionsCompleted.length;
 
@@ -2172,6 +2260,29 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish }) {
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
         <p className="f-display font-semibold" style={{ color: C.green }}>This adventure isn't unlocked yet</p>
         <p className="f-body text-[17px] text-gray-500 mt-1">Come back on {program.date} to start exploring!</p>
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <div className="px-5 pb-10">
+        {(program.focus || []).length > 0 && (
+          <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
+            <ul className="space-y-1">
+              {program.focus.map((f, i) => (
+                <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>Missions</p>
+        <div className="space-y-2">
+          {program.missions.map((m) => (
+            <div key={m.id} className="bg-white rounded-2xl p-4 f-body text-[18px] font-semibold" style={{ color: C.charcoal }}>{m.text}</div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -2470,8 +2581,16 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 /* ================================================================== */
 /*  ADVENTURE DETAIL (chapters: Get Ready / Explore / Remember)         */
 /* ================================================================== */
-function AdventureDetail({ program, adv, adventures, studentId, update, onBack }) {
-  const { before, trip, after } = stageState(adv, program);
+function AdventureDetail({ program: fullProgram, adv, adventures, studentId, studentLevel, update, onBack }) {
+  // a program can have a set of materials for each level: the child gets their own level's set and may peek at the others
+  const levelsAvail = materialLevels(fullProgram);
+  const myLevel = levelsAvail.length ? levelFor(fullProgram, { level: studentLevel }, adv) : null;
+  const [viewLevel, setViewLevel] = useState(myLevel);
+  const viewing = levelsAvail.length ? (levelsAvail.includes(viewLevel) ? viewLevel : myLevel) : null;
+  const mine = !viewing || viewing === myLevel;
+  const program = programForLevel(fullProgram, viewing);
+  const myProgram = programForLevel(fullProgram, myLevel);
+  const { before, trip, after } = stageState(adv, myProgram);
   const initialSection = before !== "done" ? "before" : trip !== "done" ? "trip" : after !== "done" ? "after" : "before";
   const [section, setSection] = useState(initialSection);
   const [celebration, setCelebration] = useState(null);
@@ -2494,6 +2613,30 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         </button>
         <h1 className="f-headline text-[24px] leading-tight" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</h1>
       </div>
+      {levelsAvail.length > 1 && (
+        <div className="px-5 mb-3">
+          <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Levels">
+            {levelsAvail.map((l) => (
+              <button
+                key={l}
+                role="tab"
+                aria-selected={viewing === l}
+                onClick={() => setViewLevel(l)}
+                className="focus-ring tap shrink-0 f-body text-[16px] font-bold px-4 py-2 rounded-full"
+                style={{ background: viewing === l ? C.green : "white", color: viewing === l ? "white" : C.charcoal, border: `1px solid ${viewing === l ? C.green : C.beige}` }}
+              >
+                {l}{l === myLevel ? " · My level" : ""}
+              </button>
+            ))}
+          </div>
+          {!mine && (
+            <p className="f-body text-[15px] mt-2" style={{ color: "#9A4F0B" }}>
+              Just looking! This is the {viewing} set. Your level is {myLevel}.{" "}
+              <button onClick={() => setViewLevel(myLevel)} className="focus-ring tap font-bold underline">Back to {myLevel}</button>
+            </p>
+          )}
+        </div>
+      )}
       <div className="px-5 mb-4">
         <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
         <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[14px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
@@ -2515,6 +2658,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
       {section === "before" && (
         <BeforeAdventure
           program={program}
+          readOnly={!mine}
           adv={adv}
           onSaveInsights={(insights) => update({ insights })}
           onComplete={(patch) => {
@@ -2527,6 +2671,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
       {section === "trip" && (
         <FieldTripMode
           program={program}
+          readOnly={!mine}
           adv={adv}
           onToggleMission={(i) => {
             const missionsCompleted = adv.missionsCompleted.map((m, idx) => (idx === i ? { ...m, done: !m.done } : m));
@@ -2542,7 +2687,14 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
         />
       )}
 
-      {section === "after" && (
+      {section === "after" && !mine && (
+        <div className="px-5 pb-10 text-center pt-8">
+          <p className="f-display font-semibold" style={{ color: C.green }}>The review is for your own level</p>
+          <p className="f-body text-[17px] text-gray-500 mt-1 mb-4">Tap {myLevel} above to do the review quiz.</p>
+          <PrimaryButton onClick={() => setViewLevel(myLevel)}>Back to {myLevel}</PrimaryButton>
+        </div>
+      )}
+      {section === "after" && mine && (
         <AfterAdventure
           program={program}
           adv={adv}
@@ -2565,6 +2717,7 @@ function AdventureDetail({ program, adv, adventures, studentId, update, onBack }
 /*  PARENT VIEW                                                         */
 /* ================================================================== */
 function ParentAdventureReport({ a, program }) {
+  const view = programForLevel(program, a.materialLevel);
   return (
     <div className="bg-white rounded-2xl overflow-hidden">
       <div className="p-4">
@@ -2591,10 +2744,10 @@ function ParentAdventureReport({ a, program }) {
         <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.themeKo}</p>
 
         <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>배운 단어</p>
-        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.vocabulary.map((v) => v.en).join(" · ")}</p>
+        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{view.vocabulary.map((v) => v.en).join(" · ")}</p>
 
         <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>오늘의 질문</p>
-        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.bigQuestion}</p>
+        <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{view.bigQuestion}</p>
 
         <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
         <div className="space-y-1.5 mb-3">
@@ -3120,6 +3273,80 @@ if (typeof window !== "undefined" && window.addEventListener) {
   });
 }
 
+/** At the end of the parents' help page: what the levels, steps and badges mean, and how a child moves up. */
+function LevelGuideForParents() {
+  const card = "bg-white rounded-2xl p-4";
+  const h = "f-display font-semibold text-[19px] leading-snug mb-2";
+  const p = "f-body text-[16px] leading-relaxed";
+  return (
+    <div className="space-y-3 pt-3">
+      <h3 className="f-headline text-[26px] leading-tight" style={{ color: C.green }}>당근나라 레벨 안내</h3>
+      <p className={`${p} text-gray-500`}>아이의 영어가 어디쯤인지, 앱의 단계와 뱃지는 무슨 뜻인지 한 번에 볼 수 있어요.</p>
+
+      <div className={card}>
+        <p className={h} style={{ color: C.green }}>① 영어 말하기 레벨 (Speaking Level)</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>당근나라는 아이의 영어 수준을 정확히 이해하고 아이에게 맞는 체험을 드리기 위해 말하기 중심(Speaking) 레벨 시스템을 운영해요.</p>
+        <div className={`${p} mb-3 space-y-1`} style={{ color: C.charcoal }}>
+          <p>• 시험 점수가 아니라, 아이의 실제 표현 능력과 의사소통 수준이 기준이에요.</p>
+          <p>• 평가가 아니라, 아이에게 맞는 수업과 체험을 드리기 위한 기준이에요.</p>
+          <p>• CEFR 국제 기준을 참고해 만들었어요. 선생님 리포트에 나오는 CEFR 표기는 아래 기준이에요.</p>
+        </div>
+        <div className="space-y-2" role="list" aria-label="Speaking levels">
+          {CW_LEVELS.map((l) => (
+            <div key={l.name} role="listitem" className="rounded-xl px-3.5 py-3" style={{ background: C.cream }}>
+              <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{l.emoji} {l.name} <span className="f-body text-[14px] font-normal text-gray-500">· Speak {l.speak} · {l.cefr}</span></p>
+              <p className={p} style={{ color: C.charcoal }}>{l.ko}</p>
+              <p className="f-body text-[13px] text-gray-400">{l.tag}</p>
+            </div>
+          ))}
+        </div>
+        <p className={`${p} mt-3 text-gray-600`}>당근나라는 Experience(경험) → Explore(탐험) → Express(표현) 구조로, 영어를 "공부"가 아닌 "경험"으로 키워 가요.</p>
+      </div>
+
+      <div className={card}>
+        <p className={h} style={{ color: C.green }}>② 앱의 참여 단계와 뱃지</p>
+        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>참여 단계</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>체험에 출석한 횟수에 따라 자동으로 올라가요.</p>
+        <div className="space-y-1.5 mb-3">
+          {rankRanges().map((r) => (
+            <p key={r.label} className={p} style={{ color: C.charcoal }}>{r.emoji} <b>{r.label}</b> · {r.to === null ? `${r.min}회 이상` : `${r.min}~${r.to}회`}</p>
+          ))}
+        </div>
+        <p className="f-body text-[15px] leading-relaxed rounded-xl px-3.5 py-3 mb-3" style={{ background: "#FFF1E2", color: "#9A4F0B" }}>
+          참여 단계의 이름(Sprout, Explorer)은 스피킹 레벨 이름과 같지만 서로 다른 거예요. 참여 단계는 "체험에 몇 번 참여했나", 스피킹 레벨은 "영어로 말하는 수준"을 뜻해요.
+        </p>
+        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>🥕 당근 포인트</p>
+        <p className={`${p} mb-3`} style={{ color: C.charcoal }}>체험 복습을 마칠 때마다 {POINTS_PER_ADVENTURE}점이 쌓여요.</p>
+        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>뱃지</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>조건을 채우면 자동으로 받아요.</p>
+        <div className="space-y-2">
+          {badgeGuide().map((b) => (
+            <p key={b.id} className={p} style={{ color: C.charcoal }}>{b.emoji} <b>{b.name}</b><br /><span className="text-gray-600">{b.ko}</span></p>
+          ))}
+        </div>
+      </div>
+
+      <div className={card}>
+        <p className={h} style={{ color: C.green }}>③ 단계는 어떻게 올라가나요?</p>
+        <div className="space-y-3">
+          <div>
+            <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>참여 단계 · 자동</p>
+            <p className={p} style={{ color: C.charcoal }}>체험에 출석할 때마다 횟수가 쌓이고, {RANKS.slice(1).map((r) => `${r.min}회`).join("·")}가 되면 다음 단계로 올라가요. 앱에서 "다음 단계까지 N회 남음"으로 볼 수 있어요.</p>
+          </div>
+          <div>
+            <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>뱃지 · 자동</p>
+            <p className={p} style={{ color: C.charcoal }}>각 뱃지의 조건을 채우면 바로 받아요. 도장판은 출석 10·20·30·40·50회마다 하나씩이에요.</p>
+          </div>
+          <div>
+            <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>스피킹 레벨 · 선생님이 정해요</p>
+            <p className={p} style={{ color: C.charcoal }}>앱의 점수나 체험 횟수로 자동으로 바뀌지 않아요. 선생님이 체험 중 아이의 실제 말하기를 보고 정해요. 선생님 리포트의 CEFR 표기로 확인하실 수 있어요.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The same guide as the KakaoTalk image, as one scrollable page (opened from "도움말"). */
 function GuideSheet({ onClose }) {
   const [canInstall, setCanInstall] = useState(!!deferredInstall);
@@ -3166,6 +3393,7 @@ function GuideSheet({ onClose }) {
               </button>
             )}
           </div>
+          <LevelGuideForParents />
           <p className="f-body text-[15px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
         </div>
       </div>
@@ -3844,7 +4072,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
           <div>
             <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Mission participation</p>
             <div className="space-y-1.5">
-              {program.missions.map((m, i) => (
+              {programFor(program, student, adv).missions.map((m, i) => (
                 <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={!!adv.missionsCompleted[i]?.done} className="focus-ring tap w-full flex items-center gap-2 text-left">
                   {adv.missionsCompleted[i]?.done ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
                   <span className="f-body text-[16px]" style={{ color: C.charcoal }}>{m.text}</span>
@@ -4346,6 +4574,26 @@ function materialsFrom(program) {
     autoMatch: remember.some((q) => q.id === "match-auto"),
   };
 }
+/** A copy of one level's set to start another level from: every item gets a new id so the two sets never get mixed up in the stats. */
+function cloneMaterials(m) {
+  const withIds = (list, prefix) => (list || []).map((x) => (x.id === "match-auto" ? { ...x } : { ...x, id: newId(prefix) }));
+  return {
+    ...m,
+    vocabulary: withIds(m.vocabulary, "v"),
+    missions: withIds(m.missions, "m"),
+    remember: (m.remember || []).map((q) => (q.id === "match-auto" ? { ...q } : { ...q, id: newId("q"), options: q.options ? [...q.options] : q.options })),
+    bigQuestionOptions: [...(m.bigQuestionOptions || [])],
+    focus: [...(m.focus || [])],
+    challenge: m.challenge || [],
+  };
+}
+/** The editor sets of a saved program, one per level (empty while it has a single shared set). */
+function levelSetsFrom(program) {
+  if (!program || !program.levelMaterials) return {};
+  return Object.fromEntries(materialLevels(program).map((l) => [l, materialsFrom({ ...program, ...program.levelMaterials[l] })]));
+}
+const pickLevelFields = (built) => Object.fromEntries(LEVEL_FIELDS.map((k) => [k, built[k]]));
+
 function cleanQuiz(list) {
   const out = [];
   list.forEach((q) => {
@@ -4574,12 +4822,49 @@ function QuizEditor({ items, onChange }) {
 
 const FOCUS_IDEAS = ["전시를 천천히, 자세히 보기", "워크북을 끝까지 꼼꼼히 하기", "영어로 한 문장씩 말해 보기", "궁금한 것 3가지 질문하기"];
 
-function MaterialsEditor({ value, onChange }) {
+function MaterialsEditor({ value, onChange, levelTabs }) {
   const set = (p) => onChange({ ...value, ...p });
+  const [copyFrom, setCopyFrom] = useState(null);
   const bqOpts = value.bigQuestionOptions.length >= 3 ? value.bigQuestionOptions : [...value.bigQuestionOptions, "", "", ""].slice(0, 3);
   const focus = value.focus || [];
   return (
     <div className="rounded-xl p-3 mb-3 space-y-5" style={{ background: "#FFFDF8", border: `1px solid ${C.beige}` }}>
+      {levelTabs && (
+        <div className="rounded-xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+          <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.charcoal }}>{tr("레벨별 자료")}</p>
+          <div className="flex gap-2 flex-wrap mb-2" role="tablist" aria-label="Levels">
+            {levelTabs.levels.map((l) => (
+              <button
+                key={l}
+                role="tab"
+                aria-selected={levelTabs.active === l}
+                onClick={() => levelTabs.onPick(l)}
+                className="focus-ring tap f-body text-[16px] font-bold rounded-full px-5 py-2"
+                style={{ background: levelTabs.active === l ? C.green : "white", color: levelTabs.active === l ? "white" : C.charcoal, border: `1px solid ${levelTabs.active === l ? C.green : C.beige}` }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <p className="f-body text-[14px] text-gray-600">{tr("지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.", [levelTabs.active])}</p>
+          <div className="flex gap-2 flex-wrap mt-2">
+            {levelTabs.levels.filter((l) => l !== levelTabs.active).map((l) => (
+              <button key={l} onClick={() => setCopyFrom(l)} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("{0} 내용 복사해 오기", [l])}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      {copyFrom && (
+        <ConfirmDialog
+          title={tr("{0} 내용을 복사해 올까요?", [copyFrom])}
+          actions={[
+            { label: tr("복사해 오기"), tone: "primary", onClick: () => { levelTabs.onCopy(copyFrom); setCopyFrom(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setCopyFrom(null) },
+          ]}
+        >
+          {tr("지금 {0} 탭에 적은 내용이 {1}의 내용으로 바뀌어요.", [levelTabs.active, copyFrom])}
+        </ConfirmDialog>
+      )}
       <p className="f-body text-[14px] text-gray-500">{tr("아이 화면에 ")}<b>{tr("영어")}</b>{tr("로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.")}</p>
 
       <div>
@@ -4704,7 +4989,7 @@ function buildInfoMessage(program, info) {
   if (bring.length) lines.push(`🎒 준비물: ${bring.join(", ")}`);
   const fee = feeText(info);
   if (fee) lines.push(`💰 ${fee}`);
-  if ((program.focus || []).length) lines.push(`🔍 오늘의 집중 포인트: ${program.focus.join(" / ")}`);
+  focusSets(program).forEach((f) => lines.push(`🔍 오늘의 집중 포인트${f.level ? ` (${f.level})` : ""}: ${f.items.join(" / ")}`));
   if (info.note) lines.push(`📝 안내: ${info.note}`);
   lines.push("", `👉 예습은 앱에서 해 주세요: https://${APP_ADDRESS}`, "(카톡 안에서 열면 일부 기능이 제한돼요. 크롬이나 사파리로 열어 주세요)");
   return lines.join("\n");
@@ -4870,16 +5155,16 @@ function ProgramInfoSheet({ program, teamRows = [], onClose }) {
               </div>
             </div>
           )}
-          {(program.focus || []).length > 0 && (
-            <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트</p>
+          {focusSets(program).map((fs) => (
+            <div key={fs.level || "all"} className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트{fs.level ? ` · ${fs.level}` : ""}</p>
               <ul className="space-y-1">
-                {program.focus.map((f, i) => (
+                {fs.items.map((f, i) => (
                   <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
                 ))}
               </ul>
             </div>
-          )}
+          ))}
           {rows.slice(3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
@@ -4910,23 +5195,54 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
   const coverPhoto = initial?.coverPhoto || null; // old uploads stay saved but are no longer shown or changed
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
+  const [levelSets, setLevelSets] = useState(() => levelSetsFrom(initial)); // one set per level once two or more levels are chosen
+  const [activeLevel, setActiveLevel] = useState(null);
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
-  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, noticeInfo };
+  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, levelSets, noticeInfo };
   const snap = stableJson(formState);
   const startSnap = useRef(null);
   if (startSnap.current === null) startSnap.current = snap;
   const dirty = snap !== startSnap.current;
   const [draft, setDraft] = useState(() => {
     const d = draftGet(draftKey);
-    return d && d.state && stableJson(d.state) !== snap ? d : null;
+    return d && d.state && stableJson({ levelSets: {}, ...d.state }) !== snap ? d : null;
   });
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
+
+  // two or more levels: each gets its own words, missions, focus points and quiz (a new level starts as a copy of the first)
+  const sortedLv = sortLevels(levels);
+  const tabbed = sortedLv.length >= 2;
+  const active = sortedLv.includes(activeLevel) ? activeLevel : sortedLv[0];
+  const levelsRef = useRef(levels); // the latest choice, even when two buttons are tapped before the screen redraws
+  levelsRef.current = levels;
+  const toggleLevel = (l) => {
+    const cur = levelsRef.current;
+    const next = sortLevels(toggleIn(cur, l));
+    levelsRef.current = next;
+    const first = sortLevels(cur)[0];
+    if (next.length >= 2) {
+      setLevelSets((prev) => {
+        const seed = prev[first] || materials;
+        return Object.fromEntries(next.map((lv) => [lv, prev[lv] || (cur.includes(lv) ? { ...materials } : cloneMaterials(seed))]));
+      });
+    } else if (next.length === 1 && levelSets[next[0]]) {
+      setMaterials((m) => ({ ...levelSets[next[0]], reviewOpen: m.reviewOpen })); // back to one shared set: keep the one that is left
+    }
+    setLevels(next);
+  };
+  const levelValue = tabbed ? { ...(levelSets[active] || materials), reviewOpen: materials.reviewOpen } : materials;
+  const onLevelChange = (v) => {
+    if (!tabbed) return setMaterials(v);
+    const { reviewOpen, ...rest } = v;
+    setLevelSets((prev) => ({ ...prev, [active]: rest }));
+    if (reviewOpen !== materials.reviewOpen) setMaterials((m) => ({ ...m, reviewOpen }));
+  };
 
   // keep what is being typed on this phone (after a short pause), and tell the screen whether there is unsaved work
   useEffect(() => {
@@ -4942,7 +5258,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
   const restoreDraft = () => {
     const d = draft.state;
     setTitle(d.title); setDate(d.date); setLocation(d.location); setLevels(d.levels); setIcons(d.icons); setThemeKo(d.themeKo);
-    setDateReached(d.dateReached); setMaterials(d.materials); setNoticeInfo(d.noticeInfo);
+    setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setNoticeInfo(d.noticeInfo);
     setShowMaterials(true);
     setDraft(null);
   };
@@ -4956,13 +5272,17 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
     draftClear(draftKey);
     const lv = sortLevels(levels);
     const ic = sortIcons(icons);
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...buildMaterials(materials), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const multi = lv.length >= 2;
+    const built = multi ? Object.fromEntries(lv.map((l) => [l, buildMaterials({ ...(levelSets[l] || materials), reviewOpen: materials.reviewOpen })])) : null;
+    const shared = multi ? built[lv[0]] : buildMaterials(lv.length === 1 && levelSets[lv[0]] ? { ...levelSets[lv[0]], reviewOpen: materials.reviewOpen } : materials);
+    const levelMaterials = multi ? Object.fromEntries(lv.map((l) => [l, pickLevelFields(built[l])])) : null;
+    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
       startSnap.current = null; // the cleared form below becomes the new "nothing typed yet"
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
@@ -5049,7 +5369,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         {LEVEL_CHOICES.map((l) => (
           <button
             key={l}
-            onClick={() => setLevels((prev) => toggleIn(prev, l))}
+            onClick={() => toggleLevel(l)}
             aria-pressed={levels.includes(l)}
             className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
             style={{ background: levels.includes(l) ? C.green : C.cream, color: levels.includes(l) ? "white" : C.charcoal, border: `1px solid ${levels.includes(l) ? C.green : C.beige}` }}
@@ -5081,7 +5401,7 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         </span>
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showInfo ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
-      {showInfo && <InfoEditor program={{ title, date, location, locationKo: location, focus: materials.focus }} value={noticeInfo} onChange={setNoticeInfo} />}
+      {showInfo && <InfoEditor program={{ title, date, location, locationKo: location, focus: materials.focus, levelMaterials: tabbed ? Object.fromEntries(sortedLv.map((l) => [l, { focus: (levelSets[l] || materials).focus || [] }])) : null }} value={noticeInfo} onChange={setNoticeInfo} />}
 
       <button
         onClick={() => setShowMaterials((v) => !v)}
@@ -5095,7 +5415,13 @@ function RegisterProgramPanel({ initial, defaultShowInfo, defaultShowMaterials, 
         </span>
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
-      {showMaterials && <MaterialsEditor value={materials} onChange={setMaterials} />}
+      {showMaterials && (
+        <MaterialsEditor
+          value={levelValue}
+          onChange={onLevelChange}
+          levelTabs={tabbed ? { levels: sortedLv, active, onPick: setActiveLevel, onCopy: (from) => setLevelSets((prev) => ({ ...prev, [active]: cloneMaterials(prev[from] || materials) })) } : null}
+        />
+      )}
 
       <button onClick={() => setDateReached((d) => !d)} aria-pressed={dateReached} className="focus-ring tap flex items-center gap-2 mb-4">
         {dateReached ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
@@ -5288,7 +5614,7 @@ function wordPractice(rows) {
   let finished = 0;
   let counted = 0;
   rows.forEach((a) => {
-    const program = getProgram(a.programId);
+    const program = programForLevel(getProgram(a.programId), a.materialLevel);
     const words = program?.vocabulary || [];
     if (!words.length || !a.insights) return;
     counted += 1;
@@ -5347,31 +5673,36 @@ function summarizeRows(rows) {
 
 function programDetail(program, rows) {
   const withInsights = rows.filter((a) => a.insights);
-  const words = (program.vocabulary || []).map((v) => {
-    const taps = withInsights.map((a) => a.insights.wordTaps?.[v.id] || 0);
-    const checks = withInsights.map((a) => a.insights.wordChecks?.[v.id] || 0);
+  const lvls = materialLevels(program);
+  const tabbed = lvls.length > 0;
+  // one entry per level set (or just the shared set); a word is counted over the children who use that set
+  const groups = tabbed ? lvls.map((l) => ({ level: l, view: programForLevel(program, l), ins: withInsights.filter((a) => levelFor(program, null, a) === l), rows: rows.filter((a) => levelFor(program, null, a) === l) })) : [{ level: null, view: program, ins: withInsights, rows }];
+  const tag = (g, text) => (tabbed ? `${text} (${g.level})` : text);
+  const words = groups.flatMap((g) => (g.view.vocabulary || []).map((v) => {
+    const taps = g.ins.map((a) => a.insights.wordTaps?.[v.id] || 0);
+    const checks = g.ins.map((a) => a.insights.wordChecks?.[v.id] || 0);
     return {
-      id: v.id,
-      en: v.en,
+      id: `${g.level || ""}${v.id}`,
+      en: tag(g, v.en),
       emoji: v.emoji,
       avgTaps: avgOf(taps),
       avgChecks: avgOf(checks),
       done: checks.filter((c) => c >= WORD_PRACTICE_GOAL).length,
       n: checks.length,
     };
-  });
-  const questions = (program.remember || []).map((q) => {
-    const answered = withInsights.map((a) => asAnswer(a.insights.reviewResults?.[q.id])).filter(Boolean);
+  }));
+  const questions = groups.flatMap((g) => (g.view.remember || []).map((q) => {
+    const answered = g.ins.map((a) => asAnswer(a.insights.reviewResults?.[q.id])).filter(Boolean);
     const wrongPicks = {};
     answered.filter((e) => e.correct === false && e.choice).forEach((e) => { wrongPicks[e.choice] = (wrongPicks[e.choice] || 0) + 1; });
     const topWrong = Object.entries(wrongPicks).sort((x, y) => y[1] - x[1])[0] || null;
     const secs = answered.filter((e) => typeof e.ms === "number").map((e) => e.ms / 1000);
-    return { id: q.id, prompt: q.prompt, correct: answered.filter((e) => e.correct).length, n: answered.length, topWrong, avgSecs: avgOf(secs) };
-  });
-  const missions = (program.missions || []).map((m) => {
-    const entries = rows.map((a) => a.missionsCompleted.find((x) => x.missionId === m.id)).filter(Boolean);
-    return { id: m.id, text: m.text, done: entries.filter((x) => x.done).length, n: entries.length };
-  });
+    return { id: `${g.level || ""}${q.id}`, prompt: tag(g, q.prompt), correct: answered.filter((e) => e.correct).length, n: answered.length, topWrong, avgSecs: avgOf(secs) };
+  }));
+  const missions = groups.flatMap((g) => (g.view.missions || []).map((m) => {
+    const entries = g.rows.map((a) => a.missionsCompleted.find((x) => x.missionId === m.id)).filter(Boolean);
+    return { id: `${g.level || ""}${m.id}`, text: tag(g, m.text), done: entries.filter((x) => x.done).length, n: entries.length };
+  }));
   const bigQ = {};
   rows.forEach((a) => {
     const answer = a.bigQuestionAnswer || a.insights?.bigQuestion?.answer;
@@ -5819,14 +6150,15 @@ const adviceReady = (adv) => !!(adv && adv.attended && (adv.feedback || adv.revi
 
 /** What the draft is based on. No name, no login number, no phone: safe to describe the child to an outside service. */
 function adviceContext(student, program, adv) {
-  const words = program.vocabulary || [];
+  const view = programFor(program, student, adv);
+  const words = view.vocabulary || [];
   const checks = adv.insights?.wordChecks || {};
   const counted = words.map((w) => ({ en: w.en, n: checks[w.id] || 0 }));
   const full = counted.filter((w) => w.n >= WORD_PRACTICE_GOAL).length;
   const leastPracticed = adv.insights ? counted.filter((w) => w.n < WORD_PRACTICE_GOAL).sort((a, b) => a.n - b.n).slice(0, 3).map((w) => w.en) : [];
   const rs = reviewScoreOf(adv);
   const results = adv.insights?.reviewResults || {};
-  const missed = (program.remember || []).filter((q) => results[q.id] && results[q.id].correct === false).map((q) => q.prompt).slice(0, 3);
+  const missed = (view.remember || []).filter((q) => results[q.id] && results[q.id].correct === false).map((q) => q.prompt).slice(0, 3);
   const missions = adv.missionsCompleted || [];
   const fb = adv.feedback || {};
   const notes = [fb.overview, fb.guideNotes, adv.teacherNote].filter((t) => t && String(t).trim()).map((t) => String(t).trim()).join(" / ").slice(0, 500);
@@ -7128,6 +7460,8 @@ const MANUAL = [
       { t: "step", en: "Programs tab, then Register new program. Enter the name. Add an English subtitle after a colon, e.g. Seoul Zoo: Animals Around the World. The name is shown big, the English line smaller.", ko: "프로그램등록 탭에서 새 프로그램 등록. 이름을 입력해요. 콜론 뒤에 영어 부제를 붙일 수 있어요. 예: 서울대공원: Animals Around the World. 이름은 크게, 영어는 작게 보여요." },
       { t: "step", en: "Enter the date and place, pick a theme icon (it only chooses the colour bar), choose one or more levels, and write a one-sentence intro.", ko: "날짜와 장소를 넣고, 테마 아이콘(막대 색만 정해요)과 레벨을 고르고, 한 문장 소개를 써요." },
       { t: "step", en: "Open Pre-trip info and Trip materials (see the next sections), then tap Register program.", ko: "체험 전 안내와 체험 자료 입력을 채우고(다음 항목 참고) 프로그램 등록을 눌러요." },
+      { t: "step", en: "Choosing two or more levels adds a tab for each level inside Trip materials. Write the words, missions, focus points and quiz of each level in its own tab. A new level starts as a copy of the first one; use Copy from A1 (or another level) to copy again.", ko: "레벨을 두 개 이상 고르면 체험 자료 입력 안에 레벨마다 탭이 생겨요. 단어, 미션, 집중 포인트, 퀴즈를 레벨별 탭에 따로 써요. 새로 고른 레벨은 첫 레벨 내용을 복사해서 시작하고, 'A1 내용 복사해 오기'(다른 레벨도 가능)로 다시 복사할 수 있어요." },
+      { t: "tip", en: "Children get the materials of their own level. They can look at the other levels by tapping a tab (words and missions only; the quiz is only for their own level). If you change a child's level before the trip, they get the new level's materials.", ko: "아이는 자기 레벨의 자료를 써요. 다른 레벨은 탭하면 볼 수 있어요(단어와 미션만 볼 수 있고, 퀴즈는 자기 레벨만 풀어요). 체험 전에 아이의 레벨을 바꾸면 새 레벨의 자료가 열려요." },
       { t: "p", en: "Learning materials: ① Prep word cards, ② on-site missions and today's focus points, ③ the review quiz and big question. Words can be added one by one or pasted many at once (one per line: word - meaning - emoji).", ko: "학습 자료는 ① 예습 단어 카드, ② 현장 미션과 오늘의 집중 포인트, ③ 복습 퀴즈와 큰 질문이에요. 단어는 하나씩 넣거나 한 줄에 하나씩(단어 - 뜻 - 이모지) 한꺼번에 붙여넣을 수 있어요." },
       { t: "p", en: "To edit, tap the program under Registered programs. To delete, open it and tap Delete program. It asks first, and a backup file is downloaded automatically when children already have records.", ko: "고치려면 등록된 프로그램에서 프로그램을 눌러요. 지우려면 열어서 프로그램 삭제를 눌러요. 먼저 한 번 묻고, 아이 기록이 있으면 백업 파일이 자동으로 내려받아져요." },
       { t: "tip", en: "If you leave a form with unsaved text, the app asks first. If the phone closes the app, the text is kept: reopen the program and tap Continue writing.", ko: "저장하지 않은 글이 있는데 나가려고 하면 먼저 물어봐요. 앱이 꺼져도 글은 보관돼요. 프로그램을 다시 열고 이어서 작성을 누르세요." },
@@ -7237,6 +7571,21 @@ const MANUAL = [
       { t: "term", label: { en: "Opened from KakaoTalk and some things look limited", ko: "카카오톡에서 열었더니 일부가 안 돼요" }, en: "KakaoTalk's built-in browser is limited. Tap Open in browser, or open the address in Chrome or Safari.", ko: "카카오톡 안의 브라우저는 기능이 제한돼요. 브라우저로 열기를 누르거나 크롬이나 사파리에서 주소를 열어 주세요." },
     ],
   },
+  {
+    id: "levels",
+    title: { en: "Carrot World levels, ranks and badges", ko: "당근나라 레벨, 참여 단계, 뱃지" },
+    items: [
+      { t: "p", en: "The Speaking Level is based on what a child can actually say and how well they communicate, not on test scores. CEFR is only a reference. It is a way to give each child the right classes and trips, not a grade.", ko: "스피킹 레벨은 시험 점수가 아니라 아이가 실제로 말하는 능력과 의사소통 수준을 기준으로 해요. CEFR은 참고용이에요. 평가가 아니라, 아이에게 맞는 수업과 체험을 드리기 위한 기준이에요." },
+      ...CW_LEVELS.map((l) => ({ t: "term", label: { en: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}`, ko: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}` }, en: `${l.en} (${l.tag})`, ko: `${l.ko} (${l.tag})` })),
+      { t: "warn", en: "Two different things share names. The participation rank in the app (Sprout, Scout, Explorer, Trailblazer, Master) only counts attended trips. The Speaking Level (Seed to Leader) is about speaking ability. Sprout and Explorer exist in both lists, so explain this to parents.", ko: "이름이 겹치는 두 가지가 있어요. 앱의 참여 단계(Sprout, Scout, Explorer, Trailblazer, Master)는 출석한 체험 횟수만 세요. 스피킹 레벨(Seed ~ Leader)은 말하기 수준이에요. Sprout와 Explorer는 두 곳에 모두 있으니 학부모님께 구분해서 설명해 주세요." },
+      { t: "term", label: { en: "Participation rank (automatic)", ko: "참여 단계 (자동)" }, en: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}+ trips` : `${r.min}-${r.to} trips`}`).join("\n") + "\nIt counts the trips you mark present.", ko: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}회 이상` : `${r.min}~${r.to}회`}`).join("\n") + "\n출석 체크한 체험 횟수를 세요." },
+      { t: "term", label: { en: "Carrot points (automatic)", ko: "당근 포인트 (자동)" }, en: `${POINTS_PER_ADVENTURE} points each time a child finishes a review.`, ko: `체험 복습을 마칠 때마다 ${POINTS_PER_ADVENTURE}점이에요.` },
+      { t: "term", label: { en: "Badges (automatic)", ko: "뱃지 (자동)" }, en: badgeGuide().map((b) => `${b.emoji} ${b.enName}: ${b.en}`).join("\n"), ko: badgeGuide().map((b) => `${b.emoji} ${b.name}: ${b.ko}`).join("\n") },
+      { t: "term", label: { en: "How a child moves up", ko: "단계가 올라가는 방식" }, en: "Participation rank and badges move by themselves from the records (attendance, reviews, missions). You cannot edit them. The Speaking Level never changes by itself: it is decided by the teacher from the child's real speaking.", ko: "참여 단계와 뱃지는 기록(출석, 복습, 미션)에 따라 저절로 올라가요. 직접 고칠 수 없어요. 스피킹 레벨은 저절로 바뀌지 않아요. 선생님이 아이의 실제 말하기를 보고 정해요." },
+      { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, child card, Student info, Edit: the Level buttons (Pre-A1, A1, A2, B1) group children and pre-select teams. In Full feedback report, the CEFR box is free text (for example A1 or B2): parents read it in the report as CEFR.", ko: "학생관리 탭, 아이 카드, 학생 정보, 수정: 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 고르는 데 쓰여요. 전체 피드백 리포트의 CEFR 칸은 자유 입력(예: A1, B2)이고, 학부모가 리포트에서 CEFR로 읽어요." },
+      { t: "tip", en: "The Level buttons stop at B1. For Thinker (B2) or Leader (C1-C2), type the level in the CEFR box of the feedback report.", ko: "레벨 버튼은 B1까지예요. Thinker(B2)나 Leader(C1~C2)는 피드백 리포트의 CEFR 칸에 직접 입력하세요." },
+    ],
+  },
 ];
 
 /** The manual page: sections open and close; the language follows the teacher's choice. */
@@ -7286,7 +7635,7 @@ function TeacherManual({ lang, onClose }) {
                         return (
                           <div key={i}>
                             <p className="f-body text-[17px] font-bold" style={{ color: C.green }}>{it.label[L]}</p>
-                            <p className="f-body text-[16px] leading-relaxed" style={{ color: C.charcoal }}>{it[L]}</p>
+                            <p className="f-body text-[16px] leading-relaxed whitespace-pre-line" style={{ color: C.charcoal }}>{it[L]}</p>
                           </div>
                         );
                       }
@@ -7485,7 +7834,7 @@ export default function CarrotExplorer() {
     return updated;
   };
 
-  const enrollStudent = (studentId, programId) => {
+  const enrollStudent = (studentId, programId, levelHint) => {
     // decided from the current list, not inside the state update: when several updates happen together
     // (e.g. registering a child and enrolling them at once) the update runs later and nothing would be sent to the server
     const existing = adventures.find((a) => a.studentId === studentId && a.programId === programId);
@@ -7493,8 +7842,10 @@ export default function CarrotExplorer() {
       if (existing.canceled) updateAdventure(studentId, programId, { canceled: false, canceledAt: "" }); // re-adding brings the cancelled place back
       return;
     }
-    if (!getProgram(programId)) return;
-    const created = { ...blankAdventure(studentId, getProgram(programId)), enrolledAt: new Date().toISOString() };
+    const prog = getProgram(programId);
+    if (!prog) return;
+    const who = students.find((x) => x.id === studentId) || (levelHint ? { level: levelHint } : null);
+    const created = { ...blankAdventure(studentId, prog, levelFor(prog, who)), enrolledAt: new Date().toISOString() };
     setAdventures((prev) => (prev.some((a) => a.studentId === studentId && a.programId === programId) ? prev : [...prev, created]));
     sync(api.createAdventure(created));
   };
@@ -7516,7 +7867,7 @@ export default function CarrotExplorer() {
     };
     setStudents((prev) => [...prev, student]);
     sync(api.createStudent(student));
-    if (programId) enrollStudent(id, programId);
+    if (programId) enrollStudent(id, programId, level);
     return id;
   };
 
@@ -7572,8 +7923,20 @@ export default function CarrotExplorer() {
   };
 
   const editStudent = (studentId, patch) => {
+    const before = students.find((x) => x.id === studentId);
     setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, ...patch } : s)));
     sync(api.updateStudent(studentId, patch));
+    // a child who moves to another level (before the trip) gets that level's words and missions
+    if (patch.level && before && patch.level !== before.level) {
+      adventures.filter((a) => a.studentId === studentId && !a.attended).forEach((a) => {
+        const prog = getProgram(a.programId);
+        if (!prog || !materialLevels(prog).length) return;
+        const lvl = levelFor(prog, { level: patch.level });
+        if (lvl === a.materialLevel) return;
+        const missionsCompleted = programForLevel(prog, lvl).missions.map((m) => ({ missionId: m.id, done: false, photo: null }));
+        updateAdventure(studentId, a.programId, { materialLevel: lvl, missionsCompleted });
+      });
+    }
   };
   const deleteStudent = (studentId) => {
     flushSaves();
@@ -7583,7 +7946,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -7604,6 +7967,7 @@ export default function CarrotExplorer() {
       icon,
       icons,
       coverPhoto: coverPhoto || null,
+      levelMaterials: levelMaterials || null,
       vocabulary: vocabulary || dm.vocabulary,
       bigQuestion: bigQuestion || dm.bigQuestion,
       bigQuestionOptions: bigQuestionOptions || dm.bigQuestionOptions,
@@ -7619,7 +7983,7 @@ export default function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -7638,6 +8002,7 @@ export default function CarrotExplorer() {
       dateReached: !!dateReached,
       coverPhoto: coverPhoto || null,
     };
+    if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;
     if (vocabulary) patch.vocabulary = vocabulary;
     if (bigQuestion) patch.bigQuestion = bigQuestion;
     if (bigQuestionOptions) patch.bigQuestionOptions = bigQuestionOptions;
@@ -7648,24 +8013,29 @@ export default function CarrotExplorer() {
     if (reviewOpen !== undefined) patch.reviewOpen = !!reviewOpen;
     if (info) patch.info = info;
     PROGRAMS[idx] = { ...PROGRAMS[idx], ...patch };
-    if (missions) {
-      // Each enrolled student keeps a per-mission record; keep it in step with the edited mission list
+    if (missions || levelMaterials !== undefined) {
+      // Each enrolled student keeps a per-mission record; keep it in step with the edited mission list of THEIR level
       // (existing ticks and photos are kept by mission id, new missions start empty).
+      const edited = PROGRAMS[idx];
       const fixes = [];
       adventures.forEach((a) => {
         if (a.programId !== programId) return;
-        const next = missions.map((m) => a.missionsCompleted.find((x) => x.missionId === m.id) || { missionId: m.id, done: false, photo: null });
+        const who = students.find((x) => x.id === a.studentId);
+        const lvl = levelFor(edited, who, a);
+        const wanted = programForLevel(edited, lvl).missions || [];
+        const next = wanted.map((m) => a.missionsCompleted.find((x) => x.missionId === m.id) || { missionId: m.id, done: false, photo: null });
         const same = next.length === a.missionsCompleted.length && next.every((x, i) => x === a.missionsCompleted[i]);
-        if (!same) fixes.push({ studentId: a.studentId, missionsCompleted: next });
+        const levelChanged = !!lvl && a.materialLevel !== lvl;
+        if (!same || levelChanged) fixes.push({ studentId: a.studentId, missionsCompleted: next, ...(levelChanged ? { materialLevel: lvl } : {}) });
       });
       if (fixes.length) {
         setAdventures((prev) =>
           prev.map((a) => {
             const f = a.programId === programId ? fixes.find((x) => x.studentId === a.studentId) : null;
-            return f ? { ...a, missionsCompleted: f.missionsCompleted } : a;
+            return f ? { ...a, missionsCompleted: f.missionsCompleted, ...(f.materialLevel ? { materialLevel: f.materialLevel } : {}) } : a;
           })
         );
-        fixes.forEach((f) => sync(api.updateAdventure(f.studentId, programId, { missionsCompleted: f.missionsCompleted })));
+        fixes.forEach((f) => sync(api.updateAdventure(f.studentId, programId, { missionsCompleted: f.missionsCompleted, ...(f.materialLevel ? { materialLevel: f.materialLevel } : {}) })));
       }
     }
     setProgramsVersion((v) => v + 1);
@@ -7903,6 +8273,7 @@ export default function CarrotExplorer() {
                 adv={selectedAdv}
                 adventures={liveAdventures}
                 studentId={studentId}
+                studentLevel={(students.find((x) => x.id === studentId) || {}).level}
                 update={(patch) => updateAdventure(studentId, selectedProgramId, patch)}
                 onBack={() => setSelectedProgramId(null)}
               />

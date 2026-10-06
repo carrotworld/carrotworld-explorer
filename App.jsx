@@ -3274,13 +3274,13 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 
 /** At the end of the parents' help page: what the levels, steps and badges mean, and how a child moves up. */
-function LevelGuideForParents() {
+function LevelGuideForParents({ showTitle = true }) {
   const card = "bg-white rounded-2xl p-4";
   const h = "f-display font-semibold text-[19px] leading-snug mb-2";
   const p = "f-body text-[16px] leading-relaxed";
   return (
     <div className="space-y-3 pt-3">
-      <h3 className="f-headline text-[26px] leading-tight" style={{ color: C.green }}>당근나라 레벨 안내</h3>
+      {showTitle && <h3 className="f-headline text-[26px] leading-tight" style={{ color: C.green }}>당근나라 레벨 안내</h3>}
       <p className={`${p} text-gray-500`}>아이의 영어가 어디쯤인지, 앱의 단계와 뱃지는 무슨 뜻인지 한 번에 볼 수 있어요.</p>
 
       <div className={card}>
@@ -3347,8 +3347,26 @@ function LevelGuideForParents() {
   );
 }
 
+/** The level guide as its own page, opened from "당근나라 레벨" at the top of the parents' home. */
+function LevelSheet({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="당근나라 레벨">
+      <div className="max-w-md mx-auto px-5 pt-6 pb-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>당근나라 레벨</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>
+            닫기
+          </button>
+        </div>
+        <LevelGuideForParents showTitle={false} />
+        <p className="f-body text-[15px] text-gray-400 text-center pt-4">레벨이 궁금하시면 카카오톡으로 편하게 문의해 주세요.</p>
+      </div>
+    </div>
+  );
+}
+
 /** The same guide as the KakaoTalk image, as one scrollable page (opened from "도움말"). */
-function GuideSheet({ onClose }) {
+function GuideSheet({ onClose, onOpenLevels }) {
   const [canInstall, setCanInstall] = useState(!!deferredInstall);
   const install = async () => {
     if (!deferredInstall) return;
@@ -3393,7 +3411,15 @@ function GuideSheet({ onClose }) {
               </button>
             )}
           </div>
-          <LevelGuideForParents />
+          {onOpenLevels && (
+            <button onClick={onOpenLevels} className="focus-ring tap w-full text-left rounded-2xl p-4 bg-white flex items-center justify-between gap-3">
+              <span>
+                <span className="block f-display font-semibold text-[18px]" style={{ color: C.green }}>🥕 당근나라 레벨 안내</span>
+                <span className="block f-body text-[15px] text-gray-500">레벨, 참여 단계, 뱃지, 올라가는 방식</span>
+              </span>
+              <ChevronRight size={20} color="#C9BFA8" className="shrink-0" />
+            </button>
+          )}
           <p className="f-body text-[15px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
         </div>
       </div>
@@ -3480,6 +3506,7 @@ function ParentWaiting({ students, familyPin, onRefresh, onLogout }) {
 function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
+  const [showLevels, setShowLevels] = useState(false);
   const [infoId, setInfoId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
   const closeGuide = () => {
@@ -3494,18 +3521,22 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
       <ScreenHeader
         title="내 자녀 관리"
         right={
-          <div className="flex items-center gap-3">
-            <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>
-              도움말
-            </button>
-            <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: "#B9AE99" }}>
-              Switch user
-            </button>
-          </div>
+          <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>
+            Switch user
+          </button>
         }
       />
+      <div className="px-5 flex gap-2 mb-3">
+        <button onClick={() => setShowLevels(true)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2 whitespace-nowrap" style={{ background: "#FFF1E2", color: "#B25A0B", border: `1px solid ${C.beige}` }}>
+          🥕 당근나라 레벨
+        </button>
+        <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2 whitespace-nowrap" style={{ background: C.beige, color: C.green }}>
+          도움말
+        </button>
+      </div>
       {showGuide && <ParentGuide onClose={closeGuide} />}
-      {showSheet && <GuideSheet onClose={() => setShowSheet(false)} />}
+      {showSheet && <GuideSheet onClose={() => setShowSheet(false)} onOpenLevels={() => { setShowSheet(false); setShowLevels(true); }} />}
+      {showLevels && <LevelSheet onClose={() => setShowLevels(false)} />}
       {infoId && getProgram(infoId) && (
         <ProgramInfoSheet
           program={getProgram(infoId)}

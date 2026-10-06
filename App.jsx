@@ -3503,9 +3503,9 @@ const markGuideSeen = () => {
   }
 };
 const GUIDE_STEPS = [
-  { icon: "📚", title: "체험 전 · 예습", text: "체험 며칠 전부터 아이와 함께 앱을 열어 보세요. 단어 카드를 눌러 듣고, 따라 말한 뒤 칸을 체크해요. 하루 몇 분이면 충분해요." },
-  { icon: "🎒", title: "체험 날 · 현장", text: "당일에 선생님이 현장 미션을 열어 드려요. 아이는 미션을 하나씩 해 보고, 오늘의 집중 포인트에 마음을 모아요. 선생님이 출석을 체크해요." },
-  { icon: "🌟", title: "체험 후 · 복습", text: "선생님이 복습을 열어 드리면 아이가 배운 내용으로 퀴즈를 풀고 점수(%)를 확인해요. 부모님은 점수와 선생님 리포트를 보고 짧은 설문을 남길 수 있어요. 궁금한 점은 카카오톡으로 문의해 주세요." },
+  { icon: "📚", title: "체험 전 · 예습", text: "단어 카드를 눌러 듣고 따라 말한 뒤 칸을 체크해요. 하루 몇 분이면 돼요." },
+  { icon: "🎒", title: "체험 날 · 현장", text: "선생님이 열어 준 미션을 하나씩 해요. 출석은 선생님이 체크해요." },
+  { icon: "🌟", title: "체험 후 · 복습", text: "퀴즈를 풀고 점수(%)를 확인해요. 선생님 리포트를 보고 설문을 남겨 주세요." },
 ];
 const APP_ADDRESS = "explorer.carrotworld.kr";
 // Android Chrome offers a real "add to home screen" prompt; keep it so the guide can show a one-tap button.
@@ -3525,15 +3525,14 @@ function LevelGuideForParents({ showTitle = true }) {
   return (
     <div className="space-y-3 pt-3">
       {showTitle && <h3 className="f-headline text-[26px] leading-tight" style={{ color: C.green }}>당근나라 레벨 안내</h3>}
-      <p className={`${p} text-gray-500`}>아이의 영어가 어디쯤인지, 앱의 단계와 뱃지는 무슨 뜻인지 한 번에 볼 수 있어요.</p>
 
       <div className={card}>
         <p className={h} style={{ color: C.green }}>① 영어 말하기 레벨 (Speaking Level)</p>
-        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>당근나라는 아이의 영어 수준을 정확히 이해하고 아이에게 맞는 체험을 드리기 위해 말하기 중심(Speaking) 레벨 시스템을 운영해요.</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>아이의 실제 말하기 수준에 맞는 체험을 드리려고 말하기(Speaking) 레벨을 운영해요.</p>
         <div className={`${p} mb-3 space-y-1`} style={{ color: C.charcoal }}>
           <p>• 시험 점수가 아니라, 아이의 실제 표현 능력과 의사소통 수준이 기준이에요.</p>
           <p>• 평가가 아니라, 아이에게 맞는 수업과 체험을 드리기 위한 기준이에요.</p>
-          <p>• CEFR 국제 기준을 참고해 만들었어요. 선생님 리포트에 나오는 CEFR 표기는 아래 기준이에요.</p>
+          <p>• CEFR 국제 기준을 참고했어요. 리포트의 CEFR 표기도 이 기준이에요.</p>
         </div>
         <div className="space-y-2" role="list" aria-label="Speaking levels">
           {CW_LEVELS.map((l) => (
@@ -3544,7 +3543,6 @@ function LevelGuideForParents({ showTitle = true }) {
             </div>
           ))}
         </div>
-        <p className={`${p} mt-3 text-gray-600`}>당근나라는 Experience(경험) → Explore(탐험) → Express(표현) 구조로, 영어를 "공부"가 아닌 "경험"으로 키워 가요.</p>
       </div>
 
       <div className={card}>
@@ -3557,12 +3555,10 @@ function LevelGuideForParents({ showTitle = true }) {
           ))}
         </div>
         <p className="f-body text-[15px] leading-relaxed rounded-xl px-3.5 py-3 mb-3" style={{ background: "#FFF1E2", color: "#9A4F0B" }}>
-          참여 단계의 이름(Sprout, Explorer)은 스피킹 레벨 이름과 같지만 서로 다른 거예요. 참여 단계는 "체험에 몇 번 참여했나", 스피킹 레벨은 "영어로 말하는 수준"을 뜻해요.
+          참여 단계의 Sprout, Explorer는 스피킹 레벨과 이름만 같아요. 참여 단계는 참여 횟수, 스피킹 레벨은 말하기 수준이에요.
         </p>
-        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>🥕 Carrot Points</p>
-        <p className={`${p} mb-3`} style={{ color: C.charcoal }}>체험 완료 +{POINT_RULES.trip.toLocaleString("en-US")}P · 부모 설문 +{POINT_RULES.survey}P · 외부 후기 +{POINT_RULES.review}P · 친구 추천 +{POINT_RULES.referral.toLocaleString("en-US")}P예요. 1P는 1원이고, 다음 프로그램 결제에 쓸 수 있어요(현금 출금은 안 돼요). 첫 화면의 포인트 카드에서 확인하세요.</p>
         <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>뱃지</p>
-        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>조건을 채우면 자동으로 받아요.</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>조건을 채우면 바로 받아요.</p>
         <div className="space-y-2">
           {badgeGuide().map((b) => (
             <p key={b.id} className={p} style={{ color: C.charcoal }}>{b.emoji} <b>{b.name}</b><br /><span className="text-gray-600">{b.ko}</span></p>
@@ -3575,15 +3571,15 @@ function LevelGuideForParents({ showTitle = true }) {
         <div className="space-y-3">
           <div>
             <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>참여 단계 · 자동</p>
-            <p className={p} style={{ color: C.charcoal }}>체험에 출석할 때마다 횟수가 쌓이고, {RANKS.slice(1).map((r) => `${r.min}회`).join("·")}가 되면 다음 단계로 올라가요. 앱에서 "다음 단계까지 N회 남음"으로 볼 수 있어요.</p>
+            <p className={p} style={{ color: C.charcoal }}>출석할 때마다 횟수가 쌓이고 {RANKS.slice(1).map((r) => `${r.min}회`).join("·")}가 되면 다음 단계로 올라가요.</p>
           </div>
           <div>
             <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>뱃지 · 자동</p>
-            <p className={p} style={{ color: C.charcoal }}>각 뱃지의 조건을 채우면 바로 받아요. 도장판은 출석 10·20·30·40·50회마다 하나씩이에요.</p>
+            <p className={p} style={{ color: C.charcoal }}>조건을 채우면 바로 받아요.</p>
           </div>
           <div>
             <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>스피킹 레벨 · 선생님이 정해요</p>
-            <p className={p} style={{ color: C.charcoal }}>앱의 점수나 체험 횟수로 자동으로 바뀌지 않아요. 선생님이 체험 중 아이의 실제 말하기를 보고 정해요. 선생님 리포트의 CEFR 표기로 확인하실 수 있어요.</p>
+            <p className={p} style={{ color: C.charcoal }}>점수나 횟수로 자동으로 바뀌지 않아요. 선생님이 실제 말하기를 보고 정해요. 리포트의 CEFR 표기로 확인해요.</p>
           </div>
         </div>
       </div>
@@ -3603,7 +3599,6 @@ function LevelSheet({ onClose }) {
           </button>
         </div>
         <LevelGuideForParents showTitle={false} />
-        <p className="f-body text-[15px] text-gray-400 text-center pt-4">레벨이 궁금하시면 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
     </div>
   );
@@ -3632,7 +3627,6 @@ function GuideSheet({ onClose, onOpenLevels }) {
             닫기
           </button>
         </div>
-        <p className="f-body text-[17px] text-gray-500 mb-4">딱 3단계예요.</p>
         <div className="space-y-3">
           {GUIDE_STEPS.map((st, k) => (
             <div key={st.title} className="bg-white rounded-2xl p-4">
@@ -3646,7 +3640,7 @@ function GuideSheet({ onClose, onOpenLevels }) {
           <div className="rounded-2xl p-4" style={{ background: C.beige }}>
             <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.orange }}>앱 주소</p>
             <p className="f-display text-[21px] font-semibold mb-2" style={{ color: C.green }}>{APP_ADDRESS}</p>
-            <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가해 두면 더 편해요</p>
+            <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가</p>
             <p className="f-body text-[15px] text-gray-600">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
             <p className="f-body text-[15px] text-gray-600">아이폰: 공유 버튼 → 홈 화면에 추가</p>
             {canInstall && (
@@ -3664,7 +3658,7 @@ function GuideSheet({ onClose, onOpenLevels }) {
               <ChevronRight size={20} color="#C9BFA8" className="shrink-0" />
             </button>
           )}
-          <p className="f-body text-[15px] text-gray-400 text-center pt-1">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+          <p className="f-body text-[15px] text-gray-400 text-center pt-1">문의는 카카오톡으로 해 주세요.</p>
         </div>
       </div>
     </div>
@@ -3802,7 +3796,7 @@ function ReviewCard({ program, record, onSubmit }) {
         <p className="f-body text-[14px] text-gray-500 mt-2 break-all">{record.url}</p>
       )}
       {state === "pending" && <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>운영팀이 후기 링크를 확인하고 있어요. 승인되면 {POINT_RULES.review}P가 자동으로 적립돼요.</p>}
-      {state === "approved" && <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>후기 포인트가 적립됐어요. 한 체험당 한 번만 받을 수 있어요.</p>}
+      {state === "approved" && <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>후기 포인트가 적립됐어요.</p>}
       {(state === "none" || state === "rejected") && (
         <div className="mt-3">
           {state === "rejected" && <p className="f-body text-[15px] mb-2" style={{ color: "#B03A2E" }}>링크를 확인하지 못했어요. 공개된 후기 게시물 링크를 다시 붙여넣어 주세요.</p>}
@@ -6730,7 +6724,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-06-h"; // change with every delivery
+const APP_BUILD = "2026-10-06-i"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8446,101 +8440,98 @@ const MANUAL = [
     id: "start",
     title: { en: "Quick start: the 5 steps of every trip", ko: "빠른 시작: 체험마다 하는 5단계" },
     items: [
-      { t: "step", en: "Approve new sign-ups. Open the Approve tab, compare with the application form, tap Approve.", ko: "새 가입을 수락해요. 수락 탭에서 신청서와 맞는지 확인하고 수락을 눌러요." },
-      { t: "step", en: "Create the program and send the pre-trip info (Programs tab). Parents get an alert in the app.", ko: "프로그램을 만들고 체험 전 안내를 보내요 (프로그램등록 탭). 학부모 앱에 알림이 떠요." },
-      { t: "step", en: "Make teams (Students tab, pick the program, then Teams · Teachers). Parents see their child's team and teacher.", ko: "팀을 만들어요 (학생관리 탭에서 프로그램을 고르고 팀 · 선생님). 학부모가 우리 아이의 팀과 선생님을 볼 수 있어요." },
-      { t: "step", en: "On the trip day: switch on Live today and mark each child present (Students tab).", ko: "체험 날: 오늘 진행을 켜고 아이마다 출석을 체크해요 (학생관리 탭)." },
-      { t: "step", en: "After the trip: make the review quiz and tap Open review, then write the feedback reports.", ko: "체험 후: 복습 퀴즈를 만들고 복습 열기를 누른 뒤, 피드백 리포트를 써요." },
-      { t: "tip", en: "The Overview tab always shows the next thing to do for every program. Start there.", ko: "현황 탭에는 모든 프로그램의 다음 할 일이 항상 보여요. 거기서 시작하세요." },
+      { t: "step", en: "Approve new sign-ups (Approve tab).", ko: "새 가입을 수락해요 (수락 탭)." },
+      { t: "step", en: "Create the program and share the pre-trip info (Programs tab).", ko: "프로그램을 만들고 체험 전 안내를 공개해요 (프로그램등록 탭)." },
+      { t: "step", en: "Make teams (Students tab).", ko: "팀을 만들어요 (학생관리 탭)." },
+      { t: "step", en: "Trip day: switch on Live today and mark children present (Students tab).", ko: "체험 날: 오늘 진행을 켜고 출석을 체크해요 (학생관리 탭)." },
+      { t: "step", en: "After the trip: open the review and write the feedback.", ko: "체험 후: 복습을 열고 피드백을 써요." },
+      { t: "tip", en: "Overview shows the next step for every program.", ko: "현황 탭에 프로그램마다 다음 할 일이 나와요." },
     ],
   },
   {
     id: "tabs",
     title: { en: "The tabs at a glance", ko: "탭 한눈에 보기" },
     items: [
-      { t: "term", label: { en: "Overview", ko: "현황" }, en: "Every program on one screen: stage, what is done, and the next step. Also recent activity.", ko: "모든 프로그램의 단계, 완료된 것, 다음 할 일을 한 화면에서. 최근 활동도 보여요." },
-      { t: "term", label: { en: "Approve", ko: "수락" }, en: "Appears when new families wait for approval. Until you approve, parents see only a waiting screen.", ko: "새 가족이 기다릴 때만 나타나요. 수락하기 전에는 학부모에게 대기 화면만 보여요." },
-      { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Register a student on site who has no parent sign-up.", ko: "부모님 가입 없이 현장에 온 학생을 등록해요." },
-      { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Pick a program: Live today / Review switches, teams, and a card for every child (attendance, notes, feedback).", ko: "프로그램을 고르면 오늘 진행 / 복습 스위치, 팀, 아이별 카드(출석, 메모, 피드백)가 나와요." },
-      { t: "term", label: { en: "Programs", ko: "프로그램등록" }, en: "Create, edit and delete programs, pre-trip info and learning materials.", ko: "프로그램, 체험 전 안내, 학습 자료를 만들고 고치고 지워요." },
-      { t: "term", label: { en: "Parent notes", ko: "학부모의견" }, en: "Suggestions and inquiries from parents. Tap Done when you have read them.", ko: "학부모의 건의와 문의예요. 읽으면 확인함을 눌러요." },
-      { t: "term", label: { en: "Stats", ko: "통계" }, en: "How far the children get, scores, surveys, app visits, plus the Server save check and backup.", ko: "아이들의 진행, 점수, 설문, 앱 방문, 그리고 서버 저장 점검과 백업이 있어요." },
+      { t: "term", label: { en: "Overview", ko: "현황" }, en: "Every program: stage, what is done, next step.", ko: "프로그램별 단계, 진행 상황, 다음 할 일." },
+      { t: "term", label: { en: "Approve", ko: "수락" }, en: "New families waiting for approval.", ko: "승인을 기다리는 새 가족." },
+      { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Add a child who has no parent sign-up.", ko: "학부모 가입 없이 온 아이를 등록." },
+      { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Per program: Live today, review, teams, time slots and a card for each child.", ko: "프로그램별 오늘 진행, 복습, 팀, 시간대, 아이 카드." },
+      { t: "term", label: { en: "Programs", ko: "프로그램등록" }, en: "Create and edit programs, pre-trip info and materials.", ko: "프로그램, 체험 전 안내, 자료를 만들고 고쳐요." },
+      { t: "term", label: { en: "Points", ko: "포인트" }, en: "Review links to approve, and each family's points.", ko: "후기 링크 승인, 가족별 포인트." },
+      { t: "term", label: { en: "Parent notes", ko: "학부모의견" }, en: "Suggestions and inquiries from parents.", ko: "학부모 의견과 문의." },
+      { t: "term", label: { en: "Stats", ko: "통계" }, en: "Usage numbers, Teacher login number, server check, backup.", ko: "이용 통계, 샘 로그인 번호, 서버 저장 점검, 백업." },
     ],
   },
   {
     id: "approve",
     title: { en: "Approving sign-ups", ko: "가입 수락하기" },
     items: [
-      { t: "p", en: "When a parent registers a child, they enter a phone number. Only the last 4 digits and a one-way code are saved, never the full number.", ko: "부모님이 자녀를 등록하면 전화번호를 입력해요. 전화번호 전체는 저장되지 않고, 뒷자리 4자리와 되돌릴 수 없는 코드만 저장돼요." },
-      { t: "step", en: "Open the Approve tab. You see the child, level, last 4 digits and how long ago they applied.", ko: "수락 탭을 열어요. 아이, 레벨, 신청 번호 뒷자리, 신청한 지 얼마나 됐는지가 보여요." },
-      { t: "step", en: "Find the family in your application form (name and phone).", ko: "신청서에서 그 가족(이름과 전화번호)을 찾아요." },
-      { t: "step", en: "Optional: paste the full number from the form and tap Check. It tells you whether it matches what the parent entered.", ko: "선택: 신청서의 전체 번호를 붙여넣고 확인을 누르면, 부모님이 입력한 번호와 같은지 알려 줘요." },
-      { t: "step", en: "Tap Approve. The family can now use the app. Or tap Decline to delete the request.", ko: "수락을 누르면 가족이 앱을 쓸 수 있어요. 거절을 누르면 신청이 삭제돼요." },
-      { t: "warn", en: "If you see a red warning that the same number is already used by another family, check before approving.", ko: "같은 번호로 이미 가입한 가족이 있다는 빨간 안내가 보이면, 수락하기 전에 확인하세요." },
+      { t: "step", en: "Open the Approve tab and find the family in your application form.", ko: "수락 탭을 열고 신청서에서 그 가족을 찾아요." },
+      { t: "step", en: "Optional: paste the full phone number and tap Check to compare. Only the last 4 digits and a one-way code are saved.", ko: "선택: 전체 전화번호를 붙여넣고 확인을 눌러 비교해요. 번호는 뒷 4자리와 확인 코드만 저장돼요." },
+      { t: "step", en: "Tap Approve. Decline deletes the request.", ko: "수락을 누르면 바로 쓸 수 있어요. 거절하면 신청이 삭제돼요." },
+      { t: "warn", en: "A red warning means another family already uses that number. Check before approving.", ko: "붉은 경고는 다른 가족이 이미 쓰는 번호예요. 확인한 뒤 수락하세요." },
     ],
   },
   {
     id: "program",
     title: { en: "Creating a program", ko: "프로그램 만들기" },
     items: [
-      { t: "step", en: "Programs tab, then Register new program. Enter the name. Add an English subtitle after a colon, e.g. Seoul Zoo: Animals Around the World. The name is shown big, the English line smaller.", ko: "프로그램등록 탭에서 새 프로그램 등록. 이름을 입력해요. 콜론 뒤에 영어 부제를 붙일 수 있어요. 예: 서울대공원: Animals Around the World. 이름은 크게, 영어는 작게 보여요." },
-      { t: "step", en: "Enter the date and place, pick a theme icon (it only chooses the colour bar), choose one or more levels, and write a one-sentence intro.", ko: "날짜와 장소를 넣고, 테마 아이콘(막대 색만 정해요)과 레벨을 고르고, 한 문장 소개를 써요." },
-      { t: "step", en: "Open Pre-trip info and Trip materials (see the next sections), then tap Register program.", ko: "체험 전 안내와 체험 자료 입력을 채우고(다음 항목 참고) 프로그램 등록을 눌러요." },
-      { t: "step", en: "Choosing two or more levels adds a tab for each level inside Trip materials. Write the words, missions, focus points and quiz of each level in its own tab. A new level starts as a copy of the first one; use Copy from A1 (or another level) to copy again.", ko: "레벨을 두 개 이상 고르면 체험 자료 입력 안에 레벨마다 탭이 생겨요. 단어, 미션, 집중 포인트, 퀴즈를 레벨별 탭에 따로 써요. 새로 고른 레벨은 첫 레벨 내용을 복사해서 시작하고, 'A1 내용 복사해 오기'(다른 레벨도 가능)로 다시 복사할 수 있어요." },
-      { t: "tip", en: "Children get the materials of their own level. They can look at the other levels by tapping a tab (words and missions only; the quiz is only for their own level). If you change a child's level before the trip, they get the new level's materials.", ko: "아이는 자기 레벨의 자료를 써요. 다른 레벨은 탭하면 볼 수 있어요(단어와 미션만 볼 수 있고, 퀴즈는 자기 레벨만 풀어요). 체험 전에 아이의 레벨을 바꾸면 새 레벨의 자료가 열려요." },
-      { t: "step", en: "If the trip runs several times on the same day, add time slots in the program form (Time slots, + Add time slot). Give each a name (for example Morning), the trip time, and a meeting time and place if they differ. Each slot has its own children, teams, teachers and pre-trip notice. With only one time, leave it empty.", ko: "같은 날 체험이 여러 타임이면 프로그램 입력 화면의 시간대에서 + 시간대 추가를 눌러요. 이름(예: 오전), 체험 시간, 다르면 집합 시간과 모이는 곳을 적어요. 시간대마다 신청한 아이, 팀, 선생님, 체험 전 안내가 따로 나뉘어요. 한 타임뿐이면 비워 두세요." },
-      { t: "tip", en: "The review quiz can make itself from your words: keep Make a word quiz automatically switched on and give each word its English meaning. With 3 or more words that have a meaning, the app makes up to 8 multiple-choice questions (\"What does lion mean?\" and \"Which word means ...?\"). Tap Show the questions to read them. You can still add your own O/X or multiple-choice questions.", ko: "복습 퀴즈는 입력한 단어로 저절로 만들어져요. '단어 퀴즈 자동 만들기'를 켜 두고 단어마다 영어 뜻을 적으세요. 뜻이 있는 단어가 3개 이상이면 객관식 문제를 최대 8개까지 만들어요('lion은 무슨 뜻일까요?', '이 뜻의 단어는?'). '문제 보기'를 누르면 미리 볼 수 있어요. 직접 쓴 O/X나 객관식 문제도 함께 넣을 수 있어요." },
-      { t: "p", en: "Learning materials: ① Prep word cards, ② on-site missions and today's focus points, ③ the review quiz and big question. Words can be added one by one or pasted many at once (one per line: word - meaning - emoji).", ko: "학습 자료는 ① 예습 단어 카드, ② 현장 미션과 오늘의 집중 포인트, ③ 복습 퀴즈와 큰 질문이에요. 단어는 하나씩 넣거나 한 줄에 하나씩(단어 - 뜻 - 이모지) 한꺼번에 붙여넣을 수 있어요." },
-      { t: "p", en: "To edit, tap the program under Registered programs. To delete, open it and tap Delete program. It asks first, and a backup file is downloaded automatically when children already have records.", ko: "고치려면 등록된 프로그램에서 프로그램을 눌러요. 지우려면 열어서 프로그램 삭제를 눌러요. 먼저 한 번 묻고, 아이 기록이 있으면 백업 파일이 자동으로 내려받아져요." },
-      { t: "tip", en: "If you leave a form with unsaved text, the app asks first. If the phone closes the app, the text is kept: reopen the program and tap Continue writing.", ko: "저장하지 않은 글이 있는데 나가려고 하면 먼저 물어봐요. 앱이 꺼져도 글은 보관돼요. 프로그램을 다시 열고 이어서 작성을 누르세요." },
+      { t: "step", en: "Programs tab, enter the name. A colon adds a smaller English subtitle: Seoul Zoo: Animals Around the World.", ko: "프로그램등록 탭에서 이름을 써요. 콜론 뒤의 영어는 작은 부제로 보여요. 예: 서울대공원: Animals Around the World" },
+      { t: "step", en: "Enter date, place, theme icon, levels and a one-line intro.", ko: "날짜, 장소, 테마 아이콘, 레벨, 한 줄 소개를 써요." },
+      { t: "step", en: "Fill in Pre-trip info and Trip materials, then tap Register program.", ko: "체험 전 안내와 체험 자료를 채우고 프로그램 등록을 눌러요." },
+      { t: "step", en: "Several levels: each level gets its own tab in Trip materials. A new level starts as a copy of the first.", ko: "레벨이 여러 개면 체험 자료에 레벨마다 탭이 생겨요. 새 레벨은 첫 레벨을 복사해서 시작해요." },
+      { t: "step", en: "Several times in one day: add Time slots (name, trip time, meeting time and place). Each slot has its own children, teams, teachers and notice.", ko: "같은 날 여러 타임이면 시간대를 추가해요(이름, 체험 시간, 집합 시간과 장소). 시간대마다 아이, 팀, 선생님, 안내가 따로예요." },
+      { t: "step", en: "Words: add one by one, or paste one per line (word - meaning - emoji).", ko: "단어: 하나씩 넣거나 한 줄에 하나씩 붙여넣어요(단어 - 뜻 - 이모지)." },
+      { t: "step", en: "Review quiz: Make a word quiz automatically is on. With 3 or more words that have a meaning it makes up to 8 questions. You can add your own.", ko: "복습 퀴즈: '단어 퀴즈 자동 만들기'가 켜져 있어요. 뜻이 있는 단어가 3개 이상이면 최대 8문제를 만들어요. 직접 쓴 문제도 넣을 수 있어요." },
+      { t: "tip", en: "Children use their own level's materials. They can look at other levels (words and missions only).", ko: "아이는 자기 레벨 자료를 써요. 다른 레벨은 단어와 미션만 볼 수 있어요." },
+      { t: "p", en: "Edit: tap the program under Registered programs. Delete asks first and downloads a backup.", ko: "고치기: 등록된 프로그램을 눌러요. 삭제는 먼저 물어보고 백업을 내려받아요." },
+      { t: "tip", en: "Unsaved text is kept. Reopen the program and tap Continue writing.", ko: "저장하지 않은 글은 남아 있어요. 프로그램을 다시 열고 '이어서 쓰기'를 눌러요." },
     ],
   },
   {
     id: "notice",
     title: { en: "Sending the pre-trip info to parents", ko: "학부모에게 체험 전 안내 보내기" },
     items: [
-      { t: "step", en: "Programs tab, open the program, expand Pre-trip info.", ko: "프로그램등록 탭에서 프로그램을 열고 체험 전 안내를 펼쳐요." },
-      { t: "step", en: "Fill in trip time, meeting time and place, address, what to bring, admission fee (None / Paid by parents + amount / Included) and other notes. Empty items are hidden.", ko: "체험 시간, 집합 시간과 장소, 주소, 준비물, 입장료(없음 / 부모님 부담 + 금액 / 프로그램비 포함), 기타 안내를 채워요. 비워 둔 항목은 보이지 않아요." },
-      { t: "step", en: "Turn on Share with parents and save. Parents of the children who applied get an alert in the app.", ko: "학부모에게 공개를 켜고 저장해요. 신청한 아이의 학부모 앱에 알림이 떠요." },
-      { t: "step", en: "Tap Send notice (phone share sheet, choose KakaoTalk) or Copy notice and paste it into your parent chat. The message text is in Korean for parents.", ko: "안내문 보내기(휴대폰 공유 창에서 카카오톡 선택) 또는 안내문 복사를 눌러 학부모 채팅방에 붙여넣어요. 메시지는 학부모를 위해 한국어로 만들어져요." },
-      { t: "step", en: "With time slots, Pre-trip info shows a tab for each slot. Choose a slot: Share with parents turns the notice on only for the children of that slot, and Send notice / Copy notice makes the message for that slot with its own time. Do it once for every slot.", ko: "시간대가 있으면 체험 전 안내에 시간대마다 탭이 생겨요. 시간대를 고르면 학부모에게 공개는 그 시간대 아이의 학부모에게만 알림이 가고, 안내문 보내기와 복사는 그 시간대의 시간이 들어간 메시지를 만들어요. 시간대마다 한 번씩 해 주세요." },
-      { t: "tip", en: "The app does not send KakaoTalk messages by itself. The in-app alert is shown when parents open the app.", ko: "앱이 카카오톡을 자동으로 보내지는 않아요. 앱 알림은 학부모가 앱을 열면 보여요." },
+      { t: "step", en: "Programs tab, open the program, Pre-trip info.", ko: "프로그램등록 탭에서 프로그램을 열고 체험 전 안내를 펼쳐요." },
+      { t: "step", en: "Fill in time, meeting time and place, address, what to bring, fee and notes. Empty items are hidden.", ko: "시간, 집합 시간과 장소, 주소, 준비물, 입장료, 기타 안내를 써요. 비운 항목은 안 보여요." },
+      { t: "step", en: "Turn on Share with parents and save. Parents get an alert in the app.", ko: "학부모에게 공개를 켜고 저장해요. 학부모 앱에 알림이 떠요." },
+      { t: "step", en: "Send notice (share sheet, KakaoTalk) or Copy notice. The message is in Korean.", ko: "안내문 보내기(공유, 카카오톡)나 안내문 복사를 눌러요. 메시지는 한국어예요." },
+      { t: "step", en: "With time slots, each slot has its own tab. Share and send once per slot.", ko: "시간대가 있으면 시간대마다 탭이 있어요. 시간대마다 한 번씩 공개하고 보내요." },
+      { t: "tip", en: "The app does not send KakaoTalk messages by itself.", ko: "카카오톡 메시지는 앱이 자동으로 보내지 않아요." },
     ],
   },
   {
     id: "teams",
     title: { en: "Teams and teachers", ko: "팀과 선생님" },
     items: [
-      { t: "p", en: "A team is a level group plus a teacher, for one program (for example A1 · Anna). Several teams can have the same level.", ko: "팀은 한 프로그램 안의 레벨 그룹과 선생님이에요 (예: A1 · Anna). 같은 레벨 팀이 여러 개여도 돼요." },
-      { t: "step", en: "Students tab, pick the program, find Teams · Teachers and tap Add team.", ko: "학생관리 탭에서 프로그램을 고르고 팀 · 선생님에서 팀 추가를 눌러요." },
-      { t: "step", en: "Choose the level and the teacher's name (names you used before appear as buttons).", ko: "레벨과 선생님 이름을 골라요 (전에 쓴 이름은 버튼으로 나와요)." },
-      { t: "step", en: "Tick the children for this team in the list. Children of the chosen level are ticked for you. Children already in another team are marked and will move.", ko: "목록에서 이 팀 아이들을 체크해요. 고른 레벨의 아이들은 미리 체크돼 있어요. 다른 팀에 있는 아이는 표시되고 옮겨져요." },
-      { t: "step", en: "Tap Create team. The team and the children are saved together.", ko: "팀 만들기를 누르면 팀과 아이들이 한꺼번에 저장돼요." },
-      { t: "step", en: "With time slots, first put each child in a slot: use the + Morning / + Afternoon buttons when adding a child to the program, or tap the 🕘 button under the child's name. At the top of the Students tab choose All, a slot, or Not set. Make the teams inside one slot: a child can only be in a team of their own slot, and moving a child to another slot takes them out of their old team.", ko: "시간대가 있으면 먼저 아이마다 시간대를 정해요. 프로그램에 아이를 넣을 때 + 오전 / + 오후 버튼을 쓰거나, 이름 아래 🕘 버튼을 눌러요. 학생관리 탭 위쪽에서 전체, 시간대, 미정을 골라 볼 수 있어요. 팀은 시간대 하나를 골라서 그 안에서 만들어요. 아이는 자기 시간대의 팀에만 들어갈 수 있고, 다른 시간대로 옮기면 이전 팀에서 빠져요." },
-      { t: "p", en: "To place one child: tap the team button under the child's name (it says Choose team or the team name) and pick a team. Names under 'children without a team' are buttons too.", ko: "아이 한 명을 정하려면 이름 아래 팀 버튼(팀 정하기 또는 팀 이름)을 눌러 팀을 골라요. '팀 미배정' 아래의 이름도 버튼이에요." },
-      { t: "p", en: "To change a team, tap Edit on the team: level, teacher and members can all be changed. Delete team asks first; its children go back to unassigned and nothing else is erased.", ko: "팀을 바꾸려면 팀의 수정을 눌러요. 레벨, 선생님, 팀원을 모두 바꿀 수 있어요. 팀 삭제는 먼저 물어보고, 아이들은 미배정으로 돌아가며 다른 기록은 지워지지 않아요." },
-      { t: "tip", en: "Parents see the team and teacher in an alert, on their child's card and in the pre-trip info page.", ko: "학부모는 알림, 아이 카드, 체험 안내 페이지에서 팀과 선생님을 볼 수 있어요." },
+      { t: "p", en: "A team is a level group plus a teacher, for one program (for example A1 · Anna).", ko: "팀은 한 프로그램의 레벨 그룹과 선생님이에요(예: A1 · Anna)." },
+      { t: "step", en: "Students tab, pick the program, Teams · Teachers, Add team.", ko: "학생관리 탭에서 프로그램을 고르고 팀 · 선생님의 팀 추가를 눌러요." },
+      { t: "step", en: "Choose the level and the teacher. Tick the children (children of that level are ticked for you).", ko: "레벨과 선생님을 고르고 아이들을 체크해요(그 레벨 아이들은 미리 체크돼요)." },
+      { t: "step", en: "Tap Create team.", ko: "팀 만들기를 눌러요." },
+      { t: "step", en: "One child: tap the team button under the name. A team: Edit or Delete on its row (its children become unassigned).", ko: "한 명만 옮기려면 이름 아래 팀 버튼을 눌러요. 팀은 줄의 수정이나 삭제를 눌러요(아이들은 미배정이 돼요)." },
+      { t: "step", en: "With time slots: first put each child in a slot (+ Morning / + Afternoon, or the 🕘 button), then make teams inside one slot.", ko: "시간대가 있으면 먼저 아이를 시간대에 넣고(+ 오전 / + 오후, 또는 🕘 버튼) 시간대 안에서 팀을 만들어요." },
+      { t: "tip", en: "Parents see the team and teacher in an alert and on their child's card.", ko: "학부모는 알림과 아이 카드에서 팀과 선생님을 봐요." },
     ],
   },
   {
     id: "tripday",
     title: { en: "On the trip day", ko: "체험 날" },
     items: [
-      { t: "step", en: "Students tab, pick the program. In the program card switch on Live today. One tap applies to every child who applied.", ko: "학생관리 탭에서 프로그램을 골라요. 프로그램 카드에서 오늘 진행을 켜요. 한 번 누르면 신청한 모든 아이에게 적용돼요." },
-      { t: "step", en: "Tap Mark present on each child's row. This also switches Live today on if it was off.", ko: "아이 줄의 출석 체크(Mark present)를 눌러요. 오늘 진행이 꺼져 있었다면 함께 켜져요." },
-      { t: "step", en: "Open a child's card to tick missions, add strengths and a teacher note. Typing is saved automatically a moment after you stop.", ko: "아이 카드를 펼쳐 미션을 체크하고, 강점과 메모를 남겨요. 입력은 멈춘 뒤 잠시 후 자동으로 저장돼요." },
-      { t: "step", en: "When the trip ends, switch Live today off. The program is then shown as Finished.", ko: "체험이 끝나면 오늘 진행을 꺼요. 그러면 프로그램이 진행 완료로 보여요." },
-      { t: "p", en: "If a child cancels: open the child's card and tap Cancel trip (it asks first). Nothing is deleted; the child moves to 'Cancelled applications' where you can Restore. A child who attended cannot be cancelled: un-mark attendance first.", ko: "아이가 취소하면: 아이 카드를 펼쳐 체험 취소를 눌러요 (먼저 물어봐요). 아무것도 지워지지 않고, '취소한 신청'으로 옮겨져 되돌리기를 할 수 있어요. 출석한 아이는 취소할 수 없어요. 먼저 출석 체크를 해제하세요." },
+      { t: "step", en: "Students tab, pick the program, switch on Live today.", ko: "학생관리 탭에서 프로그램을 고르고 오늘 진행을 켜요." },
+      { t: "step", en: "Tap Mark present on each child. This also switches Live today on.", ko: "아이마다 출석 체크를 눌러요. 오늘 진행도 같이 켜져요." },
+      { t: "step", en: "Open a card to tick missions, strengths and a note. Typing saves by itself.", ko: "카드를 열어 미션, 잘한 점, 메모를 적어요. 글은 저절로 저장돼요." },
+      { t: "step", en: "When the trip ends, switch Live today off.", ko: "체험이 끝나면 오늘 진행을 꺼요." },
+      { t: "p", en: "Cancel: card, Cancel trip. Nothing is deleted and Restore brings it back. A child who attended cannot be cancelled: remove the present mark first.", ko: "취소: 카드에서 체험 취소를 눌러요. 지워지지 않고 되돌리기로 복구해요. 출석한 아이는 출석 체크를 먼저 해제해야 해요." },
     ],
   },
   {
     id: "after",
     title: { en: "After the trip", ko: "체험 후" },
     items: [
-      { t: "step", en: "Programs tab, open the program, expand Trip materials and write the review quiz from what you taught (true/false or multiple choice) and the big question.", ko: "프로그램등록 탭에서 프로그램을 열고 체험 자료 입력에서 가르친 내용으로 복습 퀴즈(O/X 또는 객관식)와 큰 질문을 써요." },
-      { t: "step", en: "Turn on Open review and save (or use the Review switch on the Students tab). Children who attended can now do the review and see their score in %.", ko: "복습 열기를 켜고 저장해요 (학생관리 탭의 복습 스위치도 돼요). 출석한 아이들이 복습을 하고 점수(%)를 볼 수 있어요." },
-      { t: "step", en: "Write each child's feedback: open the card, tap Full feedback report. The parent sees it in their app.", ko: "아이별 피드백을 써요. 카드를 펼쳐 전체 피드백 리포트를 눌러요. 학부모가 앱에서 볼 수 있어요." },
-      { t: "p", en: "Parents of children who attended also get a short satisfaction survey. See the results in the Stats tab.", ko: "출석한 아이의 학부모에게는 짧은 만족도 설문도 떠요. 결과는 통계 탭에서 봐요." },
+      { t: "step", en: "Programs tab, Trip materials: check the review quiz and the big question.", ko: "프로그램등록 탭의 체험 자료에서 복습 퀴즈와 큰 질문을 확인해요." },
+      { t: "step", en: "Turn on Open review (or the Review switch in the Students tab). Children who attended can do it.", ko: "복습 열기를 켜요(학생관리 탭의 복습 스위치도 돼요). 출석한 아이가 풀 수 있어요." },
+      { t: "step", en: "Write each child's feedback: card, Full feedback report. Parents read it in their app.", ko: "아이마다 피드백을 써요: 카드에서 전체 피드백 리포트. 학부모가 앱에서 읽어요." },
+      { t: "p", en: "Parents of children who attended also get a short survey. Results are in Stats.", ko: "출석한 아이의 학부모는 짧은 설문도 받아요. 결과는 통계 탭에 있어요." },
     ],
   },
   {
@@ -8561,120 +8552,117 @@ const MANUAL = [
     id: "overview",
     title: { en: "Reading the Overview tab", ko: "현황 탭 보는 법" },
     items: [
-      { t: "term", label: { en: "Stage", ko: "단계" }, en: "It follows what really happened, so nobody has to set it. Setting up (no children yet) → Prep (children preparing, notice not sent) → Notice sent → Trip live (Live today is on) → Feedback due (the trip happened, feedback still to write) → Complete (all feedback written). Opening the review does not change the stage.", ko: "실제로 일어난 일을 따라가서 따로 정할 필요가 없어요. 준비 중(신청한 아이 없음) → 예습 중(아이들이 예습하고 안내는 아직) → 안내 전달 완료 → 체험 진행 중(오늘 진행이 켜짐) → 피드백 전(체험은 했고 피드백이 남음) → 완료(피드백을 모두 씀). 복습을 열어도 단계는 바뀌지 않아요." },
-      { t: "term", label: { en: "Reminders at the top", ko: "위쪽 알림" }, en: "They appear by themselves for the stage each program is in: send the notice, choose slots and teams, attendance check while Live today is on, switch it off when the trip ends, open the review, write the feedback.", ko: "프로그램이 있는 단계에 맞게 저절로 떠요. 안내 보내기, 시간대와 팀 정하기, 오늘 진행 중 출석 체크, 체험이 끝나면 오늘 진행 끄기, 복습 열기, 피드백 쓰기예요." },
-      { t: "term", label: { en: "Boxes", ko: "칸" }, en: "Pre-trip info sent or not, applied and attended counts, review open or closed, feedback still to write, and teams.", ko: "체험 전 안내 발송 여부, 신청과 출석 수, 복습 열림 여부, 남은 피드백, 팀 현황이에요." },
-      { t: "term", label: { en: "Next step", ko: "다음 할 일" }, en: "The orange line says what to do now. Tap it to open the right screen.", ko: "주황색 줄이 지금 할 일이에요. 누르면 알맞은 화면이 열려요." },
-      { t: "term", label: { en: "Recent activity", ko: "최근 활동" }, en: "What was done lately, so you can see what other teachers did. The app does not record who did it.", ko: "최근에 한 일이에요. 다른 선생님이 한 일을 알 수 있어요. 누가 했는지는 기록되지 않아요." },
-      { t: "tip", en: "Last checked shows how fresh the numbers are. The screen also refreshes by itself about every 45 seconds. Tap Refresh to check now.", ko: "마지막 확인은 숫자가 얼마나 최근인지 보여 줘요. 화면은 약 45초마다 저절로도 새로고침돼요. 새로고침을 누르면 바로 확인해요." },
+      { t: "term", label: { en: "Stage", ko: "단계" }, en: "Setting up → Prep → Notice sent → Trip live → Feedback due → Complete. It follows the records; nobody sets it.", ko: "준비 중 → 예습 중 → 안내 전달 완료 → 체험 진행 중 → 피드백 전 → 완료. 기록을 따라 저절로 정해져요." },
+      { t: "term", label: { en: "Reminders at the top", ko: "위쪽 알림" }, en: "They follow each program's stage: send the notice, choose slots and teams, check attendance, switch Live today off, open the review, write feedback.", ko: "프로그램 단계에 맞게 떠요: 안내 보내기, 시간대와 팀 정하기, 출석 체크, 오늘 진행 끄기, 복습 열기, 피드백 쓰기." },
+      { t: "term", label: { en: "Next step", ko: "다음 할 일" }, en: "The orange line. Tap it to open the right screen.", ko: "주황색 줄이에요. 누르면 해당 화면이 열려요." },
+      { t: "term", label: { en: "Recent activity", ko: "최근 활동" }, en: "What was done lately. The app does not record who did it.", ko: "최근에 한 일이에요. 누가 했는지는 기록하지 않아요." },
+      { t: "tip", en: "Numbers refresh about every 45 seconds. Tap Refresh to check now.", ko: "숫자는 약 45초마다 새로고침돼요. 새로고침을 누르면 바로 확인해요." },
     ],
   },
   {
     id: "register",
     title: { en: "Registering a student on site", ko: "현장에서 학생 등록하기" },
     items: [
-      { t: "p", en: "Parents normally register in the app themselves. Use the Register tab only for a child who arrives without a parent sign-up.", ko: "보통은 부모님이 앱에서 직접 등록해요. 부모님 가입 없이 온 아이만 현장등록 탭을 쓰세요." },
-      { t: "step", en: "Enter the name, choose an avatar and level, and a 4-digit family login number. Siblings use the same number.", ko: "이름을 쓰고 아바타와 레벨, 가족 로그인 번호 4자리를 골라요. 형제는 같은 번호를 써요." },
-      { t: "step", en: "Registering does not put the child in any program. Go to the Students tab, pick the program and tap + Add under 'Students not in this program'.", ko: "등록만으로는 어떤 프로그램에도 들어가지 않아요. 학생관리 탭에서 프로그램을 고르고 '이 프로그램에 없는 학생' 아래 + 추가를 눌러요." },
-      { t: "tip", en: "A parent who forgot the login number: open the child's card, the number is shown in Student info.", ko: "부모님이 로그인 번호를 잊었다면: 아이 카드를 펼치면 학생 정보에 번호가 나와요." },
+      { t: "p", en: "Only for a child with no parent sign-up. Parents normally register themselves.", ko: "학부모 가입이 없는 아이만 등록해요. 보통은 학부모가 직접 가입해요." },
+      { t: "step", en: "Register tab: name, avatar, level and a 4-digit family number (siblings share it).", ko: "현장등록 탭에서 이름, 아바타, 레벨, 가족 로그인 번호 4자리를 써요(형제는 같은 번호)." },
+      { t: "step", en: "Then Students tab, pick the program, + Add.", ko: "그다음 학생관리 탭에서 프로그램을 고르고 + 추가를 눌러요." },
+      { t: "tip", en: "A parent forgot the number: card, Student info.", ko: "학부모가 번호를 잊었으면 카드의 학생 정보에서 확인해요." },
     ],
   },
   {
     id: "safety",
     title: { en: "Keeping the data safe", ko: "자료를 안전하게 지키기" },
     items: [
-      { t: "step", en: "Server save check: Stats tab, bottom. Press it right after you enter something, before refreshing. It compares the screen with the server. A ✗ item may disappear after a refresh: tell the developer.", ko: "서버 저장 점검: 통계 탭 맨 아래. 무언가 입력한 직후, 새로고침하기 전에 눌러요. 화면과 서버를 비교해요. ✗ 항목은 새로고침하면 사라질 수 있으니 개발자에게 알려 주세요." },
-      { t: "step", en: "Backup: Stats tab, Download all data. Do it after each program, and keep the file somewhere safe because it contains children's information.", ko: "백업: 통계 탭의 전체 자료 내려받기. 프로그램이 끝날 때마다 하고, 아이 정보가 들어 있으니 안전한 곳에 보관하세요." },
-      { t: "p", en: "Deleting a program or a student asks first and, if there are records, downloads a backup automatically. Cancelling a trip, and removing a team, never erase records.", ko: "프로그램이나 학생 삭제는 먼저 물어보고, 기록이 있으면 백업이 자동으로 내려받아져요. 체험 취소와 팀 삭제는 기록을 지우지 않아요." },
-      { t: "p", en: "Several teachers can work at the same time. If two people save the same program, the later save wins. Opening a program to edit always loads the latest version first.", ko: "여러 선생님이 동시에 쓸 수 있어요. 두 사람이 같은 프로그램을 저장하면 나중에 저장한 쪽이 이겨요. 프로그램을 열어 고칠 때는 항상 최신 내용을 먼저 불러와요." },
-      { t: "warn", en: "The teacher PIN opens everything. Share it only with teachers.", ko: "선생님 PIN으로 모든 것이 열려요. 선생님들께만 알려 주세요." },
+      { t: "step", en: "Server save check (Stats, bottom): press it right after typing. A ✗ means it may be lost.", ko: "서버 저장 점검(통계 맨 아래): 입력한 직후에 눌러요. ✗는 사라질 수 있다는 뜻이에요." },
+      { t: "step", en: "Backup (Stats, Download all data): after each program. Keep the file safe: it has children's information.", ko: "백업(통계, 전체 자료 내려받기): 프로그램마다 한 번. 아이들 정보가 있으니 파일을 안전하게 보관해요." },
+      { t: "p", en: "Deleting asks first and downloads a backup. Cancelling a trip or removing a team never erases records.", ko: "삭제는 먼저 물어보고 백업을 내려받아요. 체험 취소나 팀 삭제는 기록을 지우지 않아요." },
+      { t: "p", en: "Several people can work at once. If two save the same thing, the later save wins.", ko: "여러 명이 동시에 쓸 수 있어요. 같은 것을 둘이 저장하면 나중에 저장한 것이 남아요." },
+      { t: "warn", en: "The HQ number opens everything. Share it only with HQ staff.", ko: "본사 번호는 모든 것을 열어요. 본사 직원에게만 알려 주세요." },
     ],
   },
   {
     id: "faq",
     title: { en: "Troubleshooting", ko: "문제가 생겼을 때" },
     items: [
-      { t: "term", label: { en: "A parent cannot see the program", ko: "학부모가 프로그램을 못 봐요" }, en: "Check that the family is approved (Approve tab), the child is in the program (Students tab) and the trip was not cancelled.", ko: "가족이 수락됐는지(수락 탭), 아이가 프로그램에 들어 있는지(학생관리 탭), 체험이 취소되지 않았는지 확인하세요." },
-      { t: "term", label: { en: "Changes do not show on parents' phones", ko: "학부모 폰에 변경이 안 보여요" }, en: "Wait up to a minute. The app updates itself. A parent can also close and reopen it.", ko: "최대 1분 기다려 보세요. 앱이 저절로 갱신돼요. 학부모가 앱을 닫았다가 다시 열어도 돼요." },
-      { t: "term", label: { en: "I lost what I typed", ko: "쓰던 글이 사라졌어요" }, en: "Reopen the program form. If you see 'You have unsaved work from earlier', tap Continue writing.", ko: "프로그램 입력 화면을 다시 열어요. '저장하지 않고 나간 작성 내용이 있어요'가 보이면 이어서 작성을 누르세요." },
-      { t: "term", label: { en: "Wrong team or level", ko: "팀이나 레벨이 잘못됐어요" }, en: "Team: tap the team button under the child's name. Level: open the card, Student info, Edit.", ko: "팀: 이름 아래 팀 버튼을 눌러요. 레벨: 카드를 펼쳐 학생 정보에서 수정을 눌러요." },
-      { t: "term", label: { en: "Switch the language", ko: "언어 바꾸기" }, en: "Tap EN / 한국어 at the top right. It is remembered on this phone only. Parents and children are not affected.", ko: "오른쪽 위의 EN / 한국어를 눌러요. 이 폰에만 기억돼요. 학부모와 아이 화면에는 영향이 없어요." },
-      { t: "term", label: { en: "Opened from KakaoTalk and some things look limited", ko: "카카오톡에서 열었더니 일부가 안 돼요" }, en: "KakaoTalk's built-in browser is limited. Tap Open in browser, or open the address in Chrome or Safari.", ko: "카카오톡 안의 브라우저는 기능이 제한돼요. 브라우저로 열기를 누르거나 크롬이나 사파리에서 주소를 열어 주세요." },
+      { t: "term", label: { en: "A parent cannot see the program", ko: "학부모가 프로그램을 못 봐요" }, en: "Check that the family is approved, the child is in the program and the trip is not cancelled.", ko: "가족이 수락됐는지, 아이가 프로그램에 들어 있는지, 체험이 취소되지 않았는지 확인해요." },
+      { t: "term", label: { en: "Changes do not show on a parent's phone", ko: "학부모 폰에 바뀐 게 안 보여요" }, en: "Wait a minute. The app updates itself.", ko: "1분쯤 기다려요. 앱이 저절로 새로고침돼요." },
+      { t: "term", label: { en: "I lost what I typed", ko: "쓴 내용이 사라졌어요" }, en: "Reopen the program and tap Continue writing.", ko: "프로그램을 다시 열고 '이어서 쓰기'를 눌러요." },
+      { t: "term", label: { en: "Wrong team or level", ko: "팀이나 레벨이 틀렸어요" }, en: "Team: the button under the child's name. Level: card, Student info, Edit.", ko: "팀은 이름 아래 버튼, 레벨은 카드의 학생 정보에서 수정해요." },
+      { t: "term", label: { en: "Language", ko: "언어" }, en: "EN / 한국어 at the top right. It is remembered on this phone only.", ko: "오른쪽 위 EN / 한국어로 바꿔요. 이 폰에만 기억돼요." },
+      { t: "term", label: { en: "Opened in KakaoTalk", ko: "카카오톡에서 열었어요" }, en: "Tap Open in browser, or use Chrome or Safari.", ko: "브라우저로 열기를 누르거나 크롬, 사파리로 열어요." },
     ],
   },
   {
     id: "guide-start",
     title: { en: "Teacher login: what you can do", ko: "샘 로그인: 할 수 있는 일" },
     items: [
-      { t: "p", en: "This is the page for the teachers who run the trips. You see only what you need: the class materials and the feedback. HQ takes care of everything else.", ko: "체험을 진행하는 샘을 위한 화면이에요. 수업자료와 피드백만 보여요. 나머지는 본사가 관리해요." },
-      { t: "step", en: "On the login screen tap Teacher and enter the number HQ gave you.", ko: "로그인 화면에서 Teacher를 누르고 본사에서 받은 번호를 넣어요." },
-      { t: "step", en: "Choose your name. After that you see only the children in your team. You can change the name any time (Change name).", ko: "이름을 골라요. 그러면 내 팀의 아이들만 보여요. 이름은 언제든 바꿀 수 있어요(이름 바꾸기)." },
-      { t: "tip", en: "EN / 한국어 at the top switches the language of this page.", ko: "위쪽 EN / 한국어로 이 화면의 언어를 바꿀 수 있어요." },
-      { t: "warn", en: "Attendance, points, parents' information and the program settings are handled by HQ. If something there looks wrong, tell HQ.", ko: "출석, 포인트, 학부모 정보, 프로그램 설정은 본사가 해요. 이 부분이 이상하면 본사에 알려 주세요." },
+      { t: "step", en: "On the login screen tap Teacher and enter the number from HQ.", ko: "로그인 화면에서 Teacher를 누르고 본사에서 받은 번호를 넣어요." },
+      { t: "step", en: "Choose your name to see only your team's children. You can change it any time.", ko: "이름을 고르면 내 팀 아이들만 보여요. 언제든 바꿀 수 있어요." },
+      { t: "tip", en: "EN / 한국어 at the top switches the language.", ko: "위쪽 EN / 한국어로 언어를 바꿔요." },
+      { t: "p", en: "Attendance, points, parent information and program settings are handled by HQ.", ko: "출석, 포인트, 학부모 정보, 프로그램 설정은 본사가 해요." },
     ],
   },
   {
     id: "guide-materials",
     title: { en: "Class materials", ko: "수업자료 입력" },
     items: [
-      { t: "step", en: "Open the Materials tab and tap the program at the top.", ko: "수업자료 탭을 열고 위에서 프로그램을 눌러요." },
-      { t: "step", en: "Words: add each word with its English meaning. To add many at once, paste one word per line like: king - a man who rules a country. Words pasted into the box are saved too.", ko: "단어: 단어마다 영어 뜻을 적어요. 한꺼번에 넣으려면 한 줄에 하나씩 king - a man who rules a country 처럼 붙여넣어요. 붙여넣은 단어도 같이 저장돼요." },
-      { t: "step", en: "If the program has several levels there is a tab for each level. Write each level on its own tab. A new level starts as a copy of the first one, and Copy from A1 copies again.", ko: "프로그램에 레벨이 여러 개면 레벨마다 탭이 있어요. 레벨별로 따로 써요. 새 레벨은 첫 레벨 내용을 복사해서 시작하고, 'A1 내용 복사해 오기'로 다시 복사할 수 있어요." },
-      { t: "step", en: "Missions, focus points and the big question: write what the children do and think about on the trip.", ko: "미션, 집중 포인트, 큰 질문: 아이들이 체험에서 할 일과 생각해 볼 것을 적어요." },
-      { t: "step", en: "Review quiz: keep Make a word quiz automatically on. With 3 or more words that have a meaning the app makes the questions itself (tap Show the questions to read them). You can also add your own True/False or multiple-choice questions.", ko: "복습 퀴즈: '단어 퀴즈 자동 만들기'를 켜 두세요. 뜻이 있는 단어가 3개 이상이면 앱이 문제를 만들어요('문제 보기'로 읽어 볼 수 있어요). 직접 쓴 O/X나 객관식 문제도 넣을 수 있어요." },
+      { t: "step", en: "Materials tab, tap the program.", ko: "수업자료 탭에서 프로그램을 눌러요." },
+      { t: "step", en: "Words: add each word with its English meaning, or paste one per line: king - a man who rules a country.", ko: "단어: 단어마다 영어 뜻을 적거나, 한 줄에 하나씩 붙여넣어요: king - a man who rules a country" },
+      { t: "step", en: "Several levels: write each level on its own tab. Copy from A1 copies a level.", ko: "레벨이 여러 개면 레벨마다 탭에 써요. 'A1 내용 복사해 오기'로 복사해요." },
+      { t: "step", en: "Missions, focus points, big question: what the children do and think about.", ko: "미션, 집중 포인트, 큰 질문: 아이들이 할 일과 생각해 볼 것을 써요." },
+      { t: "step", en: "Review quiz: keep Make a word quiz automatically on. With 3 or more words that have a meaning it makes the questions (Show the questions to read them). You can add your own.", ko: "복습 퀴즈: '단어 퀴즈 자동 만들기'를 켜 두세요. 뜻이 있는 단어가 3개 이상이면 문제를 만들어요('문제 보기'로 읽어 봐요). 직접 쓴 문제도 넣을 수 있어요." },
       { t: "step", en: "Tap Save. The children see the changes right away.", ko: "저장을 눌러요. 아이들 화면에 바로 반영돼요." },
-      { t: "tip", en: "Press Save before you leave the page. Text that is not saved is lost.", ko: "나가기 전에 저장을 꼭 눌러요. 저장하지 않은 내용은 사라져요." },
+      { t: "tip", en: "Save before you leave. Unsaved text is lost.", ko: "나가기 전에 저장하세요. 저장하지 않은 글은 사라져요." },
     ],
   },
   {
     id: "guide-feedback",
     title: { en: "Feedback", ko: "피드백 쓰기" },
     items: [
-      { t: "step", en: "Open the Feedback tab and tap the program. The number on the tab is how many children still need feedback.", ko: "피드백 탭을 열고 프로그램을 눌러요. 탭의 숫자는 피드백이 남은 아이 수예요." },
-      { t: "step", en: "Tap the arrow on a child to open the card. Tick the missions the child did, choose the strengths you noticed, and write a short teacher note.", ko: "아이 카드의 화살표를 눌러 열어요. 아이가 한 미션을 체크하고, 잘한 점을 고르고, 짧은 메모를 써요." },
-      { t: "step", en: "Open Full feedback report: your name, CEFR level, a short overview, notes, the five language ratings (1 to 5) and the three personality ratings. Parents read this report.", ko: "전체 피드백 리포트를 열어요: 내 이름, CEFR 레벨, 간단한 소개, 메모, 언어 평가 5가지(1~5점), 성향 평가 3가지를 채워요. 학부모가 이 리포트를 읽어요." },
-      { t: "tip", en: "What you type is saved by itself a moment after you stop typing. Your name is filled in for you.", ko: "입력한 내용은 타이핑을 멈추고 잠시 뒤 저절로 저장돼요. 내 이름은 미리 채워져 있어요." },
-      { t: "warn", en: "Write kind, specific and positive feedback: it goes to the parents. Do not compare children with each other.", ko: "친절하고 구체적이고 긍정적으로 써 주세요. 학부모에게 전달돼요. 아이들끼리 비교하지 마세요." },
+      { t: "step", en: "Feedback tab, tap the program. The tab number is how many children still need feedback.", ko: "피드백 탭에서 프로그램을 눌러요. 탭의 숫자는 피드백이 남은 아이 수예요." },
+      { t: "step", en: "Open a child's card: tick the missions, choose the strengths, write a note.", ko: "아이 카드를 열어요: 미션을 체크하고, 잘한 점을 고르고, 메모를 써요." },
+      { t: "step", en: "Full feedback report: your name, CEFR level, overview, notes, 5 language ratings (1 to 5) and 3 personality ratings. Parents read it.", ko: "전체 피드백 리포트: 내 이름, CEFR 레벨, 소개, 메모, 언어 평가 5가지(1~5점), 성향 평가 3가지. 학부모가 읽어요." },
+      { t: "tip", en: "Typing saves by itself. Your name is filled in.", ko: "글은 저절로 저장돼요. 내 이름은 미리 채워져 있어요." },
+      { t: "warn", en: "Parents read it. Be kind and specific, and do not compare children.", ko: "학부모가 읽어요. 친절하고 구체적으로 쓰고, 아이들끼리 비교하지 마세요." },
     ],
   },
   {
     id: "roles",
     title: { en: "Two logins: HQ and Teacher", ko: "로그인 두 가지: 본사와 샘" },
     items: [
-      { t: "p", en: "HQ (this login) keeps full control: programs, notices, time slots, teams, attendance, points, reviews, statistics and data. The Teacher login shows the foreign teachers only the class materials and the feedback, so the screen stays simple for them. They cannot see attendance, points, parents' information or program settings.", ko: "본사(지금 로그인)는 프로그램, 안내, 시간대, 팀, 출석, 포인트, 후기, 통계, 데이터를 모두 관리해요. 샘 로그인은 외국인 샘에게 수업자료와 피드백만 보여 줘서 화면이 단순해요. 출석, 포인트, 학부모 정보, 프로그램 설정은 볼 수 없어요." },
-      { t: "step", en: "On the login screen choose HQ (and enter the HQ number) or Teacher (the teachers' number).", ko: "로그인 화면에서 본사는 HQ(본사 번호), 샘은 Teacher(샘 번호)를 눌러요." },
-      { t: "step", en: "The teachers' number is in the Stats tab, Teacher login. Tap Change number to set a new 4-digit number and tell the teachers.", ko: "샘 번호는 통계 탭의 '샘 로그인'에 있어요. 번호 바꾸기로 새 4자리를 정하고 샘들에게 알려 주세요." },
-      { t: "tip", en: "A teacher's materials save changes only the class materials. Titles, dates, notices and time slots that HQ set are never touched.", ko: "샘이 수업자료를 저장하면 수업자료만 바뀌어요. 본사가 정한 제목, 날짜, 안내, 시간대는 건드리지 않아요." },
-      { t: "warn", en: "The numbers are kept inside the app and the app cannot check who uses them. Give the Teacher number only to your teachers and change it when a teacher leaves. Real protection of points and personal data needs a login on the server.", ko: "번호는 앱 안에 있어서 앱이 쓰는 사람을 확인하지는 못해요. 샘 번호는 샘들에게만 알리고, 샘이 바뀌면 번호를 바꾸세요. 포인트와 개인정보를 제대로 지키려면 서버 로그인이 필요해요." },
+      { t: "p", en: "HQ has full control. Teacher shows only the class materials and the feedback: no attendance, points, parent information or program settings.", ko: "본사는 모든 것을 관리해요. 샘은 수업자료와 피드백만 보여요. 출석, 포인트, 학부모 정보, 프로그램 설정은 볼 수 없어요." },
+      { t: "step", en: "Login screen: choose HQ or Teacher.", ko: "로그인 화면에서 HQ 또는 Teacher를 눌러요." },
+      { t: "step", en: "The Teacher number is in Stats, Teacher login. Change it there and tell the teachers.", ko: "샘 번호는 통계 탭의 샘 로그인에 있어요. 거기서 바꾸고 샘들에게 알려요." },
+      { t: "tip", en: "A teacher's save changes only the class materials. Titles, dates, notices and time slots are not touched.", ko: "샘이 저장하면 수업자료만 바뀌어요. 제목, 날짜, 안내, 시간대는 그대로예요." },
+      { t: "warn", en: "The numbers cannot prove who is using them. Give the Teacher number only to teachers and change it when one leaves.", ko: "번호로는 쓰는 사람을 확인할 수 없어요. 샘 번호는 샘에게만 알리고, 샘이 바뀌면 번호를 바꾸세요." },
     ],
   },
   {
     id: "points",
     title: { en: "Points and external reviews", ko: "포인트와 외부 후기" },
     items: [
-      { t: "p", en: "Parents earn CarrotWorld Points: experience completed +1,000P (when you mark the child present), parent survey +100P, external review +300P, friend referral +2,000P. 1P = 1 won. Points can only be used for the next program and never paid out in cash. Parents see their balance and history on their home screen.", ko: "학부모는 당근나라 포인트를 받아요. 체험 완료 +1,000P(아이를 출석 체크하면), 부모 설문 +100P, 외부 후기 +300P, 친구 추천 +2,000P예요. 1P는 1원이고, 다음 프로그램 결제에만 쓸 수 있고 현금으로 출금할 수 없어요. 학부모는 첫 화면에서 잔액과 내역을 볼 수 있어요." },
-      { t: "step", en: "External review: after a trip the parent pastes the link to a review they wrote (Naver Cafe, Naver Blog, Instagram or another public site). The Points tab shows it as Pending.", ko: "외부 후기: 체험 후 학부모가 직접 쓴 후기의 링크를 붙여넣어요(네이버 카페, 블로그, Instagram, 기타 공개 SNS). 포인트 탭에 '확인 대기'로 보여요." },
-      { t: "step", en: "Open the link. Check that it is a public post and a review of CarrotWorld. Tap Approve (+300P is added automatically and the parent sees \"300P added\"), or Reject (the parent can send another link).", ko: "링크를 열어서 공개된 게시물이고 당근나라 후기가 맞는지 확인해요. 승인을 누르면 +300P가 자동으로 적립되고 학부모에게 '300P가 적립되었습니다'가 떠요. 반려하면 학부모가 다른 링크를 다시 낼 수 있어요." },
-      { t: "p", en: "Only one review reward per trip, and the same link can never be used twice (even by another family). The app checks both.", ko: "한 체험당 후기 포인트는 한 번만 받고, 같은 링크는 다른 가족도 다시 쓸 수 없어요. 앱이 둘 다 확인해요." },
-      { t: "step", en: "Friend referral: when a friend a parent recommended has made their first payment, open Points by family, tap the family, enter the friend's name, tick that you checked the payment, and tap Add 2,000P. The same friend can be rewarded only once.", ko: "친구 추천: 학부모가 추천한 친구가 첫 결제를 마치면 가족별 포인트에서 그 가족을 열고, 친구 이름을 적고, 결제를 확인했다고 체크한 뒤 2,000P 적립을 눌러요. 같은 친구는 한 번만 적립돼요." },
-      { t: "step", en: "If the automatic count is wrong (for example the attendance was not marked, or a point was added by mistake): open the family, Manual adjustment, choose Add or Subtract, enter the points and a reason. To undo a line you added, tap Cancel this entry: it stays in the history as Cancelled and is no longer counted. To change a line, cancel it and enter it again.", ko: "자동 계산이 맞지 않을 때(예: 출석 체크 누락, 잘못 들어간 포인트): 가족을 열고 수동 조정에서 더하기나 빼기를 고르고 포인트와 이유를 적어요. 선생님이 넣은 내역을 되돌리려면 '이 내역 취소'를 눌러요. 기록에는 '취소됨'으로 남고 계산에서는 빠져요. 내용을 바꾸려면 취소한 뒤 다시 입력해요." },
-      { t: "step", en: "Using points: when a family pays for the next program with points, open the family and use Use points (amount and a memo). The balance goes down by that amount.", ko: "포인트 사용: 가족이 다음 프로그램 결제에 포인트를 쓰면 그 가족을 열어 포인트 사용 처리(금액과 메모)를 해요. 그만큼 잔액이 줄어요." },
-      { t: "warn", en: "Points have the value of money, but the app cannot check who presses the buttons. Only approve, add and use points yourself, and check the point history of a family before you mark points as used.", ko: "포인트는 돈과 같은 가치지만, 앱은 누가 버튼을 누르는지 확인하지 못해요. 승인, 적립, 사용 처리는 선생님이 직접 하시고, 사용 처리 전에 그 가족의 포인트 내역을 꼭 확인하세요." },
+      { t: "p", en: "Parents earn points: experience completed +1,000P (child marked present), parent survey +100P, external review +300P, friend referral +2,000P. 1P = 1 won. Points are only used for the next program and never paid out in cash.", ko: "학부모는 포인트를 받아요: 체험 완료 +1,000P(출석 체크), 부모 설문 +100P, 외부 후기 +300P, 친구 추천 +2,000P. 1P는 1원이에요. 다음 프로그램 결제에만 쓰고 현금으로 출금할 수 없어요." },
+      { t: "step", en: "External review: after a trip the parent pastes the link to their review. It shows as Pending in the Points tab.", ko: "외부 후기: 체험 후 학부모가 후기 링크를 붙여넣어요. 포인트 탭에 '확인 대기'로 보여요." },
+      { t: "step", en: "Open the link. If it is a public post about CarrotWorld, tap Approve (+300P is added). Reject lets the parent send another link.", ko: "링크를 열어서 당근나라에 대한 공개 게시물이면 승인을 눌러요(+300P 적립). 반려하면 학부모가 다른 링크를 낼 수 있어요." },
+      { t: "p", en: "One review reward per trip, and each link only once (even across families).", ko: "후기 포인트는 체험당 한 번이고, 같은 링크는 가족이 달라도 한 번만 인정돼요." },
+      { t: "step", en: "Friend referral: after the friend's first payment, open the family, enter the friend's name, tick the payment and tap Add 2,000P. One reward per friend.", ko: "친구 추천: 친구의 첫 결제 후 가족을 열고 친구 이름을 쓰고 결제 확인을 체크한 뒤 2,000P 적립을 눌러요. 친구당 한 번이에요." },
+      { t: "step", en: "Using points: open the family, Use points (amount and memo).", ko: "포인트 사용: 가족을 열고 포인트 사용 처리(금액과 메모)를 해요." },
+      { t: "step", en: "Wrong count: open the family, Manual adjustment (add or subtract, with a reason). To undo a line you added, tap Cancel this entry. It stays as Cancelled.", ko: "계산이 틀리면 가족을 열고 수동 조정(더하기나 빼기, 이유)을 해요. 직접 넣은 줄은 '이 내역 취소'로 되돌려요. 기록에는 '취소됨'으로 남아요." },
+      { t: "warn", en: "Points are worth money and the app cannot check who presses the buttons. Approve, add and use points yourself, and check the family's history first.", ko: "포인트는 돈과 같고, 앱은 누가 누르는지 확인하지 못해요. 승인, 적립, 사용 처리는 직접 하고, 먼저 그 가족의 내역을 확인하세요." },
     ],
   },
   {
     id: "levels",
     title: { en: "Carrot World levels, ranks and badges", ko: "당근나라 레벨, 참여 단계, 뱃지" },
     items: [
-      { t: "p", en: "The Speaking Level is based on what a child can actually say and how well they communicate, not on test scores. CEFR is only a reference. It is a way to give each child the right classes and trips, not a grade.", ko: "스피킹 레벨은 시험 점수가 아니라 아이가 실제로 말하는 능력과 의사소통 수준을 기준으로 해요. CEFR은 참고용이에요. 평가가 아니라, 아이에게 맞는 수업과 체험을 드리기 위한 기준이에요." },
+      { t: "p", en: "The Speaking Level follows what a child can actually say, not test scores. CEFR is only a reference.", ko: "스피킹 레벨은 시험 점수가 아니라 아이가 실제로 말하는 수준을 기준으로 해요. CEFR은 참고용이에요." },
       ...CW_LEVELS.map((l) => ({ t: "term", label: { en: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}`, ko: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}` }, en: `${l.en} (${l.tag})`, ko: `${l.ko} (${l.tag})` })),
-      { t: "warn", en: "Two different things share names. The participation rank in the app (Sprout, Scout, Explorer, Trailblazer, Master) only counts attended trips. The Speaking Level (Seed to Leader) is about speaking ability. Sprout and Explorer exist in both lists, so explain this to parents.", ko: "이름이 겹치는 두 가지가 있어요. 앱의 참여 단계(Sprout, Scout, Explorer, Trailblazer, Master)는 출석한 체험 횟수만 세요. 스피킹 레벨(Seed ~ Leader)은 말하기 수준이에요. Sprout와 Explorer는 두 곳에 모두 있으니 학부모님께 구분해서 설명해 주세요." },
+      { t: "warn", en: "Two different things share names. The participation rank (Sprout to Master) counts attended trips. The Speaking Level (Seed to Leader) is speaking ability. Sprout and Explorer are in both.", ko: "이름이 겹치는 두 가지가 있어요. 참여 단계(Sprout ~ Master)는 출석한 횟수예요. 스피킹 레벨(Seed ~ Leader)은 말하기 수준이에요. Sprout와 Explorer는 둘 다에 있어요." },
       { t: "term", label: { en: "Participation rank (automatic)", ko: "참여 단계 (자동)" }, en: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}+ trips` : `${r.min}-${r.to} trips`}`).join("\n") + "\nIt counts the trips you mark present.", ko: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}회 이상` : `${r.min}~${r.to}회`}`).join("\n") + "\n출석 체크한 체험 횟수를 세요." },
-      { t: "term", label: { en: "Carrot Points", ko: "당근 포인트" }, en: `Experience completed +${POINT_RULES.trip.toLocaleString("en-US")}P (the child is marked present), parent survey +${POINT_RULES.survey}P, external review +${POINT_RULES.review}P (after you approve the link), friend referral +${POINT_RULES.referral.toLocaleString("en-US")}P (you add it). 1P = 1 won. Points can only be used for the next program and never paid out in cash. See the Points tab.`, ko: `체험 완료 +${POINT_RULES.trip.toLocaleString("en-US")}P(출석 체크), 부모 설문 +${POINT_RULES.survey}P, 외부 후기 +${POINT_RULES.review}P(링크를 승인하면), 친구 추천 +${POINT_RULES.referral.toLocaleString("en-US")}P(선생님이 적립)예요. 1P는 1원이고, 다음 프로그램 결제에만 쓸 수 있고 현금으로 출금할 수 없어요. 포인트 탭을 보세요.` },
       { t: "term", label: { en: "Badges (automatic)", ko: "뱃지 (자동)" }, en: badgeGuide().map((b) => `${b.emoji} ${b.enName}: ${b.en}`).join("\n"), ko: badgeGuide().map((b) => `${b.emoji} ${b.name}: ${b.ko}`).join("\n") },
-      { t: "term", label: { en: "How a child moves up", ko: "단계가 올라가는 방식" }, en: "Participation rank and badges move by themselves from the records (attendance, reviews, missions). You cannot edit them. The Speaking Level never changes by itself: it is decided by the teacher from the child's real speaking.", ko: "참여 단계와 뱃지는 기록(출석, 복습, 미션)에 따라 저절로 올라가요. 직접 고칠 수 없어요. 스피킹 레벨은 저절로 바뀌지 않아요. 선생님이 아이의 실제 말하기를 보고 정해요." },
-      { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, child card, Student info, Edit: the Level buttons (Pre-A1, A1, A2, B1) group children and pre-select teams. In Full feedback report, the CEFR box is free text (for example A1 or B2): parents read it in the report as CEFR.", ko: "학생관리 탭, 아이 카드, 학생 정보, 수정: 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 고르는 데 쓰여요. 전체 피드백 리포트의 CEFR 칸은 자유 입력(예: A1, B2)이고, 학부모가 리포트에서 CEFR로 읽어요." },
-      { t: "tip", en: "The Level buttons stop at B1. For Thinker (B2) or Leader (C1-C2), type the level in the CEFR box of the feedback report.", ko: "레벨 버튼은 B1까지예요. Thinker(B2)나 Leader(C1~C2)는 피드백 리포트의 CEFR 칸에 직접 입력하세요." },
+      { t: "term", label: { en: "How a child moves up", ko: "단계가 올라가는 방식" }, en: "Rank and badges move by themselves from the records. The Speaking Level never changes by itself: the teacher decides it from the child's real speaking.", ko: "참여 단계와 뱃지는 기록에 따라 저절로 올라가요. 스피킹 레벨은 저절로 바뀌지 않아요. 선생님이 아이의 실제 말하기를 보고 정해요." },
+      { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, card, Student info, Edit: Level buttons (Pre-A1, A1, A2, B1) group children and pre-select teams. The CEFR box in the feedback report is free text (A1, B2 …) and parents read it.", ko: "학생관리 탭, 카드, 학생 정보, 수정의 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 골라요. 피드백 리포트의 CEFR 칸은 자유 입력(A1, B2 …)이고 학부모가 읽어요." },
+      { t: "tip", en: "The Level buttons stop at B1. For Thinker (B2) or Leader (C1-C2) type the level in the CEFR box.", ko: "레벨 버튼은 B1까지예요. Thinker(B2)나 Leader(C1~C2)는 CEFR 칸에 직접 써요." },
     ],
   },
 ];
@@ -8694,7 +8682,6 @@ function TeacherManual({ lang, onClose, role }) {
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>{L === "ko" ? "선생님 사용법" : "Teacher guide"}</h2>
           <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>{L === "ko" ? "닫기" : "Close"}</button>
         </div>
-        <p className="f-body text-[15px] text-gray-500 mb-3">{L === "ko" ? "처음 쓰는 선생님도 따라 할 수 있게 정리했어요. 항목을 눌러 펼치세요." : "Everything a new teacher needs. Tap a section to open it."}</p>
         <button onClick={toggleAll} className="focus-ring tap f-body text-[15px] font-bold mb-3" style={{ color: C.orange }}>
           {allOpen ? (L === "ko" ? "모두 접기" : "Collapse all") : L === "ko" ? "모두 펼치기" : "Expand all"}
         </button>

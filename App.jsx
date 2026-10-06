@@ -291,7 +291,7 @@ const EN = {
 "거절하면 이 가입 신청이 삭제돼요. 신청이 맞다면 부모님이 다시 등록할 수 있어요.": "Declining deletes this sign-up request. If the application is genuine, the parent can register again.",
 "가입을 거절할까요?": "Decline this sign-up?",
 "거절하고 삭제": "Decline and delete",
-"안내 전": "Notice not sent",
+"안내 전": "Notice due",
 "안내 완료 ✓": "Notice sent ✓",
 "피드백 {0}명 전": "Feedback: {0} left",
 "피드백 완료 ✓": "Feedback done ✓",
@@ -547,7 +547,62 @@ const EN = {
 "뜻이 있는 단어가 3개 이상 필요해요.": "You need 3 or more words with a meaning.",
 "만들어질 문제 {0}개": "Questions that will be made: {0}",
 "문제 보기 ▾": "Show the questions ▾",
-"붙여넣은 단어 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.": "{0} pasted words are not in the list yet. They are saved together when you save."
+"붙여넣은 단어 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.": "{0} pasted words are not in the list yet. They are saved together when you save.",
+"앱 버전: {0}": "App version: {0}",
+"준비 중": "Setting up",
+"예습 중": "Prep",
+"안내 전달 완료": "Notice sent",
+"체험 진행 중": "Trip live",
+"피드백 전": "Feedback due",
+"완료": "Complete",
+"출석 체크가 필요해요 ({0}/{1}명)": "Attendance check needed ({0}/{1})",
+"체험이 끝났다면 '오늘 진행'을 꺼 주세요": "If the trip is over, switch off 'Live today'",
+"{0}P 적립": "Add {0}P",
+"{0}P를 사용 처리할까요?": "Mark {0}P as used?",
+"가족별 포인트": "Points by family",
+"다음 프로그램 결제에 사용한 만큼 포인트가 줄어들어요.": "The family's points go down by the amount used for the next program.",
+"로그인 번호 {0}": "Login number {0}",
+"링크가 열리는 공개 게시물인지, 당근나라 후기가 맞는지 확인해 주세요. 승인하면 바로 적립돼요.": "Check that the link opens a public post and that it is a review of CarrotWorld. The points are added right away when you approve.",
+"링크를 확인하고 승인하면 {0}P가 적립돼요": "Check the link and approve: {0}P is added",
+"메모": "Memo",
+"메모 (예: 11/14 과천 결제)": "Memo (e.g. paid for 11/14 Gwacheon)",
+"반려": "Reject",
+"반려 {0}": "Rejected {0}",
+"반려할까요?": "Reject this review?",
+"보유 포인트보다 많이 쓸 수 없어요.": "You cannot use more than the points the family has.",
+"부모님에게는 '확인 불가'로 보이고, 다른 링크를 다시 제출할 수 있어요.": "The parent sees \"could not be checked\" and can submit another link.",
+"부모님이 올린 후기 링크를 열어 보고 승인하면 {0}P가 자동으로 적립돼요. 한 체험당 한 번, 같은 링크는 한 번만 인정돼요.": "Open the review link the parent sent. When you approve it, {0}P is added automatically. Once per trip, and the same link counts only once.",
+"사용 처리": "Mark as used",
+"사용자": "User",
+"사용할 포인트": "Points to use",
+"사용할 포인트를 입력해 주세요.": "Please enter the points to use.",
+"승인": "Approve",
+"승인 {0}": "Approved {0}",
+"승인하고 {0}P를 적립할까요?": "Approve and add {0}P?",
+"아직 가족이 없어요.": "No families yet.",
+"아직 내역이 없어요.": "No history yet.",
+"외부 후기 결과": "External review decisions",
+"외부 후기 제출": "External review submissions",
+"외부 후기 확인": "External reviews",
+"외부 후기 확인 {0}건": "External reviews to check: {0}",
+"이미 추천 적립이 끝난 친구예요.": "Points for this friend were already added.",
+"전체 {0}": "All {0}",
+"제출 날짜": "Submitted",
+"처리 날짜": "Decided",
+"체험 날짜": "Trip date",
+"추천받은 친구 이름": "Referred friend's name",
+"친구 추천 적립": "Friend referral",
+"친구 추천 적립과 포인트 사용 처리는 여기서 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.": "Add friend-referral points and mark points as used here. Points cannot be paid out in cash; they only go toward the next program.",
+"친구의 첫 결제 완료를 확인했어요": "I checked that the friend completed their first payment",
+"포인트": "Points",
+"포인트 {0}": "Points {0}",
+"포인트 내역": "Point history",
+"포인트 사용 처리": "Use points",
+"프로그램": "Program",
+"해당하는 후기 제출이 없어요.": "No review submissions here.",
+"확인 대기": "Pending",
+"확인 대기 {0}": "Pending {0}",
+"후기 URL": "Review URL"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -1036,10 +1091,6 @@ function stageState(adv, program) {
 }
 function attendedCount(adventures, studentId) {
   return adventures.filter((a) => a.studentId === studentId && a.attended).length;
-}
-const POINTS_PER_ADVENTURE = 20;
-function carrotPoints(adventures, studentId) {
-  return adventures.filter((a) => a.studentId === studentId && a.afterCompleted).length * POINTS_PER_ADVENTURE;
 }
 
 const STAMP_CARD_SIZE = 10;
@@ -1976,48 +2027,31 @@ function AdventuresList({ adventures, studentId, onOpen }) {
 function LevelLadder({ count }) {
   const achievedIdx = RANKS.reduce((best, r, i) => (count >= r.min ? i : best), 0);
   return (
-    <div className="relative pt-6">
-      <div
-        className="absolute top-[38px] h-px"
-        style={{ left: 22, right: 22, borderTop: `1.5px dashed ${C.beige}` }}
-      />
-      <div className="relative flex items-start justify-between">
-        {RANKS.map((r, i) => {
-          const isCurrent = i === achievedIdx;
-          const isNextGoal = i === achievedIdx + 1;
-          const dim = isCurrent ? 44 : 40;
-          return (
-            <div key={r.label} className="flex flex-col items-center gap-1.5" style={{ width: 44 }}>
-              <div style={{ height: 16 }}>
-                {isCurrent && (
-                  <span className="text-[13px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#DCF3E4", color: "#1F7A44" }}>
-                    CURRENT
-                  </span>
-                )}
-                {isNextGoal && (
-                  <span className="text-[13px] f-body font-bold px-1.5 py-0.5 rounded-full" style={{ background: C.orange, color: "white" }}>
-                    NEXT GOAL
-                  </span>
-                )}
-              </div>
-              <div
-                className={`rounded-full flex items-center justify-center ${isCurrent ? "level-current" : ""}`}
-                style={{
-                  width: dim,
-                  height: dim,
-                  background: isCurrent ? "white" : C.beige,
-                  border: isCurrent ? `2px solid ${C.green}` : isNextGoal ? `2px solid ${C.orange}` : "none",
-                  boxShadow: isCurrent ? "0 2px 6px rgba(23,76,53,0.12)" : "none",
-                }}
-              >
-                <RankIcon label={r.label} size={isCurrent ? 21 : 17} color={isCurrent ? C.green : C.orange} />
-              </div>
-              <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{r.label}</span>
-              <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>{r.min}</span>
+    <div className="space-y-2" role="list" aria-label="Badge levels">
+      {RANKS.map((r, i) => {
+        const isCurrent = i === achievedIdx;
+        const isNextGoal = i === achievedIdx + 1;
+        const reached = count >= r.min;
+        return (
+          <div
+            key={r.label}
+            role="listitem"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+            style={{ background: isCurrent ? "#EAF7EF" : isNextGoal ? "#FFF1E2" : "transparent", border: `1.5px solid ${isCurrent ? C.green : isNextGoal ? C.orange : "transparent"}` }}
+          >
+            <div className="rounded-full flex items-center justify-center shrink-0" style={{ width: 44, height: 44, background: isCurrent ? "white" : C.beige, border: isCurrent ? `2px solid ${C.green}` : "none" }}>
+              <RankIcon label={r.label} size={isCurrent ? 22 : 18} color={isCurrent ? C.green : C.orange} />
             </div>
-          );
-        })}
-      </div>
+            <div className="flex-1 min-w-0">
+              <p className="f-display text-[18px] font-bold leading-tight" style={{ color: reached ? C.green : "#9C927D" }}>{r.label}</p>
+              <p className="f-body text-[14px]" style={{ color: "#9C927D" }}>{r.min === 0 ? "Start" : `${r.min} trips`}</p>
+            </div>
+            {isCurrent && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: "#DCF3E4", color: "#1F7A44" }}>CURRENT</span>}
+            {isNextGoal && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap text-white" style={{ background: C.orange }}>NEXT GOAL</span>}
+            {reached && !isCurrent && <Check size={18} color="#1F7A44" strokeWidth={3} aria-label="reached" />}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2036,17 +2070,15 @@ function PassportStamp() {
   );
 }
 
-function Journey({ adventures, studentId }) {
+function Journey({ adventures, studentId, points = 0 }) {
   const mine = adventures.filter((a) => a.studentId === studentId);
   const badgesEarned = computeBadges(adventures, studentId).filter((b) => b.earned).length;
   const count = attendedCount(adventures, studentId);
-  const points = carrotPoints(adventures, studentId);
   const { rank, nextRank } = rankFor(count);
 
   const segStart = rank.min;
   const segEnd = nextRank ? nextRank.min : rank.min;
   const segPct = nextRank ? Math.round(((count - segStart) / (segEnd - segStart)) * 100) : 100;
-  const pointsGoal = 200;
 
   const withProgram = mine.map((a) => ({ a, program: getProgram(a.programId) }));
   const timeline = [
@@ -2126,11 +2158,9 @@ function Journey({ adventures, studentId }) {
           <div className="w-9 h-9 rounded-full flex items-center justify-center mb-2.5" style={{ background: "#FFF1E2" }}>
             <span style={{ fontSize: 18 }}>🥕</span>
           </div>
-          <p className="f-display text-[21px] font-bold" style={{ color: C.orange }}>{points}</p>
+          <p className="f-display text-[21px] font-bold" style={{ color: C.orange }}>{fmtBalance(points)}</p>
           <p className="f-body text-[13px] text-gray-500 mb-2 leading-tight">Carrot Points</p>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.beige }}>
-            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (points / pointsGoal) * 100)}%`, background: C.orange }} />
-          </div>
+          <p className="f-body text-[12px] text-gray-400 leading-tight">Use on your next program</p>
         </div>
       </div>
 
@@ -2593,7 +2623,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
             <p className="f-body text-[17px] text-gray-500 mb-3">You finished {program.title}</p>
           </div>
           <ScoreCard score={score} className="relative mb-3" />
-          <p className="relative inline-block f-body text-[15px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 +{POINTS_PER_ADVENTURE} carrot points</p>
+          <p className="relative inline-block f-body text-[15px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 Adventure complete</p>
           <div className="relative bg-white rounded-2xl p-5 text-left mb-4">
             <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
             <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
@@ -2914,7 +2944,108 @@ const VISIT_TYPE = "방문";
 const kstDay = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
 const visitId = (familyPin, day) => `visit-${familyPin}-${day}`;
 const isVisit = (sg) => sg.type === VISIT_TYPE;
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg); // not shown as parent opinions
+/* ================================================================== */
+/*  CARROTWORLD POINTS                                                  */
+/*  Experience completed +1,000P · parent survey +100P · external review */
+/*  +300P (after a staff check) · friend referral +2,000P (set by staff). */
+/*  1P = 1 won. Points are used for the next program's payment and can   */
+/*  never be paid out in cash.                                           */
+/*  The balance is always WORKED OUT from the records (attendance,       */
+/*  surveys, approved reviews, staff entries), so it can never drift.    */
+/*  Everything stored is "create only" rows (like wishes and visits):    */
+/*  a review link, its decision, "seen by the parent", staff entries.    */
+/* ================================================================== */
+const POINT_RULES = { trip: 1000, survey: 100, review: 300, referral: 2000 };
+const REVIEW_TYPE = "외부후기";
+const REVIEW_RESULT_TYPE = "외부후기결과";
+const REVIEW_SEEN_TYPE = "외부후기확인";
+const POINT_TYPE = "포인트";
+const isPointRow = (sg) => sg.type === REVIEW_TYPE || sg.type === REVIEW_RESULT_TYPE || sg.type === REVIEW_SEEN_TYPE || sg.type === POINT_TYPE;
+const fmtBalance = (n) => `${Number(n || 0).toLocaleString("en-US")}P`;
+const fmtDelta = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n).toLocaleString("en-US")}P`;
+const fmtDay = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\.\s*/g, ".").replace(/\.$/, "");
+};
+const readRow = (sg) => {
+  try {
+    return JSON.parse(sg.message || "{}") || {};
+  } catch (e) {
+    return {};
+  }
+};
+const friendKey = (name) => String(name || "").trim().toLowerCase().replace(/\s+/g, "");
+
+/** A review link must be a real, public post address, and the same post can never be used twice. */
+function normalizeReviewUrl(raw) {
+  const BAD = "올바른 링크가 아니에요. 후기 게시물의 주소(https://…)를 그대로 붙여넣어 주세요.";
+  let t = String(raw || "").trim();
+  if (!t) return { ok: false, error: "후기 링크를 붙여넣어 주세요." };
+  if (/\s/.test(t)) return { ok: false, error: "링크에 띄어쓰기가 있어요. 게시물 주소만 붙여넣어 주세요." };
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) t = `https://${t}`;
+  let u;
+  try {
+    u = new URL(t);
+  } catch (e) {
+    return { ok: false, error: BAD };
+  }
+  if (!/^https?:$/.test(u.protocol) || !u.hostname.includes(".")) return { ok: false, error: BAD };
+  const host = u.hostname.toLowerCase().replace(/^(www|m)\./, "");
+  if (host === "carrotworld.kr" || host.endsWith(".carrotworld.kr")) return { ok: false, error: "당근나라 사이트 주소는 쓸 수 없어요. 네이버, 인스타그램 같은 외부 게시물 링크를 붙여넣어 주세요." };
+  const query = [...u.searchParams.entries()]
+    .filter(([k]) => !/^(utm_|fbclid|igshid|igsh$|ref$|share)/i.test(k))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join("&");
+  const path = u.pathname.replace(/\/+$/, "");
+  if (!path && !query) return { ok: false, error: "게시물 주소가 아니라 사이트 첫 화면 주소예요. 후기 글의 주소를 붙여넣어 주세요." };
+  return { ok: true, url: u.toString(), norm: `${host}${path}${query ? `?${query}` : ""}`.toLowerCase() };
+}
+
+/** Every submitted review link with its latest decision (pending until staff decide; the last decision wins). */
+function reviewRecords(suggestions) {
+  const subs = suggestions.filter((sg) => sg.type === REVIEW_TYPE).map((sg) => ({ id: sg.id, familyPin: sg.familyPin, ...readRow(sg) }));
+  const results = suggestions.filter((sg) => sg.type === REVIEW_RESULT_TYPE).map(readRow);
+  const seen = new Set(suggestions.filter((sg) => sg.type === REVIEW_SEEN_TYPE).map((sg) => readRow(sg).submissionId));
+  return subs
+    .map((r) => {
+      const mine = results.filter((x) => x.submissionId === r.id).sort((a, b) => String(a.decidedAt).localeCompare(String(b.decidedAt)));
+      const last = mine[mine.length - 1];
+      return { ...r, status: last ? last.status : "pending", decidedAt: last ? last.decidedAt : null, seen: seen.has(r.id) };
+    })
+    .sort((a, b) => String(b.submittedAt).localeCompare(String(a.submittedAt)));
+}
+const latestReview = (records, pin, programId) => records.find((r) => r.familyPin === pin && r.programId === programId) || null;
+const reviewUrlTaken = (records, norm) => records.some((r) => r.norm === norm && r.status !== "rejected");
+
+/** One line in a family's point history. */
+function pointEntries(pin, students, adventures, suggestions) {
+  const kids = students.filter((st) => st.familyPin === pin);
+  const ids = new Set(kids.map((k) => k.id));
+  const nameOf = (id) => kids.find((k) => k.id === id)?.name || "";
+  const progTitle = (id) => {
+    const p = getProgram(id);
+    return p ? splitTitle(p.title)[0] || p.title : "";
+  };
+  const out = [];
+  adventures.filter((a) => ids.has(a.studentId) && !a.canceled).forEach((a) => {
+    const detail = `${progTitle(a.programId)} · ${nameOf(a.studentId)}`;
+    if (a.attended) out.push({ key: `trip:${a.studentId}:${a.programId}`, kind: "trip", delta: POINT_RULES.trip, at: a.attendedAt || a.enrolledAt || "", title: "Experience Completed", detail });
+    if (a.parentSurvey) out.push({ key: `survey:${a.studentId}:${a.programId}`, kind: "survey", delta: POINT_RULES.survey, at: a.parentSurvey.at || "", title: "Parent Survey", detail });
+  });
+  reviewRecords(suggestions).filter((r) => r.familyPin === pin && r.status === "approved").forEach((r) => {
+    out.push({ key: `review:${r.id}`, kind: "review", delta: POINT_RULES.review, at: r.decidedAt || r.submittedAt || "", title: "External Review", detail: progTitle(r.programId) });
+  });
+  suggestions.filter((sg) => sg.type === POINT_TYPE && sg.familyPin === pin).forEach((sg) => {
+    const r = readRow(sg);
+    out.push({ key: `pt:${sg.id}`, kind: r.kind, delta: Number(r.delta) || 0, at: r.at || "", title: r.kind === "referral" ? "Friend Referral" : r.kind === "redeem" ? "Redeemed" : "Adjustment", detail: r.kind === "referral" ? r.friend || "" : r.note || "" });
+  });
+  return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+const pointsBalance = (entries) => entries.reduce((sum, e) => sum + e.delta, 0);
+/** The points a child's own trips have earned (shown on the teacher's card). */
+const carrotPoints = (adventures, studentId) => adventures.filter((a) => a.studentId === studentId && a.attended && !a.canceled).length * POINT_RULES.trip;
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg); // not shown as parent opinions
 const lastDays = (n) => {
   const out = [];
   const base = new Date(`${kstDay()}T12:00:00+09:00`);
@@ -3019,7 +3150,7 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
 }
 
 /** In-app notices for a parent, worked out from what already exists (nothing extra is stored). */
-function parentNotices(children, adventures) {
+function parentNotices(children, adventures, suggestions) {
   const list = [];
   const infoShown = new Set(); // one "안내" notice per program, even with siblings
   children.forEach((child) => {
@@ -3062,7 +3193,22 @@ function parentNotices(children, adventures) {
         }
       });
   });
-  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "💬": 3, "📝": 4, "📋": 5, "✏️": 6, "📚": 7 };
+  // a trip the family finished and has not yet sent a review link for: one reminder per program
+  if (suggestions) {
+    const records = reviewRecords(suggestions);
+    const done = new Set();
+    children.forEach((child) => {
+      adventures.filter((a) => a.studentId === child.id && a.attended && !a.canceled).forEach((a) => {
+        const program = getProgram(a.programId);
+        if (!program || done.has(program.id)) return;
+        done.add(program.id);
+        const last = latestReview(records, child.familyPin, program.id);
+        if (last && last.status !== "rejected") return;
+        list.push({ key: `${program.id}-extreview`, icon: "🥕", title: `외부 후기 작성하고 ${POINT_RULES.review}P 받기`, text: splitTitle(program.title)[0] || program.title, action: "링크 남기기", kind: "points", programId: program.id });
+      });
+    });
+  }
+  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "💬": 3, "📝": 4, "📋": 5, "✏️": 6, "📚": 7, "🥕": 8 };
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
@@ -3356,8 +3502,8 @@ function LevelGuideForParents({ showTitle = true }) {
         <p className="f-body text-[15px] leading-relaxed rounded-xl px-3.5 py-3 mb-3" style={{ background: "#FFF1E2", color: "#9A4F0B" }}>
           참여 단계의 이름(Sprout, Explorer)은 스피킹 레벨 이름과 같지만 서로 다른 거예요. 참여 단계는 "체험에 몇 번 참여했나", 스피킹 레벨은 "영어로 말하는 수준"을 뜻해요.
         </p>
-        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>🥕 당근 포인트</p>
-        <p className={`${p} mb-3`} style={{ color: C.charcoal }}>체험 복습을 마칠 때마다 {POINTS_PER_ADVENTURE}점이 쌓여요.</p>
+        <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>🥕 Carrot Points</p>
+        <p className={`${p} mb-3`} style={{ color: C.charcoal }}>체험 완료 +{POINT_RULES.trip.toLocaleString("en-US")}P · 부모 설문 +{POINT_RULES.survey}P · 외부 후기 +{POINT_RULES.review}P · 친구 추천 +{POINT_RULES.referral.toLocaleString("en-US")}P예요. 1P는 1원이고, 다음 프로그램 결제에 쓸 수 있어요(현금 출금은 안 돼요). 첫 화면의 포인트 카드에서 확인하세요.</p>
         <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.orange }}>뱃지</p>
         <p className={`${p} mb-2`} style={{ color: C.charcoal }}>조건을 채우면 자동으로 받아요.</p>
         <div className="space-y-2">
@@ -3544,10 +3690,178 @@ function ParentWaiting({ students, familyPin, onRefresh, onLogout }) {
   );
 }
 
-function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout }) {
+/** Where one child stands in one program, in four steps. It follows the records by itself, so it is always up to date. */
+function childProgress(program, adv) {
+  const slots = sessionsOf(program);
+  const slot = sessionOf(program, adv);
+  const noticeSent = slots.length ? !!(slot && slot.published) : !!program.info?.published;
+  const steps = [
+    { key: "prep", label: "예습", done: !!adv.beforeCompleted },
+    { key: "notice", label: "안내", done: noticeSent },
+    { key: "trip", label: "체험", done: !!adv.attended },
+    { key: "report", label: "리포트", done: !!adv.feedback },
+    { key: "survey", label: "설문", done: !!adv.parentSurvey },
+  ];
+  const current = steps.find((x) => !x.done) || null;
+  let hint = "모두 마쳤어요 🎉";
+  if (current) {
+    if (adv.attended && !adv.feedback) hint = "체험이 끝났어요. 선생님이 리포트를 준비하고 있어요.";
+    else if (program.dateReached && !adv.attended) hint = "오늘이 체험 날이에요! 아이가 모험을 시작해요.";
+    else if (current.key === "prep") hint = noticeSent ? "안내를 받았어요. 예습도 해 주세요." : "단어 카드로 예습해요.";
+    else if (current.key === "notice") hint = "예습을 마쳤어요. 체험 안내를 곧 보내 드려요.";
+    else if (current.key === "trip") hint = "예습과 안내가 끝났어요. 체험 날을 기다려요.";
+    else if (current.key === "survey") hint = "리포트가 도착했어요. 설문도 남겨 주세요 (1~2분).";
+  }
+  return { steps, current, hint, noticeSent, surveyOpen: !!adv.attended && !adv.parentSurvey };
+}
+
+/** One program's external review: submit a link, wait for the check, get the points. */
+function ReviewCard({ program, record, onSubmit }) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const title = splitTitle(program.title)[0] || program.title;
+  const send = async () => {
+    setBusy(true);
+    setError("");
+    const res = await onSubmit(program.id, url);
+    setBusy(false);
+    if (res && res.ok) setUrl("");
+    else setError((res && res.error) || "제출하지 못했어요. 잠시 뒤 다시 해 주세요.");
+  };
+  const state = record ? record.status : "none";
+  return (
+    <div className="bg-white rounded-2xl p-4" style={{ border: `1px solid ${C.beige}` }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{title}</p>
+          <p className="f-body text-[14px] text-gray-400">{program.date}</p>
+        </div>
+        {state === "pending" && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: "#FFF1E2", color: "#B25A0B" }}>확인 중</span>}
+        {state === "approved" && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: "#EAF7EF", color: "#1F7A44" }}>승인 · +{POINT_RULES.review}P</span>}
+        {state === "rejected" && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: "#FDEDEA", color: "#B03A2E" }}>확인 불가</span>}
+      </div>
+      {(state === "pending" || state === "approved") && (
+        <p className="f-body text-[14px] text-gray-500 mt-2 break-all">{record.url}</p>
+      )}
+      {state === "pending" && <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>운영팀이 후기 링크를 확인하고 있어요. 승인되면 {POINT_RULES.review}P가 자동으로 적립돼요.</p>}
+      {state === "approved" && <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>후기 포인트가 적립됐어요. 한 체험당 한 번만 받을 수 있어요.</p>}
+      {(state === "none" || state === "rejected") && (
+        <div className="mt-3">
+          {state === "rejected" && <p className="f-body text-[15px] mb-2" style={{ color: "#B03A2E" }}>링크를 확인하지 못했어요. 공개된 후기 게시물 링크를 다시 붙여넣어 주세요.</p>}
+          <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>외부 후기 작성하고 {POINT_RULES.review}P 받기 🥕</p>
+          <p className="f-body text-[15px] text-gray-600 mt-1 mb-2.5">당근나라 체험 후기를 작성하셨나요? 작성한 게시물의 링크를 남겨주세요.</p>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="후기 링크 붙여넣기"
+            aria-label={`후기 링크 ${title}`}
+            inputMode="url"
+            autoCapitalize="none"
+            className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none"
+            style={{ background: C.cream, border: `1px solid ${error ? "#E0A19A" : C.beige}` }}
+          />
+          <div aria-live="polite" className="min-h-[18px] mt-1">{error && <p className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{error}</p>}</div>
+          <button onClick={send} disabled={busy || !url.trim()} className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl py-3 mt-1 text-white disabled:opacity-50" style={{ background: C.green }}>
+            {busy ? "제출하는 중..." : "제출하기"}
+          </button>
+          <p className="f-body text-[13px] text-gray-400 mt-2">인정 채널: 네이버 카페 · 네이버 블로그 · Instagram · 기타 공개적으로 확인 가능한 SNS/커뮤니티</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The parents' points page: balance, how points are earned, external review, history. */
+function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose }) {
+  const entries = pointEntries(familyPin, students, adventures, suggestions);
+  const balance = pointsBalance(entries);
+  const records = reviewRecords(suggestions);
+  const attendedPrograms = [...new Set(adventures.filter((a) => a.attended && !a.canceled && students.some((st) => st.id === a.studentId && st.familyPin === familyPin)).map((a) => a.programId))].map((id) => getProgram(id)).filter(Boolean);
+  const rule = (label, amount, note) => (
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+      <div className="min-w-0">
+        <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{label}</p>
+        {note && <p className="f-body text-[13px] text-gray-400">{note}</p>}
+      </div>
+      <p className="f-display text-[17px] font-semibold shrink-0" style={{ color: C.green }}>+{amount.toLocaleString("en-US")}P</p>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="포인트">
+      <div className="max-w-md mx-auto px-5 pt-6 pb-12">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>포인트</h2>
+          <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
+        </div>
+
+        <div className="rounded-2xl p-5 mb-4" style={{ background: C.green, boxShadow: "0 4px 14px rgba(23,76,53,0.18)" }}>
+          <p className="f-body text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</p>
+          <p className="f-display text-[40px] font-bold text-white leading-tight mt-1" data-testid="points-balance">{fmtBalance(balance)}</p>
+          <p className="f-body text-[15px] mt-1" style={{ color: "#C9E6D6" }}>1P = 1원 · 다음 프로그램 결제에 사용할 수 있어요</p>
+          <p className="f-body text-[13px] mt-2" style={{ color: "#9FD1B8" }}>포인트는 현금으로 출금할 수 없어요.</p>
+        </div>
+
+        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 적립 기준</p>
+        <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
+          {rule("체험 프로그램 완료", POINT_RULES.trip)}
+          {rule("부모 설문 완료", POINT_RULES.survey)}
+          {rule("외부 후기 작성", POINT_RULES.review, "후기 링크 확인 후 적립")}
+          {rule("친구 추천", POINT_RULES.referral, "추천받은 친구가 첫 결제를 완료하면 적립")}
+        </div>
+
+        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>외부 후기 작성하고 {POINT_RULES.review}P 받기 🥕</p>
+        {attendedPrograms.length === 0 ? (
+          <p className="f-body text-[15px] text-gray-500 mb-5">체험을 완료하면 후기 링크를 남기고 {POINT_RULES.review}P를 받을 수 있어요.</p>
+        ) : (
+          <div className="space-y-3 mb-5">
+            {attendedPrograms.map((p) => (
+              <ReviewCard key={p.id} program={p} record={latestReview(records, familyPin, p.id)} onSubmit={onSubmitReview} />
+            ))}
+          </div>
+        )}
+
+        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 내역</p>
+        {entries.length === 0 ? (
+          <p className="f-body text-[15px] text-gray-500">아직 적립 내역이 없어요. 체험을 완료하면 {POINT_RULES.trip.toLocaleString("en-US")}P가 쌓여요.</p>
+        ) : (
+          <div className="bg-white rounded-2xl px-4" style={{ border: `1px solid ${C.beige}` }} data-testid="points-history">
+            {entries.map((e) => (
+              <div key={e.key} className="flex items-center justify-between gap-3 py-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                <div className="min-w-0">
+                  <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{e.title}</p>
+                  <p className="f-body text-[13px] text-gray-400 truncate">{[e.detail, fmtDay(e.at)].filter(Boolean).join(" · ")}</p>
+                </div>
+                <p className="f-display text-[17px] font-semibold shrink-0" style={{ color: e.delta < 0 ? C.charcoal : "#1F7A44" }}>{fmtDelta(e.delta)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="f-body text-[13px] text-gray-400 text-center mt-5">포인트를 사용하고 싶으시면 다음 프로그램 신청 때 카카오톡으로 알려 주세요.</p>
+      </div>
+    </div>
+  );
+}
+
+/** The slim points card at the top of the parents' home. */
+function PointsCard({ balance, canReview, onOpen }) {
+  return (
+    <button onClick={onOpen} className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left" style={{ background: C.green, boxShadow: "0 3px 10px rgba(23,76,53,0.15)" }} data-testid="points-card">
+      <span className="min-w-0">
+        <span className="block f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</span>
+        <span className="block f-display text-[26px] font-bold text-white leading-tight">{fmtBalance(balance)}</span>
+        <span className="block f-body text-[14px]" style={{ color: "#C9E6D6" }}>{canReview ? `외부 후기 작성하고 ${POINT_RULES.review}P 받기 🥕` : "다음 프로그램 결제에 사용할 수 있어요"}</span>
+      </span>
+      <ChevronRight size={22} color="#9FD1B8" className="shrink-0" />
+    </button>
+  );
+}
+
+function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout, onSubmitReview = async () => ({ ok: false }), onSeenReview = () => {} }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
+  const [showPoints, setShowPoints] = useState(false);
   const [infoId, setInfoId] = useState(null);
   const [infoSessionId, setInfoSessionId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
@@ -3556,7 +3870,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
     setShowGuide(false);
   };
   const myChildren = students.filter((s) => s.familyPin === familyPin);
-  const notices = parentNotices(myChildren, adventures);
+  const notices = parentNotices(myChildren, adventures, suggestions);
+  const myPoints = pointEntries(familyPin, students, adventures, suggestions);
+  const myBalance = pointsBalance(myPoints);
+  const newlyApproved = reviewRecords(suggestions).filter((r) => r.familyPin === familyPin && r.status === "approved" && !r.seen)[0] || null;
+  const canReview = notices.some((n) => n.kind === "points");
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <div className="pb-6">
@@ -3576,7 +3894,22 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           도움말
         </button>
       </div>
+      <div className="px-5 mb-3">
+        <PointsCard balance={myBalance} canReview={canReview} onOpen={() => setShowPoints(true)} />
+      </div>
       {showGuide && <ParentGuide onClose={closeGuide} />}
+      {showPoints && <PointsSheet familyPin={familyPin} students={students} adventures={adventures} suggestions={suggestions} onSubmitReview={onSubmitReview} onClose={() => setShowPoints(false)} />}
+      {newlyApproved && !showGuide && (
+        <ConfirmDialog
+          title={`🥕 ${POINT_RULES.review}P가 적립되었습니다!`}
+          actions={[
+            { label: "확인", tone: "primary", onClick: () => onSeenReview(newlyApproved.id) },
+            { label: "포인트 내역 보기", tone: "plain", onClick: () => { onSeenReview(newlyApproved.id); setShowPoints(true); } },
+          ]}
+        >
+          외부 후기가 승인되었어요. 현재 보유 포인트는 {fmtBalance(myBalance)}예요.
+        </ConfirmDialog>
+      )}
       {showSheet && <GuideSheet onClose={() => setShowSheet(false)} onOpenLevels={() => { setShowSheet(false); setShowLevels(true); }} />}
       {showLevels && <LevelSheet onClose={() => setShowLevels(false)} />}
       {infoId && getProgram(infoId) && (
@@ -3602,7 +3935,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
               {notices.map((n) => (
                 <button
                   key={n.key}
-                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "info" || n.kind === "team" ? (setInfoId(n.programId), setInfoSessionId(n.sessionId || null)) : onStartAdventure(n.childId))}
+                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "points" ? setShowPoints(true) : n.kind === "info" || n.kind === "team" ? (setInfoId(n.programId), setInfoSessionId(n.sessionId || null)) : onStartAdventure(n.childId))}
                   className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
                   style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
                 >
@@ -3672,6 +4005,29 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                           <p className="f-body text-[15px] font-bold mt-0.5" style={{ color: team ? "#1F7A44" : "#9C927D" }}>
                             {team ? `🧑‍🏫 ${teamForParent(team)}` : "팀과 선생님을 정하고 있어요"}
                           </p>
+                          {(() => {
+                            const pr = childProgress(prog, a);
+                            return (
+                              <div className="mt-2" data-testid="child-progress">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {pr.steps.map((x) => {
+                                    const on = pr.current && pr.current.key === x.key;
+                                    return (
+                                      <span key={x.key} className="f-body text-[14px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: x.done ? "#EAF7EF" : on ? "#FFE9D2" : "#F3EEE3", color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#9C927D", border: on ? "1px solid #F2B77B" : "1px solid transparent" }}>
+                                        {x.done ? "✓ " : on ? "● " : ""}{x.label}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                                <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>{pr.hint}</p>
+                                {pr.surveyOpen && (
+                                  <button onClick={() => onOpenSurvey(s.id, prog.id)} className="focus-ring tap mt-1.5 f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: "#FFF1E2", color: "#B25A0B", border: `1px solid ${C.beige}` }}>
+                                    📋 설문 남기기 (1~2분)
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {FEATURES.parentAdvice && a.advice?.sent && (
                             <button onClick={() => onViewReport(s.id)} className="focus-ring tap f-body text-[16px] font-bold mt-1" style={{ color: C.orange }}>💬 학습 조언이 도착했어요 · 보기</button>
                           )}
@@ -4065,7 +4421,7 @@ function TeacherStudentCard({ student, allStudents, onCancelEnrollment, onAssign
         <span style={{ fontSize: 25 }}>{rank.emoji}</span>
         <div className="flex-1 min-w-0">
           <p className="f-display text-[16px] font-bold" style={{ color: C.green }}>{rank.label}</p>
-          <p className="f-body text-[14px]" style={{ color: "#9C7A4A" }}>{tr("완료 {0}회 · 뱃지 {1}개 · 🥕{2}", [totalCompleted, badgesEarned.length, points])}</p>
+          <p className="f-body text-[14px]" style={{ color: "#9C7A4A" }}>{tr("완료 {0}회 · 뱃지 {1}개 · 🥕{2}", [totalCompleted, badgesEarned.length, fmtBalance(points)])}</p>
         </div>
       </div>
 
@@ -4672,7 +5028,7 @@ function materialsFrom(program) {
     remember,
     focus: [...(program.focus || [])],
     reviewOpen: !!program.reviewOpen,
-    autoWords: (program.remember || []).some((q) => q.auto),
+    autoWords: (program.remember || []).some((q) => q.auto || q.id === "match-auto"), // the old picture-matching switch becomes the word quiz switch
   };
 }
 /** A copy of one level's set to start another level from: every item gets a new id so the two sets never get mixed up in the stats. */
@@ -5732,7 +6088,7 @@ function compareWithServer(local, fresh) {
     rows.push({ key: `student-${key}`, label, total: targets.length, saved });
   });
   const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
-  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")]].forEach(([type, label]) => {
+  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")], [REVIEW_TYPE, tr("외부 후기 제출")], [REVIEW_RESULT_TYPE, tr("외부 후기 결과")], [POINT_TYPE, tr("포인트 내역")]].forEach(([type, label]) => {
     const targets = (local.suggestions || []).filter((x) => x.type === type);
     const saved = targets.filter((x) => freshSug.has(x.id)).length;
     rows.push({ key: `sug-${type}`, label, total: targets.length, saved });
@@ -5799,6 +6155,7 @@ function DataTools({ onCheck, onExport }) {
         <button onClick={onExport} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>{tr("전체 자료 내려받기 (백업)")}</button>
         <p className="f-body text-[13px] text-gray-400 mt-2">{tr("아이·가족 정보가 들어 있어요. 내려받은 파일은 안전한 곳에만 보관해 주세요.")}</p>
       </StatCard>
+      <p className="f-body text-[13px] text-gray-400 text-center mt-2" data-testid="app-build-stats">{tr("앱 버전: {0}", [APP_BUILD])}</p>
     </div>
   );
 }
@@ -6295,6 +6652,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
+const APP_BUILD = "2026-10-06-g"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -6520,17 +6878,20 @@ const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(prog
 function programStatus(program, adventures) {
   const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
   const attended = mine.filter((a) => a.attended);
-  let stage;
-  if (program.reviewOpen) stage = "done";
-  else if (program.dateReached) stage = "live";
-  else if (attended.length > 0) stage = "done";
-  else stage = "before";
   const slots = sessionsOf(program);
   const sessionInfo = slots.map((x) => ({ id: x.id, label: x.label, count: mine.filter((a) => a.sessionId === x.id).length, published: !!x.published }));
   const sessionUnset = slots.length ? mine.filter((a) => !sessionOf(program, a)).length : 0;
   const withKids = sessionInfo.filter((x) => x.count > 0);
   const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : !!program.info?.published;
   const reportsLeft = attended.filter((a) => !a.feedback).length;
+  // The stage follows what has really happened: nobody applied -> setting up; children preparing -> prep; notice shared -> notice sent;
+  // "Live today" on -> trip live; the trip happened but feedback is missing -> feedback due; all feedback written -> complete.
+  // (Opening the review does not mean the trip is over, so it no longer changes the stage.)
+  let stage;
+  if (program.dateReached) stage = "live";
+  else if (attended.length > 0) stage = reportsLeft > 0 ? "feedback" : "done";
+  else if (mine.length === 0) stage = "setup";
+  else stage = infoSent ? "noticed" : "prep";
   const teams = teamsOf(program);
   const unassigned = teams.length ? mine.filter((a) => !teamsForAdv(program, a).some((t) => t.id === a.teamId)).length : 0;
   const adviceSent = attended.filter((a) => a.advice?.sent).length;
@@ -6542,21 +6903,24 @@ function programStatus(program, adventures) {
     adviceSent,
     adviceDrafts,
     adviceTodo,
-    stage, // before | live | done
+    stage, // setup | prep | noticed | live | feedback | done
     teamCount: teams.length,
     unassigned,
     enrolled: mine.length,
     attended: attended.length,
     infoSent,
-    infoLate: !infoSent && stage !== "done",
+    infoLate: !infoSent && (stage === "setup" || stage === "prep" || stage === "live"),
     reportsLeft,
     reportsDone: attended.length > 0 && reportsLeft === 0,
   };
 }
 const STAGE_LOOK = {
-  before: { label: "시작 전", bg: "#EFE9DD", color: "#6F6757" },
-  live: { label: "진행 중", bg: "#DCF3E4", color: "#1F7A44" },
-  done: { label: "진행 완료", bg: "#174C35", color: "#FFFFFF" },
+  setup: { label: "준비 중", bg: "#EFE9DD", color: "#6F6757" },
+  prep: { label: "예습 중", bg: "#FFF1E2", color: "#B25A0B" },
+  noticed: { label: "안내 전달 완료", bg: "#EAF7EF", color: "#1F7A44" },
+  live: { label: "체험 진행 중", bg: "#BFE8CB", color: "#14532D" },
+  feedback: { label: "피드백 전", bg: "#FFE9D2", color: "#B25A0B" },
+  done: { label: "완료", bg: "#174C35", color: "#FFFFFF" },
 };
 /** The small pills shown on the right of a program row. */
 function StatusPills({ status }) {
@@ -6566,7 +6930,7 @@ function StatusPills({ status }) {
   const look = STAGE_LOOK[status.stage];
   const pills = [pill(tr(look.label), look.bg, look.color, "stage")];
   if (status.infoLate) pills.push(pill(tr("안내 전"), "#FFE9D2", "#B25A0B", "info"));
-  else if (status.infoSent && status.stage !== "done") pills.push(pill(tr("안내 완료 ✓"), "#EAF7EF", "#1F7A44", "info-ok"));
+  else if (status.infoSent && status.stage === "live") pills.push(pill(tr("안내 완료 ✓"), "#EAF7EF", "#1F7A44", "info-ok"));
   if (status.reportsLeft > 0) pills.push(pill(tr("피드백 {0}명 전", [status.reportsLeft]), "#FFE9D2", "#B25A0B", "report"));
   else if (status.reportsDone) pills.push(pill(tr("피드백 완료 ✓"), "#EAF7EF", "#1F7A44", "report-ok"));
   return <div className="flex flex-col items-end justify-center gap-1.5 shrink-0" data-testid="status-pills">{pills}</div>;
@@ -6609,7 +6973,7 @@ function recentActivity(programs, adventures, students, limit = 8) {
 
 /** The single most useful next step for a program, plus where to go to do it. */
 function nextStep(program, st) {
-  if (st.stage === "before") {
+  if (st.stage === "setup" || st.stage === "prep" || st.stage === "noticed") {
     if (st.sessionUnset > 0 && st.enrolled > 0) return { text: tr("시간대가 정해지지 않은 아이가 {0}명 있어요", [st.sessionUnset]), go: "manage" };
     if (st.infoLate) return { text: tr("체험 전 안내를 보내야 해요"), go: "info" };
     if (st.enrolled === 0) return { text: tr("신청한 아이가 아직 없어요"), go: "manage" };
@@ -6985,7 +7349,183 @@ function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: 
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+/** Staff: external review links to approve or reject, and each family's points (referral, use). */
+function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEntry }) {
+  const records = reviewRecords(suggestions);
+  const [filter, setFilter] = useState("pending");
+  const [confirm, setConfirm] = useState(null); // { id, status }
+  const [open, setOpen] = useState(null); // family login number
+  const [friend, setFriend] = useState("");
+  const [paid, setPaid] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [error, setError] = useState("");
+  const [confirmUse, setConfirmUse] = useState(null);
+  const count = (st) => records.filter((r) => r.status === st).length;
+  const shown = records.filter((r) => filter === "all" || r.status === filter);
+  const look = {
+    pending: { label: tr("확인 대기"), bg: "#FFF1E2", color: "#B25A0B" },
+    approved: { label: tr("승인"), bg: "#EAF7EF", color: "#1F7A44" },
+    rejected: { label: tr("반려"), bg: "#FDEDEA", color: "#B03A2E" },
+  };
+  const families = [...new Set(students.filter((st) => !isPendingStudent(st)).map((st) => st.familyPin))].map((pin) => {
+    const entries = pointEntries(pin, students, adventures, suggestions);
+    return { pin, names: familyNamesFor(students, pin), entries, balance: pointsBalance(entries) };
+  });
+  const chip = (key, label) => (
+    <button key={key} onClick={() => setFilter(key)} aria-pressed={filter === key} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-full px-3.5 py-2" style={{ background: filter === key ? C.green : "white", color: filter === key ? "white" : C.charcoal, border: `1px solid ${filter === key ? C.green : C.beige}` }}>
+      {label}
+    </button>
+  );
+  const field = "focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none";
+  const takenFriend = (name) => suggestions.some((sg) => sg.type === POINT_TYPE && readRow(sg).kind === "referral" && readRow(sg).friendKey === friendKey(name));
+  const openFamily = (pin) => { setOpen(open === pin ? null : pin); setFriend(""); setPaid(false); setAmount(""); setMemo(""); setError(""); };
+  return (
+    <div className="px-5 space-y-4">
+      <div>
+        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("외부 후기 확인")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("부모님이 올린 후기 링크를 열어 보고 승인하면 {0}P가 자동으로 적립돼요. 한 체험당 한 번, 같은 링크는 한 번만 인정돼요.", [POINT_RULES.review])}</p>
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Review filter">
+          {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
+          {chip("approved", tr("승인 {0}", [count("approved")]))}
+          {chip("rejected", tr("반려 {0}", [count("rejected")]))}
+          {chip("all", tr("전체 {0}", [records.length]))}
+        </div>
+        {shown.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("해당하는 후기 제출이 없어요.")}</p></div>}
+        <div className="space-y-2.5">
+          {shown.map((r) => {
+            const p = getProgram(r.programId);
+            const st = look[r.status] || look.pending;
+            return (
+              <div key={r.id} className="bg-white rounded-2xl p-4" data-testid="review-row">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="f-body text-[13px] text-gray-400">{tr("사용자")}</p>
+                    <p className="f-display text-[17px] font-semibold" style={{ color: C.green }}>{familyNamesFor(students, r.familyPin).join(", ") || r.familyPin}</p>
+                  </div>
+                  <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-3">
+                  <div className="min-w-0"><p className="f-body text-[13px] text-gray-400">{tr("프로그램")}</p><p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{p ? splitTitle(p.title)[0] || p.title : "—"}</p></div>
+                  <div className="min-w-0"><p className="f-body text-[13px] text-gray-400">{tr("체험 날짜")}</p><p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{p ? p.date : "—"}</p></div>
+                  <div className="min-w-0"><p className="f-body text-[13px] text-gray-400">{tr("제출 날짜")}</p><p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{fmtDay(r.submittedAt)}</p></div>
+                  {r.decidedAt && <div className="min-w-0"><p className="f-body text-[13px] text-gray-400">{tr("처리 날짜")}</p><p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{fmtDay(r.decidedAt)}</p></div>}
+                </div>
+                <p className="f-body text-[13px] text-gray-400 mt-3">{tr("후기 URL")}</p>
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="focus-ring f-body text-[15px] font-bold break-all underline" style={{ color: C.orange }}>{r.url}</a>
+                <div className="flex gap-2 mt-3">
+                  {r.status !== "rejected" && <button onClick={() => setConfirm({ id: r.id, status: "rejected" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("반려")}</button>}
+                  {r.status !== "approved" && <button onClick={() => setConfirm({ id: r.id, status: "approved" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("승인")} · +{POINT_RULES.review}P</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("가족별 포인트")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("친구 추천 적립과 포인트 사용 처리는 여기서 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
+        <div className="space-y-2">
+          {families.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 가족이 없어요.")}</p></div>}
+          {families.map((f) => (
+            <div key={f.pin} className="bg-white rounded-2xl overflow-hidden">
+              <button onClick={() => openFamily(f.pin)} aria-expanded={open === f.pin} className="focus-ring tap w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left">
+                <span className="min-w-0">
+                  <span className="block f-display text-[17px] font-semibold" style={{ color: C.green }}>{f.names.join(", ")}</span>
+                  <span className="block f-body text-[13px] text-gray-400">{tr("로그인 번호 {0}", [f.pin])}</span>
+                </span>
+                <span className="f-display text-[18px] font-bold shrink-0" style={{ color: C.orange }}>{fmtBalance(f.balance)}</span>
+              </button>
+              {open === f.pin && (
+                <div className="px-4 pb-4 space-y-3">
+                  <div className="rounded-xl px-3" style={{ background: C.cream }}>
+                    {f.entries.length === 0 && <p className="f-body text-[14px] text-gray-400 py-3">{tr("아직 내역이 없어요.")}</p>}
+                    {f.entries.map((e) => (
+                      <div key={e.key} className="flex items-center justify-between gap-3 py-2.5 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                        <div className="min-w-0">
+                          <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{e.title}</p>
+                          <p className="f-body text-[13px] text-gray-400 truncate">{[e.detail, fmtDay(e.at)].filter(Boolean).join(" · ")}</p>
+                        </div>
+                        <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: e.delta < 0 ? C.charcoal : "#1F7A44" }}>{fmtDelta(e.delta)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
+                    <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("친구 추천 적립")} · +{POINT_RULES.referral.toLocaleString("en-US")}P</p>
+                    <input value={friend} onChange={(e) => { setFriend(e.target.value); setError(""); }} placeholder={tr("추천받은 친구 이름")} aria-label={tr("추천받은 친구 이름")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                    <button onClick={() => setPaid((v) => !v)} role="checkbox" aria-checked={paid} className="focus-ring tap flex items-center gap-2 mt-2 text-left">
+                      {paid ? <CheckCircle2 size={22} color="#1F7A44" className="shrink-0" /> : <Circle size={22} color="#D8CEB8" className="shrink-0" />}
+                      <span className="f-body text-[15px]" style={{ color: C.charcoal }}>{tr("친구의 첫 결제 완료를 확인했어요")}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (takenFriend(friend)) return setError(tr("이미 추천 적립이 끝난 친구예요."));
+                        onAddEntry({ familyPin: f.pin, kind: "referral", delta: POINT_RULES.referral, friend });
+                        setFriend(""); setPaid(false); setError("");
+                      }}
+                      disabled={!friend.trim() || !paid}
+                      className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-2 text-white disabled:opacity-50"
+                      style={{ background: C.green }}
+                    >
+                      {tr("{0}P 적립", [POINT_RULES.referral.toLocaleString("en-US")])}
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
+                    <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("포인트 사용 처리")}</p>
+                    <input value={amount} onChange={(e) => { setAmount(e.target.value.replace(/[^\d]/g, "")); setError(""); }} placeholder={tr("사용할 포인트")} aria-label={tr("사용할 포인트")} inputMode="numeric" className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                    <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={tr("메모 (예: 11/14 과천 결제)")} aria-label={tr("메모")} className={`${field} mt-2`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                    <button
+                      onClick={() => {
+                        const n = Number(amount);
+                        if (!n || n <= 0) return setError(tr("사용할 포인트를 입력해 주세요."));
+                        if (n > f.balance) return setError(tr("보유 포인트보다 많이 쓸 수 없어요."));
+                        setConfirmUse({ pin: f.pin, n, memo });
+                      }}
+                      disabled={!amount}
+                      className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-2 disabled:opacity-50"
+                      style={{ background: C.beige, color: C.green }}
+                    >
+                      {tr("사용 처리")}
+                    </button>
+                  </div>
+                  <div aria-live="polite" className="min-h-[18px]">{error && <p className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{error}</p>}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.status === "approved" ? tr("승인하고 {0}P를 적립할까요?", [POINT_RULES.review]) : tr("반려할까요?")}
+          actions={[
+            { label: confirm.status === "approved" ? tr("승인") : tr("반려"), tone: confirm.status === "approved" ? "primary" : "danger", onClick: () => { onDecide(confirm.id, confirm.status); setConfirm(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >
+          {confirm.status === "approved" ? tr("링크가 열리는 공개 게시물인지, 당근나라 후기가 맞는지 확인해 주세요. 승인하면 바로 적립돼요.") : tr("부모님에게는 '확인 불가'로 보이고, 다른 링크를 다시 제출할 수 있어요.")}
+        </ConfirmDialog>
+      )}
+      {confirmUse && (
+        <ConfirmDialog
+          title={tr("{0}P를 사용 처리할까요?", [confirmUse.n.toLocaleString("en-US")])}
+          actions={[
+            { label: tr("사용 처리"), tone: "primary", onClick: () => { onAddEntry({ familyPin: confirmUse.pin, kind: "redeem", delta: -confirmUse.n, note: confirmUse.memo }); setConfirmUse(null); setAmount(""); setMemo(""); setError(""); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirmUse(null) },
+          ]}
+        >
+          {tr("다음 프로그램 결제에 사용한 만큼 포인트가 줄어들어요.")}
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -7101,6 +7641,20 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => { setMaterialsFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); },
     });
   });
+  // what needs doing right now in each program, according to where it stands (nothing to set up: it follows the records)
+  PROGRAMS.forEach((p) => {
+    const st = programStatus(p, adventures);
+    const go = () => { setProgramId(p.id); setTab("manage"); };
+    if (st.stage === "live" && st.enrolled > 0) {
+      if (st.attended < st.enrolled) teacherNotices.push({ key: `live-${p.id}`, icon: "✅", title: tr("출석 체크가 필요해요 ({0}/{1}명)", [st.attended, st.enrolled]), text: p.title, onClick: go });
+      else teacherNotices.push({ key: `end-${p.id}`, icon: "🏁", title: tr("체험이 끝났다면 '오늘 진행'을 꺼 주세요"), text: p.title, onClick: go });
+    }
+    if ((st.stage === "prep" || st.stage === "noticed") && st.sessionUnset > 0) {
+      teacherNotices.push({ key: `slot-${p.id}`, icon: "🕘", title: tr("시간대가 정해지지 않은 아이가 {0}명 있어요", [st.sessionUnset]), text: p.title, onClick: go });
+    } else if ((st.stage === "prep" || st.stage === "noticed") && st.unassigned > 0) {
+      teacherNotices.push({ key: `team-${p.id}`, icon: "🧑‍🏫", title: tr("팀이 정해지지 않은 아이가 {0}명 있어요", [st.unassigned]), text: p.title, onClick: go });
+    }
+  });
   needReport.forEach((r) => {
     teacherNotices.push({
       key: `report-${r.a.studentId}-${r.a.programId}`,
@@ -7110,9 +7664,14 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => { setProgramId(r.program.id); setTab("manage"); },
     });
   });
+  const pendingReviews = reviewRecords(suggestions).filter((r) => r.status === "pending");
+  if (pendingReviews.length) {
+    teacherNotices.push({ key: "ext-reviews", icon: "🥕", title: tr("외부 후기 확인 {0}건", [pendingReviews.length]), text: tr("링크를 확인하고 승인하면 {0}P가 적립돼요", [POINT_RULES.review]), onClick: () => setTab("points") });
+  }
   const unresolvedCount = pendingInquiries.length + pendingOther.length;
 
   const pendingCount = pendingFamilies(students).length;
+  const pendingReviewCount = reviewRecords(suggestions).filter((r) => r.status === "pending").length;
   const TABS = [
     { key: "overview", label: tr("현황") },
     ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
@@ -7120,6 +7679,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
     { key: "programs", label: tr("프로그램등록") },
     { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+    { key: "points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트") },
     { key: "stats", label: tr("통계") },
   ];
 
@@ -7419,6 +7979,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           )}
         </div>
       )}
+
+      {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} />}
 
       {tab === "stats" && (
         <>
@@ -7862,7 +8424,8 @@ const MANUAL = [
     id: "overview",
     title: { en: "Reading the Overview tab", ko: "현황 탭 보는 법" },
     items: [
-      { t: "term", label: { en: "Stage", ko: "단계" }, en: "Not started, Live (Live today is on), or Finished (review opened, or children attended and Live today is off).", ko: "시작 전, 진행 중(오늘 진행이 켜짐), 진행 완료(복습이 열렸거나 출석 후 오늘 진행이 꺼짐)예요." },
+      { t: "term", label: { en: "Stage", ko: "단계" }, en: "It follows what really happened, so nobody has to set it. Setting up (no children yet) → Prep (children preparing, notice not sent) → Notice sent → Trip live (Live today is on) → Feedback due (the trip happened, feedback still to write) → Complete (all feedback written). Opening the review does not change the stage.", ko: "실제로 일어난 일을 따라가서 따로 정할 필요가 없어요. 준비 중(신청한 아이 없음) → 예습 중(아이들이 예습하고 안내는 아직) → 안내 전달 완료 → 체험 진행 중(오늘 진행이 켜짐) → 피드백 전(체험은 했고 피드백이 남음) → 완료(피드백을 모두 씀). 복습을 열어도 단계는 바뀌지 않아요." },
+      { t: "term", label: { en: "Reminders at the top", ko: "위쪽 알림" }, en: "They appear by themselves for the stage each program is in: send the notice, choose slots and teams, attendance check while Live today is on, switch it off when the trip ends, open the review, write the feedback.", ko: "프로그램이 있는 단계에 맞게 저절로 떠요. 안내 보내기, 시간대와 팀 정하기, 오늘 진행 중 출석 체크, 체험이 끝나면 오늘 진행 끄기, 복습 열기, 피드백 쓰기예요." },
       { t: "term", label: { en: "Boxes", ko: "칸" }, en: "Pre-trip info sent or not, applied and attended counts, review open or closed, feedback still to write, and teams.", ko: "체험 전 안내 발송 여부, 신청과 출석 수, 복습 열림 여부, 남은 피드백, 팀 현황이에요." },
       { t: "term", label: { en: "Next step", ko: "다음 할 일" }, en: "The orange line says what to do now. Tap it to open the right screen.", ko: "주황색 줄이 지금 할 일이에요. 누르면 알맞은 화면이 열려요." },
       { t: "term", label: { en: "Recent activity", ko: "최근 활동" }, en: "What was done lately, so you can see what other teachers did. The app does not record who did it.", ko: "최근에 한 일이에요. 다른 선생님이 한 일을 알 수 있어요. 누가 했는지는 기록되지 않아요." },
@@ -7903,6 +8466,19 @@ const MANUAL = [
     ],
   },
   {
+    id: "points",
+    title: { en: "Points and external reviews", ko: "포인트와 외부 후기" },
+    items: [
+      { t: "p", en: "Parents earn CarrotWorld Points: experience completed +1,000P (when you mark the child present), parent survey +100P, external review +300P, friend referral +2,000P. 1P = 1 won. Points can only be used for the next program and never paid out in cash. Parents see their balance and history on their home screen.", ko: "학부모는 당근나라 포인트를 받아요. 체험 완료 +1,000P(아이를 출석 체크하면), 부모 설문 +100P, 외부 후기 +300P, 친구 추천 +2,000P예요. 1P는 1원이고, 다음 프로그램 결제에만 쓸 수 있고 현금으로 출금할 수 없어요. 학부모는 첫 화면에서 잔액과 내역을 볼 수 있어요." },
+      { t: "step", en: "External review: after a trip the parent pastes the link to a review they wrote (Naver Cafe, Naver Blog, Instagram or another public site). The Points tab shows it as Pending.", ko: "외부 후기: 체험 후 학부모가 직접 쓴 후기의 링크를 붙여넣어요(네이버 카페, 블로그, Instagram, 기타 공개 SNS). 포인트 탭에 '확인 대기'로 보여요." },
+      { t: "step", en: "Open the link. Check that it is a public post and a review of CarrotWorld. Tap Approve (+300P is added automatically and the parent sees \"300P added\"), or Reject (the parent can send another link).", ko: "링크를 열어서 공개된 게시물이고 당근나라 후기가 맞는지 확인해요. 승인을 누르면 +300P가 자동으로 적립되고 학부모에게 '300P가 적립되었습니다'가 떠요. 반려하면 학부모가 다른 링크를 다시 낼 수 있어요." },
+      { t: "p", en: "Only one review reward per trip, and the same link can never be used twice (even by another family). The app checks both.", ko: "한 체험당 후기 포인트는 한 번만 받고, 같은 링크는 다른 가족도 다시 쓸 수 없어요. 앱이 둘 다 확인해요." },
+      { t: "step", en: "Friend referral: when a friend a parent recommended has made their first payment, open Points by family, tap the family, enter the friend's name, tick that you checked the payment, and tap Add 2,000P. The same friend can be rewarded only once.", ko: "친구 추천: 학부모가 추천한 친구가 첫 결제를 마치면 가족별 포인트에서 그 가족을 열고, 친구 이름을 적고, 결제를 확인했다고 체크한 뒤 2,000P 적립을 눌러요. 같은 친구는 한 번만 적립돼요." },
+      { t: "step", en: "Using points: when a family pays for the next program with points, open the family and use Use points (amount and a memo). The balance goes down by that amount.", ko: "포인트 사용: 가족이 다음 프로그램 결제에 포인트를 쓰면 그 가족을 열어 포인트 사용 처리(금액과 메모)를 해요. 그만큼 잔액이 줄어요." },
+      { t: "warn", en: "Points have the value of money, but the app cannot check who presses the buttons. Only approve, add and use points yourself, and check the point history of a family before you mark points as used.", ko: "포인트는 돈과 같은 가치지만, 앱은 누가 버튼을 누르는지 확인하지 못해요. 승인, 적립, 사용 처리는 선생님이 직접 하시고, 사용 처리 전에 그 가족의 포인트 내역을 꼭 확인하세요." },
+    ],
+  },
+  {
     id: "levels",
     title: { en: "Carrot World levels, ranks and badges", ko: "당근나라 레벨, 참여 단계, 뱃지" },
     items: [
@@ -7910,7 +8486,7 @@ const MANUAL = [
       ...CW_LEVELS.map((l) => ({ t: "term", label: { en: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}`, ko: `${l.emoji} ${l.name} · Speak ${l.speak} · ${l.cefr}` }, en: `${l.en} (${l.tag})`, ko: `${l.ko} (${l.tag})` })),
       { t: "warn", en: "Two different things share names. The participation rank in the app (Sprout, Scout, Explorer, Trailblazer, Master) only counts attended trips. The Speaking Level (Seed to Leader) is about speaking ability. Sprout and Explorer exist in both lists, so explain this to parents.", ko: "이름이 겹치는 두 가지가 있어요. 앱의 참여 단계(Sprout, Scout, Explorer, Trailblazer, Master)는 출석한 체험 횟수만 세요. 스피킹 레벨(Seed ~ Leader)은 말하기 수준이에요. Sprout와 Explorer는 두 곳에 모두 있으니 학부모님께 구분해서 설명해 주세요." },
       { t: "term", label: { en: "Participation rank (automatic)", ko: "참여 단계 (자동)" }, en: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}+ trips` : `${r.min}-${r.to} trips`}`).join("\n") + "\nIt counts the trips you mark present.", ko: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}회 이상` : `${r.min}~${r.to}회`}`).join("\n") + "\n출석 체크한 체험 횟수를 세요." },
-      { t: "term", label: { en: "Carrot points (automatic)", ko: "당근 포인트 (자동)" }, en: `${POINTS_PER_ADVENTURE} points each time a child finishes a review.`, ko: `체험 복습을 마칠 때마다 ${POINTS_PER_ADVENTURE}점이에요.` },
+      { t: "term", label: { en: "Carrot Points", ko: "당근 포인트" }, en: `Experience completed +${POINT_RULES.trip.toLocaleString("en-US")}P (the child is marked present), parent survey +${POINT_RULES.survey}P, external review +${POINT_RULES.review}P (after you approve the link), friend referral +${POINT_RULES.referral.toLocaleString("en-US")}P (you add it). 1P = 1 won. Points can only be used for the next program and never paid out in cash. See the Points tab.`, ko: `체험 완료 +${POINT_RULES.trip.toLocaleString("en-US")}P(출석 체크), 부모 설문 +${POINT_RULES.survey}P, 외부 후기 +${POINT_RULES.review}P(링크를 승인하면), 친구 추천 +${POINT_RULES.referral.toLocaleString("en-US")}P(선생님이 적립)예요. 1P는 1원이고, 다음 프로그램 결제에만 쓸 수 있고 현금으로 출금할 수 없어요. 포인트 탭을 보세요.` },
       { t: "term", label: { en: "Badges (automatic)", ko: "뱃지 (자동)" }, en: badgeGuide().map((b) => `${b.emoji} ${b.enName}: ${b.en}`).join("\n"), ko: badgeGuide().map((b) => `${b.emoji} ${b.name}: ${b.ko}`).join("\n") },
       { t: "term", label: { en: "How a child moves up", ko: "단계가 올라가는 방식" }, en: "Participation rank and badges move by themselves from the records (attendance, reviews, missions). You cannot edit them. The Speaking Level never changes by itself: it is decided by the teacher from the child's real speaking.", ko: "참여 단계와 뱃지는 기록(출석, 복습, 미션)에 따라 저절로 올라가요. 직접 고칠 수 없어요. 스피킹 레벨은 저절로 바뀌지 않아요. 선생님이 아이의 실제 말하기를 보고 정해요." },
       { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, child card, Student info, Edit: the Level buttons (Pre-A1, A1, A2, B1) group children and pre-select teams. In Full feedback report, the CEFR box is free text (for example A1 or B2): parents read it in the report as CEFR.", ko: "학생관리 탭, 아이 카드, 학생 정보, 수정: 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 고르는 데 쓰여요. 전체 피드백 리포트의 CEFR 칸은 자유 입력(예: A1, B2)이고, 학부모가 리포트에서 CEFR로 읽어요." },
@@ -7979,6 +8555,7 @@ function TeacherManual({ lang, onClose }) {
           })}
         </div>
         <p className="f-body text-[14px] text-gray-400 text-center mt-6">{L === "ko" ? "궁금한 점이나 이상한 점은 화면 캡처와 함께 알려 주세요." : "If something looks wrong, send a screenshot to the developer."}</p>
+        <p className="f-body text-[13px] text-gray-400 text-center mt-1" data-testid="app-build">{L === "ko" ? "앱 버전" : "App version"}: {APP_BUILD}</p>
       </div>
     </div>
   );
@@ -8080,6 +8657,50 @@ export default function CarrotExplorer() {
       document.removeEventListener("visibilitychange", tick);
     };
   }, [session?.role, session?.familyPin]);
+
+  // ---------- points: external review links and staff entries (all stored as create-only rows) ----------
+  const saveRow = (row) => {
+    setSuggestions((prev) => (prev.some((x) => x.id === row.id) ? prev : [...prev, row]));
+    sync(api.createSuggestion(row));
+  };
+  const submitReviewLink = async (pin, programId, rawUrl) => {
+    const v = normalizeReviewUrl(rawUrl);
+    if (!v.ok) return v;
+    if (!adventures.some((a) => !a.canceled && a.programId === programId && a.attended && students.some((st) => st.id === a.studentId && st.familyPin === pin))) {
+      return { ok: false, error: "체험을 완료한 프로그램만 후기 포인트를 받을 수 있어요." };
+    }
+    // look at the server's list right now, so a link used a minute ago on another phone is caught too
+    let list = suggestions;
+    try {
+      const fresh = await api.fetchState();
+      if (fresh && fresh.suggestions) {
+        const byId = new Map(suggestions.map((x) => [x.id, x]));
+        fresh.suggestions.forEach((x) => byId.set(x.id, x));
+        list = [...byId.values()];
+      }
+    } catch (e) {
+      /* offline: the local list is all we have */
+    }
+    const records = reviewRecords(list);
+    const mine = latestReview(records, pin, programId);
+    if (mine && mine.status !== "rejected") return { ok: false, error: mine.status === "approved" ? "이 체험의 후기 포인트는 이미 적립됐어요. 한 체험당 한 번만 받을 수 있어요." : "이미 제출한 링크를 확인하고 있어요." };
+    if (reviewUrlTaken(records, v.norm)) return { ok: false, error: "이미 제출된 링크예요. 같은 게시물로는 포인트를 받을 수 없어요." };
+    saveRow({ id: `xrev-${pin}-${programId}-${Date.now()}`, type: REVIEW_TYPE, familyPin: pin, resolved: false, message: JSON.stringify({ programId, url: v.url, norm: v.norm, submittedAt: new Date().toISOString() }) });
+    return { ok: true };
+  };
+  const decideReview = (submissionId, status) => {
+    const rec = reviewRecords(suggestions).find((r) => r.id === submissionId);
+    if (!rec || (status !== "approved" && status !== "rejected") || rec.status === status) return;
+    saveRow({ id: `xres-${submissionId}-${Date.now()}`, type: REVIEW_RESULT_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId, status, decidedAt: new Date().toISOString() }) });
+  };
+  const markReviewSeen = (submissionId) => {
+    const rec = reviewRecords(suggestions).find((r) => r.id === submissionId);
+    if (!rec || rec.seen) return;
+    saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
+  };
+  const addPointEntry = ({ familyPin, kind, delta, friend, note }) => {
+    saveRow({ id: `pt-${familyPin}-${Date.now()}`, type: POINT_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind, delta, ...(friend ? { friend: friend.trim(), friendKey: friendKey(friend) } : {}), ...(note ? { note: note.trim() } : {}), at: new Date().toISOString() }) });
+  };
 
   const addSuggestion = ({ type, message, familyPin }) => {
     const suggestion = { id: `${Date.now()}-${Math.random()}`, type, message, familyPin, resolved: false };
@@ -8503,6 +9124,8 @@ export default function CarrotExplorer() {
               onSaveTeams={setProgramTeams}
               lastSyncAt={lastSyncAt}
               onAcceptFamily={acceptFamily}
+              onDecideReview={decideReview}
+              onAddPointEntry={addPointEntry}
               onRejectFamily={rejectFamily}
               canceledAdventures={canceledAdventures}
               onCancelEnrollment={cancelEnrollment}
@@ -8533,6 +9156,8 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           <div className="flex-1 overflow-y-auto">
             <ParentHome
+              onSubmitReview={(programId, url) => submitReviewLink(session.familyPin, programId, url)}
+              onSeenReview={markReviewSeen}
               adventures={liveAdventures}
               students={students}
               familyPin={session.familyPin}
@@ -8634,7 +9259,7 @@ export default function CarrotExplorer() {
               <>
                 {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
                 {studentTab === "adventures" && <AdventuresList adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} />}
-                {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} />}
+                {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} points={pointsBalance(pointEntries((students.find((x) => x.id === studentId) || {}).familyPin, students, liveAdventures, suggestions))} />}
                 {studentTab === "badges" && <BadgeCollection adventures={liveAdventures} studentId={studentId} />}
               </>
             )}

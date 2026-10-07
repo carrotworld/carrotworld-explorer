@@ -719,7 +719,43 @@ const EN = {
 "{0}를 {1}P 지급할까요?": "Give {1}P for \"{0}\"?",
 "지급한 포인트는 가족 내역에 항목 이름으로 남아요.": "The points appear in the family's history under the item's name.",
 "설정 (포인트 항목, 샘 공용 번호)": "Settings (point items, shared teacher number)",
-"외 {0}건 더 보기 ▾": "{0} more ▾"
+"외 {0}건 더 보기 ▾": "{0} more ▾",
+"체험 날짜 (달력)": "Trip date (calendar)",
+"이 날짜에 오늘 진행이 저절로 켜지고, 체험이 끝난 다음 날 복습이 열려요. 안내는 {0}에 공개돼요(시간과 모이는 곳을 쓴 경우).": "\"Live today\" turns on by itself on this date, and the review opens the day after the trip ends. The notice is shared on {0} (when time and meeting place are filled in).",
+"날짜를 고르면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요. 고르지 않으면 직접 켜요.": "Pick a date and Live today, the review and the notice switch by themselves. Without a date you switch them by hand.",
+"체험일({0})에 저절로 시작돼요": "Starts by itself on the trip day ({0})",
+"체험이 끝나면 저절로 마무리돼요": "Wraps up by itself when the trip ends",
+"결석한 아이를 표시하고 출석을 확정해 주세요": "Mark the children who were absent and confirm attendance",
+"복습 퀴즈를 만들어 주세요": "Please make the review quiz",
+"출석 확정 전": "Attendance to confirm",
+"출석": "Attendance",
+"출석 {0} · 결석 {1} · 미정 {2}": "Present {0} · Absent {1} · Not set {2}",
+"결석한 아이만 ✕로 표시한 뒤 누르세요.": "Mark only the children who were absent with ✕, then tap.",
+"출석 확정 ({0}명)": "Confirm attendance ({0})",
+"출석을 모두 확정했어요 ✓": "All attendance confirmed ✓",
+"{0}명을 출석 처리할까요?": "Mark {0} children present?",
+"출석 확정": "Confirm attendance",
+"결석 {0}명은 빠져요. 출석 처리하면 아이마다 체험 완료 포인트가 쌓여요.": "The {0} absent children are left out. Each child marked present earns the trip-completed points.",
+"출석을 확정해 주세요": "Please confirm attendance",
+"결석 표시": "Absent mark",
+"마지막 날 (1박 2일처럼 이틀 이상일 때만)": "Last day (only for trips of two days or more, like 1 night 2 days)",
+"마지막 날 (달력)": "Last day (calendar)",
+"지우기": "Clear",
+"체험 날짜를 정해 주세요": "Please set the trip date",
+"체험 날짜를 {0}로 정할까요?": "Set the trip date to {0}?",
+"정하기": "Set it",
+"달력에서 고르기": "Pick from the calendar",
+"정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
+"팀 자동 만들기": "Make teams automatically",
+"팀당 최대 {0}명": "Up to {0} per team",
+"한 명 줄이기": "One fewer",
+"한 명 늘리기": "One more",
+"확정된 선생님이 없어요. 선생님 탭에서 참여 신청을 확정하면 자동으로 만들 수 있어요.": "No teacher is confirmed yet. Confirm teachers' sign-ups in the Teachers tab and teams can be made automatically.",
+"기존 팀": "existing team",
+"새 팀": "new team",
+"선생님이 모자라 {0}명은 팀이 없어요: {1}": "There are not enough teachers, so {0} children have no team: {1}",
+"선생님 {0}명이 더 있으면 팀당 {1}명 이하로 나눌 수 있어요.": "With {0} more teacher(s) the teams could have {1} children or fewer.",
+"이대로 만들기": "Make these teams"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -1073,6 +1109,102 @@ function focusSets(program) {
   return sets;
 }
 
+/* ================================================================== */
+/*  DATES: a program with a real trip date switches by itself          */
+/*  trip day  -> "Live today" (unless HQ switched it off that day)     */
+/*  day after -> the review opens (when there is a quiz)               */
+/*  7 days before -> the pre-trip notice is shared (when it is filled)  */
+/*  The manual switches stay as an override. A program without a date  */
+/*  behaves exactly as before.                                         */
+/* ================================================================== */
+const NOTICE_LEAD_DAYS = 7;
+/** Today in Korea as YYYY-MM-DD, whatever time zone the phone is in. */
+function todayKst(now = Date.now()) {
+  return new Date(now + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+function addDays(ymd, n) {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const hasDate = (p) => !!(p && YMD.test(p.startDate || ""));
+/** The last day of the trip: the optional end date (for 1 night 2 days and the like), else the start date. */
+const lastDay = (p) => (p && YMD.test(p.endDate || "") && p.endDate >= p.startDate ? p.endDate : p.startDate);
+/** Reads a date written by hand ("10월 24일", "10월24", "10월 24~25일", "10/24") and returns { start, end } as YYYY-MM-DD, or null.
+ *  The year is the one that puts the date closest to today. */
+function guessTripDates(text, now = Date.now()) {
+  const t = String(text || "");
+  let m = t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일?(?:\s*[~\-–]\s*(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일?)?/);
+  let sm, sd, em, ed;
+  if (m) { sm = +m[1]; sd = +m[2]; em = m[3] ? +m[3] : null; ed = m[4] ? +m[4] : null; }
+  else {
+    m = t.match(/(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*[~\-–]\s*(\d{1,2}))?/);
+    if (!m) return null;
+    sm = +m[1]; sd = +m[2]; ed = m[3] ? +m[3] : null; em = null;
+  }
+  if (sm < 1 || sm > 12 || sd < 1 || sd > 31) return null;
+  const today = todayKst(now);
+  const year = +today.slice(0, 4);
+  const mk = (y, mo, d) => {
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d ? dt.toISOString().slice(0, 10) : null;
+  };
+  const dist = (ymd) => Math.abs((new Date(`${ymd}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400000);
+  const options = [year - 1, year, year + 1].map((y) => mk(y, sm, sd)).filter(Boolean).sort((a, b) => dist(a) - dist(b));
+  if (!options.length) return null;
+  const start = options[0];
+  let end = "";
+  if (ed) {
+    let mo = em || sm;
+    if (!em && ed < sd) mo = sm === 12 ? 1 : sm + 1; // "30~2일": the end is in the next month
+    const y = +start.slice(0, 4) + (mo < sm ? 1 : 0);
+    end = mk(y, mo, ed) || "";
+    if (end && end <= start) end = "";
+  }
+  return { start, end };
+}
+
+/** "10월 24일 토요일" from 2026-10-24, or "10월 24일 토요일 ~ 25일 일요일" for a trip of more than one day. */
+function dateRangeLabelKo(start, end) {
+  if (!end || end <= start) return dateLabelKo(start);
+  const a = new Date(`${start}T00:00:00Z`);
+  const b = new Date(`${end}T00:00:00Z`);
+  const day = (d) => `${d.getUTCDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][d.getUTCDay()]}요일`;
+  return a.getUTCMonth() === b.getUTCMonth() ? `${dateLabelKo(start)} ~ ${day(b)}` : `${dateLabelKo(start)} ~ ${dateLabelKo(end)}`;
+}
+/** "10월 24일 토요일" from 2026-10-24. */
+function dateLabelKo(ymd) {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 ${["일", "월", "화", "수", "목", "금", "토"][d.getUTCDay()]}요일`;
+}
+function isLive(p, now) {
+  if (!p) return false;
+  if (!hasDate(p)) return !!p.dateReached;
+  const t = todayKst(now);
+  if (t > lastDay(p)) return false;
+  if (t >= p.startDate) return p.liveOffOn !== t;
+  return !!p.dateReached;
+}
+const tripDayPassed = (p, now) => hasDate(p) && todayKst(now) > lastDay(p);
+function isReviewOpen(p, now) {
+  if (!p) return false;
+  if (p.reviewOpen) return true;
+  return tripDayPassed(p, now) && !p.reviewHold && (p.remember || []).length > 0;
+}
+function infoComplete(p, slot) {
+  const i = { ...(p.info || {}) };
+  const time = (slot && slot.time) || i.time;
+  const place = (slot && slot.meetingPoint) || i.meetingPoint;
+  return !!(String(time || "").trim() && String(place || "").trim());
+}
+function isNoticeOut(p, slot, now) {
+  if (!p) return false;
+  if (slot ? !!slot.published : !!(p.info && p.info.published)) return true;
+  if (!hasDate(p)) return false;
+  return infoComplete(p, slot) && todayKst(now) >= addDays(p.startDate, -NOTICE_LEAD_DAYS);
+}
+
 function emptyMissions(program) {
   return program.missions.map((m) => ({ missionId: m.id, done: false, photo: null }));
 }
@@ -1205,7 +1337,7 @@ function getStatus(adv) {
 }
 function stageState(adv, program) {
   const before = adv.beforeCompleted ? "done" : "available";
-  const trip = !program.dateReached ? "locked" : adv.attended ? "done" : "available";
+  const trip = !isLive(program) ? "locked" : adv.attended ? "done" : "available";
   const after = !adv.attended ? "locked" : adv.afterCompleted ? "done" : "available";
   return { before, trip, after };
 }
@@ -2013,7 +2145,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
 
   const statusLine = !next.a.beforeCompleted
     ? "Step 1 of 3 · Get Ready"
-    : !next.program.dateReached
+    : !isLive(next.program)
       ? "All set! Waiting for the big day"
       : !next.a.attended
         ? "Step 2 of 3 · Explore"
@@ -2026,7 +2158,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
 
   const ctaLabel = (() => {
     if (!next.a.beforeCompleted) return "Continue Preparing →";
-    if (!next.program.dateReached) return "You're Ready! →";
+    if (!isLive(next.program)) return "You're Ready! →";
     if (!next.a.attended) return "Start Exploring →";
     if (!next.a.afterCompleted) return "Start Review →";
     return "View Adventure →";
@@ -2440,7 +2572,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
   const doneCount = missionsDoneCount(adv);
   const allDone = doneCount === adv.missionsCompleted.length;
 
-  if (!program.dateReached) {
+  if (!isLive(program)) {
     return (
       <div className="px-5 pb-10 text-center pt-10">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
@@ -2590,7 +2722,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
     );
   }
 
-  if (!program.reviewOpen && !adv.afterCompleted) {
+  if (!isReviewOpen(program) && !adv.afterCompleted) {
     return (
       <div className="px-5 pb-10 text-center pt-10">
         <div className="text-4xl mb-3" aria-hidden="true">📝</div>
@@ -3276,7 +3408,51 @@ function teacherJoins(suggestions) {
   return [...map.values()].sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt)));
 }
 /** Names of the teachers HQ approved for a program (for the team form). */
-const confirmedTeacherNames = (joins, accounts, programId) => [...new Set(joins.filter((j) => j.programId === programId && j.status === "approved").map((j) => (accounts.find((t) => t.id === j.teacherId) || {}).name).filter(Boolean))];
+const confirmedTeacherNames = (joins, accounts, programId, slotId) => [...new Set(joins.filter((j) => j.programId === programId && j.status === "approved" && (slotId === undefined || !j.slotId || j.slotId === slotId)).map((j) => (accounts.find((t) => t.id === j.teacherId) || {}).name).filter(Boolean))];
+/** Suggests teams for the children who have none. Teams that still have room are filled first; then each level with children gets
+ *  a team for every free teacher (the biggest levels first, an extra teacher goes where a team is most over `max`), the children split evenly.
+ *  Children of a level without a teacher stay without a team. Nothing is changed here: it only returns the plan. */
+function planTeams({ loose, teams, counts, free, max }) {
+  const byLevel = new Map();
+  loose.forEach((k) => byLevel.set(k.level, [...(byLevel.get(k.level) || []), k]));
+  const fills = [];
+  teams.forEach((t) => {
+    const kids = byLevel.get(t.level) || [];
+    const room = Math.max(0, max - (counts[t.id] || 0));
+    if (room > 0 && kids.length) fills.push({ teamId: t.id, level: t.level, teacher: t.teacher, kids: kids.splice(0, room) });
+  });
+  const levels = [...byLevel.entries()].filter(([, ks]) => ks.length).sort((a, b) => b[1].length - a[1].length || String(a[0]).localeCompare(String(b[0])));
+  const pool = [...free];
+  const assigned = new Map(levels.map(([l]) => [l, []]));
+  levels.forEach(([l]) => { if (pool.length) assigned.get(l).push(pool.shift()); });
+  while (pool.length) {
+    let best = null;
+    levels.forEach(([l, ks]) => {
+      const n = assigned.get(l).length;
+      if (n && ks.length / n > max && (!best || ks.length / n > best.ratio)) best = { l, ratio: ks.length / n };
+    });
+    if (!best) break;
+    assigned.get(best.l).push(pool.shift());
+  }
+  const made = [];
+  const leftover = [];
+  let needMore = 0;
+  levels.forEach(([l, ks]) => {
+    const names = assigned.get(l);
+    needMore += Math.max(0, Math.ceil(ks.length / max) - names.length);
+    if (!names.length) { leftover.push(...ks); return; }
+    const base = Math.floor(ks.length / names.length);
+    const extra = ks.length % names.length;
+    let at = 0;
+    names.forEach((teacher, i) => {
+      const size = base + (i < extra ? 1 : 0);
+      made.push({ level: l, teacher, kids: ks.slice(at, at + size) });
+      at += size;
+    });
+  });
+  return { fills, teams: made, leftover, needMore };
+}
+
 /** A free 4-digit number (not the HQ number, not used by another teacher, nothing too easy to guess). */
 function freeTeacherPin(accounts, hqPin) {
   const taken = new Set([hqPin, ...accounts.filter((t) => t.active).map((t) => t.pin)]);
@@ -3413,7 +3589,7 @@ function parentNotices(children, adventures, suggestions) {
         // with time slots the notice is the slot's own, and only children of a slot whose notice was shared get it
         const slots = sessionsOf(program);
         const slot = sessionOf(program, a);
-        const shown = slots.length ? (slot && slot.published ? infoForSession(infoFrom(program), slot) : null) : program.info?.published ? program.info : null;
+        const shown = slots.length ? (slot && isNoticeOut(program, slot) ? infoForSession(infoFrom(program), slot) : null) : isNoticeOut(program, null) ? infoFrom(program) : null;
         const infoKey = `${program.id}-${slot ? slot.id : ""}`;
         if (shown && hasInfo(shown) && !a.attended && !infoShown.has(infoKey)) {
           infoShown.add(infoKey);
@@ -3431,9 +3607,9 @@ function parentNotices(children, adventures, suggestions) {
           list.push({ key: `${base}-survey`, icon: "📋", title: "체험 후 설문을 남겨 주세요", text: `${base} · 1~2분이면 돼요`, action: "설문하기", kind: "survey", childId: child.id, programId: program.id });
         }
         if (getStatus(a) === "completed") return;
-        if (program.dateReached && !a.attended) {
+        if (isLive(program) && !a.attended) {
           list.push({ key: `${base}-today`, icon: "🎒", title: "오늘은 체험 날이에요!", text: `${base} · 현장 단계가 열렸어요`, action: "시작하기", kind: "adventure", childId: child.id });
-        } else if (a.attended && !a.afterCompleted && program.reviewOpen) {
+        } else if (a.attended && !a.afterCompleted && isReviewOpen(program)) {
           list.push({ key: `${base}-review`, icon: "✏️", title: "복습이 열렸어요", text: `${base} · 퀴즈를 풀고 점수를 확인해요`, action: "복습하기", kind: "adventure", childId: child.id });
         } else if (!a.beforeCompleted) {
           list.push({ key: `${base}-prep`, icon: "📚", title: "예습이 기다리고 있어요", text: `${base} · ${program.date}`, action: "예습하기", kind: "adventure", childId: child.id });
@@ -3520,8 +3696,8 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     {p.themeKo && <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
                     {(p.locationKo || p.location) && <p className="f-body text-[14px] text-gray-400 mt-1">📍 {p.locationKo || p.location}</p>}
                     {slots.length > 0 && <p className="f-body text-[14px] text-gray-400 mt-0.5">🕘 {slots.map((x) => (x.time ? `${x.label} ${x.time}` : x.label)).join(" · ")}</p>}
-                    {slots.length === 0 && p.info?.published && p.info.time && <p className="f-body text-[14px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
-                    {p.info?.published && feeText(p.info) && <p className="f-body text-[14px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
+                    {slots.length === 0 && isNoticeOut(p, null) && p.info.time && <p className="f-body text-[14px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
+                    {isNoticeOut(p, null) && feeText(p.info) && <p className="f-body text-[14px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
                   </div>
                 )}
               </div>
@@ -3943,7 +4119,7 @@ function ParentWaiting({ students, familyPin, onRefresh, onLogout }) {
 function childProgress(program, adv) {
   const slots = sessionsOf(program);
   const slot = sessionOf(program, adv);
-  const noticeSent = slots.length ? !!(slot && slot.published) : !!program.info?.published;
+  const noticeSent = slots.length ? !!(slot && isNoticeOut(program, slot)) : isNoticeOut(program, null);
   const steps = [
     { key: "prep", label: "예습", done: !!adv.beforeCompleted },
     { key: "notice", label: "안내", done: noticeSent },
@@ -3955,7 +4131,7 @@ function childProgress(program, adv) {
   let hint = "모두 마쳤어요 🎉";
   if (current) {
     if (adv.attended && !adv.feedback) hint = "체험이 끝났어요. 선생님이 리포트를 준비하고 있어요.";
-    else if (program.dateReached && !adv.attended) hint = "오늘이 체험 날이에요! 아이가 모험을 시작해요.";
+    else if (isLive(program) && !adv.attended) hint = "오늘이 체험 날이에요! 아이가 모험을 시작해요.";
     else if (current.key === "prep") hint = noticeSent ? "안내를 받았어요. 예습도 해 주세요." : "단어 카드로 예습해요.";
     else if (current.key === "notice") hint = "예습을 마쳤어요. 체험 안내를 곧 보내 드려요.";
     else if (current.key === "trip") hint = "예습과 안내가 끝났어요. 체험 날을 기다려요.";
@@ -4095,17 +4271,153 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
   );
 }
 
-/** The slim points card at the top of the parents' home. */
+/** The points row at the top of the parents' home: the balance on one line (and the review invitation when there is one). */
 function PointsCard({ balance, canReview, onOpen }) {
   return (
-    <button onClick={onOpen} className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left" style={{ background: C.green, boxShadow: "0 3px 10px rgba(23,76,53,0.15)" }} data-testid="points-card">
-      <span className="min-w-0">
-        <span className="block f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</span>
-        <span className="block f-display text-[26px] font-bold text-white leading-tight">{fmtBalance(balance)}</span>
-        <span className="block f-body text-[14px]" style={{ color: "#C9E6D6" }}>{canReview ? `외부 후기 작성하고 ${POINT_RULES.review}P 받기 🥕` : "다음 프로그램 결제에 사용할 수 있어요"}</span>
+    <button onClick={onOpen} className="focus-ring tap w-full rounded-2xl px-4 py-3 text-left" style={{ background: C.green }} data-testid="points-card">
+      <span className="flex items-center justify-between gap-3">
+        <span className="f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</span>
+        <span className="flex items-center gap-1.5">
+          <span className="f-display text-[20px] font-bold text-white">{fmtBalance(balance)}</span>
+          <ChevronRight size={18} color="#9FD1B8" />
+        </span>
       </span>
-      <ChevronRight size={22} color="#9FD1B8" className="shrink-0" />
+      {canReview && <span className="block f-body text-[14px] mt-0.5" style={{ color: "#C9E6D6" }}>{`외부 후기 작성하고 ${POINT_RULES.review}P 받기 🥕`}</span>}
     </button>
+  );
+}
+
+function parentAction(program, adv) {
+  const slots = sessionsOf(program);
+  const slot = sessionOf(program, adv);
+  const noticeOut = slots.length ? !!(slot && isNoticeOut(program, slot)) : isNoticeOut(program, null);
+  const surveyOpen = !!adv.attended && !adv.parentSurvey;
+  const survey = { label: POINT_RULES.survey > 0 ? `설문 남기기 (+${POINT_RULES.survey}P)` : "설문 남기기", act: "survey" };
+  const info = { label: "체험 안내 보기", act: "info", programId: program.id, sessionId: slot ? slot.id : null };
+  const R = (score, key, status, cta, links = []) => ({ score, key, status, cta, links });
+  if (adv.absent && !adv.attended) return R(8, "absent", "이번 체험에는 참여하지 못했어요.", { label: "다음 예정 체험 보기", act: "browse" });
+  if (adv.attended) {
+    const advice = FEATURES.parentAdvice && adv.advice?.sent ? [{ label: "학습 조언 보기", act: "report" }] : [];
+    if (adv.feedback && adv.afterCompleted && !surveyOpen) return R(9, "done", "모두 마쳤어요.", { label: "다음 예정 체험 보기", act: "browse" }, [{ label: "리포트 보기", act: "report" }, ...advice]);
+    if (adv.feedback) return R(2, "report", "선생님 리포트가 도착했어요.", { label: "리포트 보기", act: "report" }, [...(surveyOpen ? [survey] : []), ...advice]);
+    if (isReviewOpen(program) && !adv.afterCompleted) return R(1, "review", "체험이 끝났어요. 배운 내용을 복습해 보세요.", { label: "복습하기", act: "start" }, surveyOpen ? [survey] : []);
+    return R(3, "waiting", adv.afterCompleted ? "복습을 마쳤어요. 선생님이 리포트를 준비하고 있어요." : "체험이 끝났어요. 복습은 곧 열려요.", surveyOpen ? survey : null);
+  }
+  if (isLive(program)) return R(0, "live", "오늘이 체험 날이에요!", { label: "체험 시작하기", act: "start" }, noticeOut ? [info] : []);
+  if (tripDayPassed(program)) return R(6, "check", "출석을 확인하고 있어요.", null);
+  const prepAgain = adv.beforeCompleted ? [{ label: "예습 다시하기", act: "start" }] : [];
+  if (!adv.beforeCompleted) return R(4, "prep", noticeOut ? "안내가 도착했어요. 예습도 해 주세요." : "단어 카드로 예습해요.", { label: "예습 시작하기", act: "start" }, noticeOut ? [info] : []);
+  if (noticeOut) return R(5, "info", "예습을 마쳤어요. 체험 안내를 확인해 주세요.", info, prepAgain);
+  return R(6, "wait", "예습을 마쳤어요. 체험 안내를 곧 보내 드려요.", null, prepAgain);
+}
+
+/** One child on the parents' home: who they are, the one experience that matters now with its one main button, and the rest tucked away. */
+function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onReport, onSurvey, onBrowse }) {
+  const [showOthers, setShowOthers] = useState(false);
+  const count = attendedCount(adventures, child.id);
+  const { rank, nextRank } = rankFor(count);
+  const segPct = nextRank ? Math.round(((count - rank.min) / (nextRank.min - rank.min)) * 100) : 100;
+  const mine = adventures
+    .filter((a) => a.studentId === child.id)
+    .map((a) => ({ a, program: getProgram(a.programId) }))
+    .filter((x) => x.program)
+    .map((x) => ({ ...x, act: parentAction(x.program, x.a) }));
+  const primary = mine.slice().sort((x, y) => x.act.score - y.act.score)[0] || null;
+  const others = mine.filter((x) => x !== primary);
+  const run = (act) => {
+    if (act.act === "start") onStart(child.id);
+    else if (act.act === "info") onInfo(act.programId, act.sessionId);
+    else if (act.act === "report") onReport(child.id);
+    else if (act.act === "survey") onSurvey(child.id, act.programId || (primary && primary.program.id));
+    else if (act.act === "browse") onBrowse();
+  };
+  const meta = (program, a) => {
+    const slot = sessionOf(program, a);
+    const team = teamOf(program, a);
+    return [program.date, sessionsOf(program).length ? (slot ? sessionName(slot) : "시간대를 정하고 있어요") : "", team ? teamForParent(team) : ""].filter(Boolean).join(" · ");
+  };
+  const cta = (x, act) => (act.act === "browse" && !hasUpcoming ? null : act);
+  return (
+    <div className="bg-white rounded-2xl p-4" data-testid="child-card">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="f-display font-semibold text-[19px]" style={{ color: C.green }}>{child.avatar} {child.name}</p>
+        <p className="f-body text-[13px] text-gray-400 whitespace-nowrap">Level {child.level} · {rank.label}</p>
+      </div>
+      {primary ? (
+        <div className="mt-3">
+          <div className="flex items-stretch gap-3">
+            <TitleBar program={primary.program} />
+            <div className="min-w-0 py-0.5">
+              <p className="f-headline text-[22px] leading-snug" style={{ color: C.green }}>{splitTitle(primary.program.title)[0] || primary.program.title}</p>
+              <p className="f-body text-[14px] text-gray-500">{meta(primary.program, primary.a)}</p>
+            </div>
+          </div>
+          <div className="mt-2.5" data-testid="child-progress">
+            <p className="f-body text-[13px]">
+              {childProgress(primary.program, primary.a).steps.map((x, i, arr) => {
+                const cur = childProgress(primary.program, primary.a).current;
+                const on = cur && cur.key === x.key;
+                return (
+                  <span key={x.key} style={{ color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#B9AE99", fontWeight: on ? 700 : 500 }}>
+                    {x.done ? "✓ " : on ? "● " : ""}{x.label}{i < arr.length - 1 ? <span style={{ color: "#D8CEB8" }}> · </span> : null}
+                  </span>
+                );
+              })}
+            </p>
+            <p className="f-body text-[15px] mt-1" style={{ color: C.charcoal }}>{primary.act.status}</p>
+          </div>
+          {primary.act.cta && cta(primary, primary.act.cta) && (
+            <button data-testid="primary-action" onClick={() => run(primary.act.cta)} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-3 text-white" style={{ background: C.orange }}>
+              {primary.act.cta.label}
+            </button>
+          )}
+          {primary.act.links.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+              {primary.act.links.map((l) => (
+                <button key={l.label} onClick={() => run({ ...l, programId: l.programId || primary.program.id })} className="focus-ring tap f-body text-[14px] font-bold underline" style={{ color: C.green }}>{l.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-3">
+          <p className="f-body text-[15px] text-gray-500">아직 신청한 체험이 없어요.</p>
+          {hasUpcoming && <button data-testid="primary-action" onClick={onBrowse} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-2.5 text-white" style={{ background: C.orange }}>예정 체험 보기</button>}
+        </div>
+      )}
+      {others.length > 0 && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }}>
+          <button onClick={() => setShowOthers((v) => !v)} aria-expanded={showOthers} className="focus-ring tap w-full flex items-center justify-between f-body text-[14px] font-bold" style={{ color: C.green }}>
+            <span>다른 체험 {others.length}개{others.some((x) => x.act.cta && x.act.key !== "done") ? " · 할 일 있어요" : ""}</span>
+            <span>{showOthers ? "▴" : "▾"}</span>
+          </button>
+          {showOthers && (
+            <div className="space-y-2.5 mt-2.5">
+              {others.map((x) => (
+                <div key={x.a.programId} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="f-body text-[16px] font-bold" style={{ color: C.green }}>{splitTitle(x.program.title)[0] || x.program.title}</p>
+                    <p className="f-body text-[13px] text-gray-500">{x.program.date} · {x.act.status}</p>
+                  </div>
+                  {x.act.cta && cta(x, x.act.cta) && (
+                    <button onClick={() => run({ ...x.act.cta, programId: x.act.cta.programId || x.program.id })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.cream, color: C.green, border: `1px solid ${C.beige}` }}>{x.act.cta.label}</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="f-body text-[13px] font-bold" style={{ color: C.charcoal }}>참여 {count}회</span>
+          <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>{nextRank ? `다음 단계까지 ${nextRank.min - count}회` : "최고 단계 달성"}</span>
+        </div>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.beige }}>
+          <div className="h-full rounded-full" style={{ width: `${segPct}%`, background: C.green }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -4114,7 +4426,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
   const [showPoints, setShowPoints] = useState(false);
-  const [moreNotices, setMoreNotices] = useState(false);
   const [infoId, setInfoId] = useState(null);
   const [infoSessionId, setInfoSessionId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
@@ -4140,13 +4451,9 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           </button>
         }
       />
-      <div className="px-5 flex gap-2 mb-3">
-        <button onClick={() => setShowLevels(true)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2 whitespace-nowrap" style={{ background: "#FFF1E2", color: "#B25A0B", border: `1px solid ${C.beige}` }}>
-          🥕 당근나라 레벨
-        </button>
-        <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2 whitespace-nowrap" style={{ background: C.beige, color: C.green }}>
-          도움말
-        </button>
+      <div className="px-5 flex gap-4 mb-3">
+        <button onClick={() => setShowLevels(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.green }}>당근나라 레벨</button>
+        <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.green }}>도움말</button>
       </div>
       <div className="px-5 mb-3">
         <PointsCard balance={myBalance} canReview={canReview} onOpen={() => setShowPoints(true)} />
@@ -4182,34 +4489,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
         )}
 
-        {notices.length > 0 && (
-          <div>
-            <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>🔔 알림 {notices.length}</p>
-            <div className="space-y-2">
-              {notices.slice(0, moreNotices ? notices.length : 3).map((n) => (
-                <button
-                  key={n.key}
-                  onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "points" ? setShowPoints(true) : n.kind === "info" || n.kind === "team" ? (setInfoId(n.programId), setInfoSessionId(n.sessionId || null)) : onStartAdventure(n.childId))}
-                  className="focus-ring tap w-full flex items-center gap-3 rounded-2xl p-3 text-left"
-                  style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}
-                >
-                  <span className="text-[27px]">{n.icon}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block f-body text-[16px] font-bold" style={{ color: C.green }}>{n.title}</span>
-                    <span className="block f-body text-[14px] text-gray-500 truncate">{n.text}</span>
-                  </span>
-                  <span className="f-body text-[14px] font-bold shrink-0" style={{ color: C.orange }}>{n.action} →</span>
-                </button>
-              ))}
-              {notices.length > 3 && (
-                <button onClick={() => setMoreNotices((v) => !v)} aria-expanded={moreNotices} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
-                  {moreNotices ? "접기 ▴" : `알림 ${notices.length - 3}개 더 보기 ▾`}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {myChildren.length > 0 && !adventures.some((a) => myChildren.some((c) => c.id === a.studentId)) && (
           <div className="rounded-2xl p-4 text-center" style={{ background: "#FFF1E2" }}>
             <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
@@ -4217,102 +4496,19 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           </div>
         )}
 
-        {myChildren.map((s) => {
-          const count = attendedCount(adventures, s.id);
-          const { rank, nextRank } = rankFor(count);
-          const segStart = rank.min;
-          const segEnd = nextRank ? nextRank.min : rank.min;
-          const segPct = nextRank ? Math.round(((count - segStart) / (segEnd - segStart)) * 100) : 100;
-          return (
-            <div key={s.id} className="bg-white rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-[27px]">{s.avatar}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="f-display font-semibold" style={{ color: C.green }}>{s.name}</p>
-                  <p className="f-body text-[14px] text-gray-400">Level {s.level} · {rank.emoji} {rank.label}</p>
-                </div>
-              </div>
-              <div className="rounded-xl p-3 mb-3" style={{ background: C.cream }}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>참여 {count}회</span>
-                  <span className="f-body text-[14px]" style={{ color: "#9C927D" }}>
-                    {nextRank ? `다음 단계까지 ${nextRank.min - count}회 남음` : "최고 단계 달성"}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
-                  <div className="h-full rounded-full" style={{ width: `${segPct}%`, background: C.orange }} />
-                </div>
-              </div>
-              {adventures.filter((a) => a.studentId === s.id).length > 0 && (
-                <div className="mb-3 space-y-2">
-                  <p className="f-body text-[14px] font-bold" style={{ color: C.orange }}>신청한 체험</p>
-                  {adventures.filter((a) => a.studentId === s.id).map((a) => {
-                    const prog = getProgram(a.programId);
-                    if (!prog) return null;
-                    const team = teamOf(prog, a);
-                    return (
-                      <div key={a.programId} className="flex items-stretch gap-3">
-                        <TitleBar program={prog} />
-                        <div className="min-w-0 py-0.5">
-                          <p className="f-headline text-[20px] leading-snug" style={{ color: C.green }}>{splitTitle(prog.title)[0] || prog.title}</p>
-                          <p className="f-body text-[14px] text-gray-400">{prog.date}</p>
-                          {sessionsOf(prog).length > 0 && (
-                            <p className="f-body text-[15px] font-bold" style={{ color: sessionOf(prog, a) ? "#B25A0B" : "#9C927D" }}>
-                              {sessionOf(prog, a) ? `🕘 ${sessionName(sessionOf(prog, a))}` : "시간대를 정하고 있어요"}
-                            </p>
-                          )}
-                          <p className="f-body text-[15px] font-bold mt-0.5" style={{ color: team ? "#1F7A44" : "#9C927D" }}>
-                            {team ? `🧑‍🏫 ${teamForParent(team)}` : "팀과 선생님을 정하고 있어요"}
-                          </p>
-                          {(() => {
-                            const pr = childProgress(prog, a);
-                            return (
-                              <div className="mt-2" data-testid="child-progress">
-                                <div className="flex flex-wrap gap-1">
-                                  {pr.steps.map((x) => {
-                                    const on = pr.current && pr.current.key === x.key;
-                                    return (
-                                      <span key={x.key} className="f-body text-[13px] font-bold px-2 py-1 rounded-full whitespace-nowrap" style={{ background: x.done ? "#EAF7EF" : on ? "#FFE9D2" : "#F3EEE3", color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#9C927D", border: on ? "1px solid #F2B77B" : "1px solid transparent" }}>
-                                        {x.done ? "✓ " : on ? "● " : ""}{x.label}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                                <p className="f-body text-[15px] mt-1.5" style={{ color: C.charcoal }}>{pr.hint}</p>
-                                {pr.surveyOpen && (
-                                  <button onClick={() => onOpenSurvey(s.id, prog.id)} className="focus-ring tap mt-1.5 f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: "#FFF1E2", color: "#B25A0B", border: `1px solid ${C.beige}` }}>
-                                    📋 설문 남기기 (1~2분)
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          {FEATURES.parentAdvice && a.advice?.sent && (
-                            <button onClick={() => onViewReport(s.id)} className="focus-ring tap f-body text-[16px] font-bold mt-1" style={{ color: C.orange }}>💬 학습 조언이 도착했어요 · 보기</button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => onViewReport(s.id)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>
-                  리포트 보기
-                </button>
-                {adventures.some((a) => a.studentId === s.id) ? (
-                  <button onClick={() => onStartAdventure(s.id)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
-                    모험 시작하기
-                  </button>
-                ) : (
-                  <button onClick={goBrowse} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5 text-white" style={{ background: C.orange }}>
-                    체험 고르기
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {myChildren.map((c) => (
+          <ChildHomeCard
+            key={c.id}
+            child={c}
+            adventures={adventures}
+            hasUpcoming={upcomingPrograms(adventures).some((p) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id))}
+            onStart={onStartAdventure}
+            onInfo={(programId, sessionId) => { setInfoId(programId); setInfoSessionId(sessionId || null); }}
+            onReport={onViewReport}
+            onSurvey={onOpenSurvey}
+            onBrowse={goBrowse}
+          />
+        ))}
 
         {myChildren.length > 0 && onAddChild && (
           addingChild ? (
@@ -4533,6 +4729,41 @@ function AdviceBox({ student, program, adv, onSave }) {
   );
 }
 
+/** Program card: who is present, who is absent, and "confirm everybody else" in one tap (the points follow the attendance). */
+function AttendanceStrip({ program, roster, onSave }) {
+  const [asking, setAsking] = useState(false);
+  const here = roster.filter((r) => !r.adv.canceled);
+  const attended = here.filter((r) => r.adv.attended).length;
+  const absent = here.filter((r) => r.adv.absent && !r.adv.attended).length;
+  const open = here.filter((r) => !r.adv.attended && !r.adv.absent);
+  if (here.length === 0 || !(isLive(program) || tripDayPassed(program) || attended > 0)) return null;
+  return (
+    <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }}>
+      <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("출석")}</p>
+      <p className="f-body text-[14px]" style={{ color: C.charcoal }}>{tr("출석 {0} · 결석 {1} · 미정 {2}", [attended, absent, open.length])}</p>
+      {open.length > 0 ? (
+        <>
+          <p className="f-body text-[13px] text-gray-500 mt-1">{tr("결석한 아이만 ✕로 표시한 뒤 누르세요.")}</p>
+          <button onClick={() => setAsking(true)} className="focus-ring tap mt-2 f-display text-[15px] font-semibold rounded-xl px-4 py-2.5 text-white" style={{ background: C.green }}>{tr("출석 확정 ({0}명)", [open.length])}</button>
+        </>
+      ) : (
+        <p className="f-body text-[13px] mt-1" style={{ color: "#1F7A44" }}>{tr("출석을 모두 확정했어요 ✓")}</p>
+      )}
+      {asking && (
+        <ConfirmDialog
+          title={tr("{0}명을 출석 처리할까요?", [open.length])}
+          actions={[
+            { label: tr("출석 확정"), tone: "primary", onClick: () => { const at = new Date().toISOString(); open.forEach((r) => onSave(r.student.id, { attended: true, attendedAt: at })); setAsking(false); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setAsking(false) },
+          ]}
+        >
+          {tr("결석 {0}명은 빠져요. 출석 처리하면 아이마다 체험 완료 포인트가 쌓여요.", [absent])}
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
 /** Program card strip: how many are sent / waiting for a check, and "draft for everyone". */
 function AdviceStrip({ program, roster, onSave }) {
   const [progress, setProgress] = useState(null);
@@ -4613,20 +4844,29 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           <span className="text-[14px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1" style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}>
             <ClipboardCheck size={13} /> {adv.attended ? "Present" : "Not marked yet"}
           </span>
-        ) : (
-          <button
-            onClick={() => {
-              const next = !adv.attended;
-              onUpdate({ attended: next });
-              // Marking someone present means the trip is happening today, so open the field stage too.
-              if (next && !program.dateReached) onOpenToday();
-            }}
-            aria-pressed={adv.attended}
-            className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
-            style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}
-          >
-            <ClipboardCheck size={13} /> {adv.attended ? "Present" : "Mark present"}
+        ) : adv.absent ? (
+          <button onClick={() => onUpdate({ absent: false })} aria-pressed="true" className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full" style={{ background: "#FDEDEA", color: "#B03A2E" }}>
+            Absent ✕
           </button>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                const next = !adv.attended;
+                onUpdate({ attended: next });
+                // Marking someone present means the trip is happening today, so open the field stage too.
+                if (next && !isLive(program)) onOpenToday();
+              }}
+              aria-pressed={adv.attended}
+              className="focus-ring tap text-[14px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+              style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}
+            >
+              <ClipboardCheck size={13} /> {adv.attended ? "Present" : "Mark present"}
+            </button>
+            <button onClick={() => onUpdate({ absent: true, attended: false })} aria-label="Mark absent" className="focus-ring tap shrink-0 w-8 h-8 rounded-full f-body text-[14px] font-bold" style={{ background: "#F3EEE3", color: "#B03A2E" }}>
+              ✕
+            </button>
+          </>
         )}
         <button onClick={() => setOpen((o) => !o)} aria-label={open ? "Collapse" : "Expand"} className="focus-ring tap shrink-0">
           <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${open ? "rotate-90" : ""}`} />
@@ -5989,6 +6229,8 @@ function InfoRow({ icon, label, value, tone }) {
 function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
+  const [startDate, setStartDate] = useState(initial?.startDate || ""); // the real date: the screens switch by it
+  const [endDate, setEndDate] = useState(initial?.endDate || ""); // optional last day (1 night 2 days and the like)
   const [date, setDate] = useState(initial?.date || "");
   const [location, setLocation] = useState(initial?.location || (UI_LANG === "en" ? "Seoul" : "서울"));
   const [levels, setLevels] = useState(() => (initial ? programLevels(initial) : []));
@@ -6006,14 +6248,14 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
-  const formState = { title, date, location, levels, icons, themeKo, dateReached, materials, levelSets, sessions, noticeInfo };
+  const formState = { title, date, startDate, endDate, location, levels, icons, themeKo, dateReached, materials, levelSets, sessions, noticeInfo };
   const snap = stableJson(formState);
   const startSnap = useRef(null);
   if (startSnap.current === null) startSnap.current = snap;
   const dirty = snap !== startSnap.current;
   const [draft, setDraft] = useState(() => {
     const d = draftGet(draftKey);
-    return d && d.state && stableJson({ levelSets: {}, sessions: [], ...d.state }) !== snap ? d : null;
+    return d && d.state && stableJson({ levelSets: {}, sessions: [], startDate: "", endDate: "", ...d.state }) !== snap ? d : null;
   });
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
@@ -6061,7 +6303,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const restoreDraft = () => {
     const d = draft.state;
     setTitle(d.title); setDate(d.date); setLocation(d.location); setLevels(d.levels); setIcons(d.icons); setThemeKo(d.themeKo);
-    setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setSessions(d.sessions || []); setNoticeInfo(d.noticeInfo);
+    setStartDate(d.startDate || ""); setEndDate(d.endDate || ""); setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setSessions(d.sessions || []); setNoticeInfo(d.noticeInfo);
     setShowMaterials(true);
     setDraft(null);
   };
@@ -6084,7 +6326,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
       onSave({ ...shared, levelMaterials });
       return;
     }
-    const info = { title: title.trim(), date: date.trim(), location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (isEdit) {
       onSave(info);
     } else {
@@ -6133,6 +6375,46 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
+      <div className="mb-3">
+        <label className="block f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("체험 날짜")}</label>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => {
+            const v = e.target.value;
+            const end = endDate > v ? endDate : "";
+            // the label shown to parents follows the calendar, unless somebody wrote their own
+            setDate((cur) => (!cur.trim() || (startDate && cur === dateRangeLabelKo(startDate, endDate)) ? (v ? dateRangeLabelKo(v, end) : "") : cur));
+            setStartDate(v);
+            setEndDate(end);
+          }}
+          aria-label={tr("체험 날짜 (달력)")}
+          className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
+          style={{ background: C.cream, border: `1px solid ${C.beige}` }}
+        />
+        <p className="f-body text-[13px] text-gray-500 mt-1">{startDate ? tr("이 날짜에 오늘 진행이 저절로 켜지고, 체험이 끝난 다음 날 복습이 열려요. 안내는 {0}에 공개돼요(시간과 모이는 곳을 쓴 경우).", [dateLabelKo(addDays(startDate, -NOTICE_LEAD_DAYS))]) : tr("날짜를 고르면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요. 고르지 않으면 직접 켜요.")}</p>
+        {startDate && (
+          <div className="mt-2">
+            <label className="block f-body text-[13px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("마지막 날 (1박 2일처럼 이틀 이상일 때만)")}</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={endDate}
+                min={addDays(startDate, 1)}
+                onChange={(e) => {
+                  const v = e.target.value > startDate ? e.target.value : "";
+                  setDate((cur) => (!cur.trim() || cur === dateRangeLabelKo(startDate, endDate) ? dateRangeLabelKo(startDate, v) : cur));
+                  setEndDate(v);
+                }}
+                aria-label={tr("마지막 날 (달력)")}
+                className="focus-ring flex-1 rounded-xl p-3 f-body text-[17px] outline-none"
+                style={{ background: C.cream, border: `1px solid ${C.beige}` }}
+              />
+              {endDate && <button onClick={() => { setDate((cur) => (cur === dateRangeLabelKo(startDate, endDate) ? dateLabelKo(startDate) : cur)); setEndDate(""); }} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-xl px-3" style={{ background: C.beige, color: C.green }}>{tr("지우기")}</button>}
+            </div>
+          </div>
+        )}
+      </div>
       <div className="flex gap-2 mb-3">
         <input
           value={date}
@@ -6338,6 +6620,7 @@ const ADVENTURE_CHECKS = [
   ["enrolledAt", "등록 시각"],
   ["beforeCompletedAt", "예습 완료 시각"],
   ["attendedAt", "출석 시각"],
+  ["absent", "결석 표시"],
   ["afterCompletedAt", "복습 완료 시각"],
   ["teamId", "팀 배정"],
   ["sessionId", "시간대 배정"],
@@ -6932,7 +7215,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-06-l"; // change with every delivery
+const APP_BUILD = "2026-10-07-o"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7162,18 +7445,19 @@ function programStatus(program, adventures) {
   const mine = adventures.filter((a) => a.programId === program.id && !a.canceled);
   const attended = mine.filter((a) => a.attended);
   const slots = sessionsOf(program);
-  const sessionInfo = slots.map((x) => ({ id: x.id, label: x.label, count: mine.filter((a) => a.sessionId === x.id).length, published: !!x.published }));
+  const sessionInfo = slots.map((x) => ({ id: x.id, label: x.label, count: mine.filter((a) => a.sessionId === x.id).length, published: isNoticeOut(program, x) }));
   const sessionUnset = slots.length ? mine.filter((a) => !sessionOf(program, a)).length : 0;
   const withKids = sessionInfo.filter((x) => x.count > 0);
-  const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : !!program.info?.published;
+  const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : isNoticeOut(program, null);
   const reportsLeft = attended.filter((a) => !a.feedback).length;
   // The stage follows what has really happened: nobody applied -> setting up; children preparing -> prep; notice shared -> notice sent;
   // "Live today" on -> trip live; the trip happened but feedback is missing -> feedback due; all feedback written -> complete.
   // (Opening the review does not mean the trip is over, so it no longer changes the stage.)
   let stage;
-  if (program.dateReached) stage = "live";
+  if (isLive(program)) stage = "live";
   else if (attended.length > 0) stage = reportsLeft > 0 ? "feedback" : "done";
   else if (mine.length === 0) stage = "setup";
+  else if (tripDayPassed(program)) stage = "check"; // the day is over and nobody is confirmed present yet
   else stage = infoSent ? "noticed" : "prep";
   const teams = teamsOf(program);
   const unassigned = teams.length ? mine.filter((a) => !teamsForAdv(program, a).some((t) => t.id === a.teamId)).length : 0;
@@ -7186,7 +7470,7 @@ function programStatus(program, adventures) {
     adviceSent,
     adviceDrafts,
     adviceTodo,
-    stage, // setup | prep | noticed | live | feedback | done
+    stage, // setup | prep | noticed | live | check | feedback | done
     teamCount: teams.length,
     unassigned,
     enrolled: mine.length,
@@ -7202,6 +7486,7 @@ const STAGE_LOOK = {
   prep: { label: "예습 중", bg: "#FFF1E2", color: "#B25A0B" },
   noticed: { label: "안내 전달 완료", bg: "#EAF7EF", color: "#1F7A44" },
   live: { label: "체험 진행 중", bg: "#BFE8CB", color: "#14532D" },
+  check: { label: "출석 확정 전", bg: "#FFE9D2", color: "#B25A0B" },
   feedback: { label: "피드백 전", bg: "#FFE9D2", color: "#B25A0B" },
   done: { label: "완료", bg: "#174C35", color: "#FFFFFF" },
 };
@@ -7261,13 +7546,16 @@ function nextStep(program, st) {
     if (st.infoLate) return { text: tr("체험 전 안내를 보내야 해요"), go: "info" };
     if (st.enrolled === 0) return { text: tr("신청한 아이가 아직 없어요"), go: "manage" };
     if (st.unassigned > 0) return { text: tr("팀이 정해지지 않은 아이가 {0}명 있어요", [st.unassigned]), go: "manage" };
+    if (hasDate(program)) return { text: tr("체험일({0})에 저절로 시작돼요", [program.startDate.slice(5).replace("-", "/")]), go: null };
     return { text: tr("체험 날에 '오늘 진행'을 켜 주세요"), go: "manage" };
   }
   if (st.stage === "live") {
     if (st.attended < st.enrolled) return { text: tr("출석 체크 {0}/{1}명", [st.attended, st.enrolled]), go: "manage" };
+    if (hasDate(program)) return { text: tr("체험이 끝나면 저절로 마무리돼요"), go: null };
     return { text: tr("체험이 끝나면 '오늘 진행'을 꺼 주세요"), go: "manage" };
   }
-  if (!program.reviewOpen) return { text: tr("복습 퀴즈를 만들고 열어 주세요"), go: "materials" };
+  if (st.stage === "check") return { text: tr("결석한 아이를 표시하고 출석을 확정해 주세요"), go: "manage" };
+  if (!isReviewOpen(program)) return hasDate(program) ? { text: tr("복습 퀴즈를 만들어 주세요"), go: "materials" } : { text: tr("복습 퀴즈를 만들고 열어 주세요"), go: "materials" };
   if (st.reportsLeft > 0) return { text: tr("피드백 {0}명 작성이 남았어요", [st.reportsLeft]), go: "manage" };
   if (FEATURES.parentAdvice && st.adviceDrafts > 0) return { text: tr("학부모 조언 초안 {0}개를 확인하고 보내 주세요", [st.adviceDrafts]), go: "manage" };
   if (FEATURES.parentAdvice && st.adviceTodo > 0) return { text: tr("학부모 조언 초안을 만들어 주세요 ({0}명)", [st.adviceTodo]), go: "manage" };
@@ -7333,7 +7621,7 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
                 st.infoSent ? "ok" : st.stage === "done" ? "" : "warn"
               )}
               {cell(tr("신청 · 출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
-              {cell(tr("복습"), p.reviewOpen ? tr("열림 ✓") : tr("닫힘"), p.reviewOpen ? "ok" : "")}
+              {cell(tr("복습"), isReviewOpen(p) ? tr("열림 ✓") : tr("닫힘"), isReviewOpen(p) ? "ok" : "")}
               {cell(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
             </div>
             {FEATURES.parentAdvice && st.attended > 0 && (
@@ -7450,7 +7738,7 @@ function TeamPicker({ student, teams, counts, currentId, onPick, onClose }) {
 }
 
 /** Teacher: make teams (level + teacher), pick their children from a list, see who is where. */
-function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: saveAllTeams, onAssign }) {
+function TeamPanel({ program, roster, session, teacherSuggestions, confirmedNames = [], onSaveTeams: saveAllTeams, onAssign }) {
   // with time slots a team belongs to one slot: this panel shows and changes only the slot it is opened for
   const allTeams = teamsOf(program);
   const inSlot = (t) => !session || !t.sessionId || t.sessionId === session.id;
@@ -7459,6 +7747,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: 
   const [form, setForm] = useState(null); // { id|null, level, teacher, picked: [studentId], touched }
   const [picking, setPicking] = useState(null); // a student being placed from the "not placed yet" list
   const [confirmRemove, setConfirmRemove] = useState(null); // a team waiting for "yes, delete it"
+  const [auto, setAuto] = useState(null); // the automatic team plan being looked at: { max }
   const teamIdOf = (studentId) => roster.find((r) => r.student.id === studentId)?.adv.teamId;
   const members = (t) => roster.filter((r) => r.adv.teamId === t.id).map((r) => r.student);
   const placed = (r) => teams.some((t) => t.id === r.adv.teamId);
@@ -7490,6 +7779,18 @@ function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: 
     setForm(null);
   };
   const fillLevel = (t) => loose.filter((st) => st.level === t.level).forEach((st) => onAssign(st.id, t.id));
+  // automatic teams: from the teachers HQ confirmed (not already teaching a team here) and the children's levels
+  const usedNames = new Set(teams.map((t) => String(t.teacher || "").trim().toLowerCase()));
+  const freeTeachers = confirmedNames.filter((n) => !usedNames.has(n.trim().toLowerCase()));
+  const plan = auto ? planTeams({ loose: loose.map((st) => ({ id: st.id, name: st.name, level: st.level })), teams, counts, free: freeTeachers, max: auto.max }) : null;
+  const applyPlan = () => {
+    const stamp = Date.now().toString(36);
+    const created = plan.teams.map((t, i) => ({ id: `t-${stamp}${i}`, level: t.level, teacher: t.teacher, ...(session ? { sessionId: session.id } : {}) }));
+    onSaveTeams([...teams, ...created]);
+    plan.fills.forEach((f) => f.kids.forEach((k) => onAssign(k.id, f.teamId)));
+    plan.teams.forEach((t, i) => t.kids.forEach((k) => onAssign(k.id, created[i].id)));
+    setAuto(null);
+  };
 
   // the checklist: children of this level first, then the others; children without a team before the placed ones
   const checklist = form
@@ -7501,8 +7802,44 @@ function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: 
       <div className="bg-white rounded-2xl p-4">
         <div className="flex items-center justify-between gap-2 mb-1">
           <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 선생님")}{session ? ` · ${session.label}` : ""}</p>
-          {!form && <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("+ 팀 추가")}</button>}
+          {!form && !auto && (
+            <div className="flex gap-1.5">
+              {loose.length > 0 && <button onClick={() => setAuto({ max: 6 })} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.green }}>{tr("팀 자동 만들기")}</button>}
+              <button onClick={startAdd} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("+ 팀 추가")}</button>
+            </div>
+          )}
         </div>
+        {auto && plan && (
+          <div className="mt-2 rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }} data-testid="auto-teams">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("팀당 최대 {0}명", [auto.max])}</p>
+              <div className="flex gap-1.5">
+                <button onClick={() => setAuto((a) => ({ ...a, max: Math.max(2, a.max - 1) }))} aria-label={tr("한 명 줄이기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>−</button>
+                <button onClick={() => setAuto((a) => ({ ...a, max: Math.min(12, a.max + 1) }))} aria-label={tr("한 명 늘리기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>+</button>
+              </div>
+            </div>
+            {confirmedNames.length === 0 ? (
+              <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 선생님이 없어요. 선생님 탭에서 참여 신청을 확정하면 자동으로 만들 수 있어요.")}</p>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  {plan.fills.map((f) => (
+                    <p key={f.teamId} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{f.level} · {f.teacher}</b> ({tr("기존 팀")}) + {tr("{0}명 · {1}", [f.kids.length, f.kids.map((k) => k.name).join(", ")])}</p>
+                  ))}
+                  {plan.teams.map((t, i) => (
+                    <p key={`${t.level}-${t.teacher}-${i}`} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{t.level} · {t.teacher}</b> ({tr("새 팀")}) {tr("{0}명 · {1}", [t.kids.length, t.kids.map((k) => k.name).join(", ")])}</p>
+                  ))}
+                </div>
+                {plan.leftover.length > 0 && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }}>{tr("선생님이 모자라 {0}명은 팀이 없어요: {1}", [plan.leftover.length, plan.leftover.map((k) => k.name).join(", ")])}</p>}
+                {plan.needMore > 0 && plan.leftover.length === 0 && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }}>{tr("선생님 {0}명이 더 있으면 팀당 {1}명 이하로 나눌 수 있어요.", [plan.needMore, auto.max])}</p>}
+              </>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setAuto(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
+              <button onClick={applyPlan} disabled={plan.fills.length + plan.teams.length === 0} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("이대로 만들기")}</button>
+            </div>
+          </div>
+        )}
         {teams.length === 0 && !form && <p className="f-body text-[14px] text-gray-500">{tr("레벨별로 팀을 만들고 선생님을 정하면, 부모님 화면에 우리 아이의 팀과 선생님이 보여요. 같은 레벨 팀이 여러 개여도 돼요.")}</p>}
 
         <div className="space-y-2 mt-2">
@@ -7948,9 +8285,10 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
+  const [dateAsk, setDateAsk] = useState(null);
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -8041,12 +8379,12 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onDone: () => onResolveSuggestions(pendingOther.map((x) => x.id)),
     });
   }
-  PROGRAMS.filter((p) => !p.dateReached).forEach((p) => {
+  PROGRAMS.filter((p) => !isLive(p)).forEach((p) => {
     const mine = adventures.filter((a) => a.programId === p.id);
     if (!mine.length) return;
     const slots = sessionsOf(p);
     // with time slots, each slot (that has children) needs its own notice; without, the program has one
-    const late = slots.length ? slots.filter((x) => !x.published && mine.some((a) => a.sessionId === x.id)) : p.info?.published ? [] : [null];
+    const late = slots.length ? slots.filter((x) => !isNoticeOut(p, x) && mine.some((a) => a.sessionId === x.id)) : isNoticeOut(p, null) ? [] : [null];
     late.forEach((x) => {
       teacherNotices.push({
         key: `info-${p.id}-${x ? x.id : ""}`,
@@ -8057,7 +8395,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       });
     });
   });
-  PROGRAMS.filter((p) => !p.reviewOpen && adventures.some((a) => a.programId === p.id && a.attended && !a.afterCompleted)).forEach((p) => {
+  PROGRAMS.filter((p) => !isReviewOpen(p) && adventures.some((a) => a.programId === p.id && a.attended && !a.afterCompleted)).forEach((p) => {
     teacherNotices.push({
       key: `review-${p.id}`,
       icon: "✏️",
@@ -8070,10 +8408,17 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   PROGRAMS.forEach((p) => {
     const st = programStatus(p, adventures);
     const go = () => { setProgramId(p.id); setTab("manage"); };
+    if (!hasDate(p) && st.stage !== "done") {
+      const g = guessTripDates(p.date);
+      if (g && lastDay({ startDate: g.start, endDate: g.end }) >= addDays(todayKst(), -21)) {
+        teacherNotices.push({ key: `date-${p.id}`, icon: "📅", title: tr("체험 날짜를 정해 주세요"), text: `${p.title} · ${dateRangeLabelKo(g.start, g.end)}?`, onClick: () => setDateAsk({ program: p, ...g }) });
+      }
+    }
     if (st.stage === "live" && st.enrolled > 0) {
       if (st.attended < st.enrolled) teacherNotices.push({ key: `live-${p.id}`, icon: "✅", title: tr("출석 체크가 필요해요 ({0}/{1}명)", [st.attended, st.enrolled]), text: p.title, onClick: go });
-      else teacherNotices.push({ key: `end-${p.id}`, icon: "🏁", title: tr("체험이 끝났다면 '오늘 진행'을 꺼 주세요"), text: p.title, onClick: go });
+      else if (!hasDate(p)) teacherNotices.push({ key: `end-${p.id}`, icon: "🏁", title: tr("체험이 끝났다면 '오늘 진행'을 꺼 주세요"), text: p.title, onClick: go });
     }
+    if (st.stage === "check") teacherNotices.push({ key: `check-${p.id}`, icon: "✅", title: tr("출석을 확정해 주세요"), text: p.title, onClick: go });
     if ((st.stage === "prep" || st.stage === "noticed") && st.sessionUnset > 0) {
       teacherNotices.push({ key: `slot-${p.id}`, icon: "🕘", title: tr("시간대가 정해지지 않은 아이가 {0}명 있어요", [st.sessionUnset]), text: p.title, onClick: go });
     } else if ((st.stage === "prep" || st.stage === "noticed") && st.unassigned > 0) {
@@ -8242,8 +8587,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { on: !!program.dateReached, label: tr("오늘 진행"), onLabel: tr("진행 중"), onClick: () => onSetProgramToday(programId, !program.dateReached) },
-                  { on: !!program.reviewOpen, label: tr("복습"), onLabel: tr("열림"), onClick: () => onSetProgramReview(programId, !program.reviewOpen) },
+                  { on: isLive(program), label: tr("오늘 진행"), onLabel: tr("진행 중"), onClick: () => onSetProgramToday(programId, !isLive(program)) },
+                  { on: isReviewOpen(program), label: tr("복습"), onLabel: tr("열림"), onClick: () => onSetProgramReview(programId, !isReviewOpen(program)) },
                 ].map((sw) => (
                   <button
                     key={sw.label}
@@ -8262,6 +8607,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 ))}
               </div>
               <p className="f-body text-[13px] text-gray-400 mt-2">{tr("한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.", [roster.length])}</p>
+              <AttendanceStrip program={program} roster={roster} onSave={(studentId, patch) => updateAdventure(studentId, programId, patch)} />
               {FEATURES.parentAdvice && <AdviceStrip program={program} roster={roster} onSave={(studentId, advice) => updateAdventure(studentId, programId, { advice })} />}
             </div>
           </div>
@@ -8291,6 +8637,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
               program={program}
               roster={rosterShown}
               session={slots.length ? slots.find((x) => x.id === slotNow) : null}
+              confirmedNames={confirmedTeacherNames(joins, teachers, programId, slots.length ? (slots.find((x) => x.id === slotNow) || {}).id : undefined)}
               teacherSuggestions={[...new Set([...confirmedTeacherNames(joins, teachers, programId), ...teachers.filter((t) => t.active).map((t) => t.name), ...teacherNamesIn(PROGRAMS)])]}
               onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
               onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
@@ -8412,6 +8759,18 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
             )
           )}
         </div>
+      )}
+
+      {dateAsk && (
+        <ConfirmDialog
+          title={tr("체험 날짜를 {0}로 정할까요?", [dateRangeLabelKo(dateAsk.start, dateAsk.end)])}
+          actions={[
+            { label: tr("정하기"), tone: "primary", onClick: () => { (onSetProgramDates || (() => {}))(dateAsk.program.id, { startDate: dateAsk.start, endDate: dateAsk.end }); setDateAsk(null); } },
+            { label: tr("달력에서 고르기"), tone: "plain", onClick: () => { setEditingProgramId(dateAsk.program.id); setTab("programs"); setDateAsk(null); } },
+          ]}
+        >
+          {tr("정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.")}
+        </ConfirmDialog>
       )}
 
       {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} />}
@@ -8749,8 +9108,8 @@ const buildManual = () => [
       { t: "step", en: "Approve new sign-ups (Approve tab).", ko: "새 가입을 수락해요 (수락 탭)." },
       { t: "step", en: "Create the program and share the pre-trip info (Programs tab).", ko: "프로그램을 만들고 체험 전 안내를 공개해요 (프로그램등록 탭)." },
       { t: "step", en: "Make teams (Students tab).", ko: "팀을 만들어요 (학생관리 탭)." },
-      { t: "step", en: "Trip day: switch on Live today and mark children present (Students tab).", ko: "체험 날: 오늘 진행을 켜고 출석을 체크해요 (학생관리 탭)." },
-      { t: "step", en: "After the trip: open the review and write the feedback.", ko: "체험 후: 복습을 열고 피드백을 써요." },
+      { t: "step", en: "Trip day: it starts by itself on the trip date. Mark only the children who were absent, then Confirm attendance (Students tab).", ko: "체험 날: 체험 날짜가 되면 저절로 시작돼요. 결석한 아이만 표시하고 출석 확정을 눌러요 (학생관리 탭)." },
+      { t: "step", en: "After the trip: the review opens by itself the next day. Write the feedback.", ko: "체험 후: 복습은 다음 날 저절로 열려요. 피드백을 써요." },
       { t: "tip", en: "Overview shows the next step for every program.", ko: "현황 탭에 프로그램마다 다음 할 일이 나와요." },
       { t: "p", en: "A program that has not run yet shows as Upcoming: to parents (as \"Upcoming experiences\", with a heart and the level fit) and to teachers (Upcoming tab, to sign up).", ko: "아직 하지 않은 프로그램은 학부모에게 '예정 체험'(찜하기, 레벨 맞춤 표시), 샘에게 Upcoming 탭(참여 신청)으로 보여요." },
     ],
@@ -8785,7 +9144,7 @@ const buildManual = () => [
     title: { en: "Creating a program", ko: "프로그램 만들기" },
     items: [
       { t: "step", en: "Programs tab, enter the name. A colon adds a smaller English subtitle: Seoul Zoo: Animals Around the World.", ko: "프로그램등록 탭에서 이름을 써요. 콜론 뒤의 영어는 작은 부제로 보여요. 예: 서울대공원: Animals Around the World" },
-      { t: "step", en: "Enter date, place, theme icon, levels and a one-line intro.", ko: "날짜, 장소, 테마 아이콘, 레벨, 한 줄 소개를 써요." },
+      { t: "step", en: "Pick the trip date on the calendar (and the last day for trips of two days or more, like 1 night 2 days). The date makes the rest automatic. Then enter place, theme icon, levels and a one-line intro.", ko: "체험 날짜를 달력에서 골라요(1박 2일처럼 이틀 이상이면 마지막 날도). 날짜를 고르면 나머지가 저절로 바뀌어요. 그다음 장소, 테마 아이콘, 레벨, 한 줄 소개를 써요." },
       { t: "step", en: "Fill in Pre-trip info and Trip materials, then tap Register program.", ko: "체험 전 안내와 체험 자료를 채우고 프로그램 등록을 눌러요." },
       { t: "step", en: "Several levels: each level gets its own tab in Trip materials. A new level starts as a copy of the first.", ko: "레벨이 여러 개면 체험 자료에 레벨마다 탭이 생겨요. 새 레벨은 첫 레벨을 복사해서 시작해요." },
       { t: "step", en: "Several times in one day: add Time slots (name, trip time, meeting time and place). Each slot has its own children, teams, teachers and notice.", ko: "같은 날 여러 타임이면 시간대를 추가해요(이름, 체험 시간, 집합 시간과 장소). 시간대마다 아이, 팀, 선생님, 안내가 따로예요." },
@@ -8805,6 +9164,7 @@ const buildManual = () => [
       { t: "step", en: "Turn on Share with parents and save. Parents get an alert in the app.", ko: "학부모에게 공개를 켜고 저장해요. 학부모 앱에 알림이 떠요." },
       { t: "step", en: "Send notice (share sheet, KakaoTalk) or Copy notice. The message is in Korean.", ko: "안내문 보내기(공유, 카카오톡)나 안내문 복사를 눌러요. 메시지는 한국어예요." },
       { t: "step", en: "With time slots, each slot has its own tab. Share and send once per slot.", ko: "시간대가 있으면 시간대마다 탭이 있어요. 시간대마다 한 번씩 공개하고 보내요." },
+      { t: "tip", en: "With a trip date the notice is shared by itself 7 days before, once the time and the meeting place are filled in. You can share earlier by hand any time.", ko: "체험 날짜가 있으면 시간과 모이는 곳을 쓴 경우 안내가 7일 전에 저절로 공개돼요. 더 일찍 직접 공개해도 돼요." },
       { t: "tip", en: "The app does not send KakaoTalk messages by itself.", ko: "카카오톡 메시지는 앱이 자동으로 보내지 않아요." },
     ],
   },
@@ -8816,6 +9176,7 @@ const buildManual = () => [
       { t: "step", en: "Students tab, pick the program, Teams · Teachers, Add team.", ko: "학생관리 탭에서 프로그램을 고르고 팀 · 선생님의 팀 추가를 눌러요." },
       { t: "step", en: "Choose the level and the teacher. Tick the children (children of that level are ticked for you).", ko: "레벨과 선생님을 고르고 아이들을 체크해요(그 레벨 아이들은 미리 체크돼요)." },
       { t: "step", en: "Tap Create team.", ko: "팀 만들기를 눌러요." },
+      { t: "step", en: "Faster: Make teams automatically. It uses the teachers you confirmed in the Teachers tab and the children's levels (up to 6 per team; change it with − and +), shows the plan, and makes the teams when you tap Make these teams. Children of a level without a free teacher stay unassigned.", ko: "더 빠르게: 팀 자동 만들기를 눌러요. 선생님 탭에서 확정한 선생님과 아이들의 레벨로 팀을 짜서 보여 주고, 이대로 만들기를 누르면 만들어요(팀당 최대 6명, −와 +로 바꿀 수 있어요). 남는 선생님이 없는 레벨의 아이는 팀 없이 남아요." },
       { t: "step", en: "One child: tap the team button under the name. A team: Edit or Delete on its row (its children become unassigned).", ko: "한 명만 옮기려면 이름 아래 팀 버튼을 눌러요. 팀은 줄의 수정이나 삭제를 눌러요(아이들은 미배정이 돼요)." },
       { t: "step", en: "With time slots: first put each child in a slot (+ Morning / + Afternoon, or the 🕘 button), then make teams inside one slot.", ko: "시간대가 있으면 먼저 아이를 시간대에 넣고(+ 오전 / + 오후, 또는 🕘 버튼) 시간대 안에서 팀을 만들어요." },
       { t: "tip", en: "Parents see the team and teacher in an alert and on their child's card.", ko: "학부모는 알림과 아이 카드에서 팀과 선생님을 봐요." },
@@ -8825,10 +9186,10 @@ const buildManual = () => [
     id: "tripday",
     title: { en: "On the trip day", ko: "체험 날" },
     items: [
-      { t: "step", en: "Students tab, pick the program, switch on Live today.", ko: "학생관리 탭에서 프로그램을 고르고 오늘 진행을 켜요." },
-      { t: "step", en: "Tap Mark present on each child. This also switches Live today on.", ko: "아이마다 출석 체크를 눌러요. 오늘 진행도 같이 켜져요." },
+      { t: "step", en: "The program goes live by itself on the trip date (on both days of a 1 night 2 days trip). Live today is only a manual switch for exceptions.", ko: "체험 날짜가 되면 프로그램이 저절로 시작돼요(1박 2일은 이틀 모두). 오늘 진행 스위치는 예외일 때만 직접 써요." },
+      { t: "step", en: "Students tab: tap ✕ on a child who was absent. Then tap Confirm attendance: all the others are marked present at once, and each earns the trip points.", ko: "학생관리 탭에서 결석한 아이는 ✕를 눌러요. 그다음 출석 확정을 누르면 나머지 아이가 한꺼번에 출석 처리되고 체험 완료 포인트가 쌓여요." },
       { t: "step", en: "Open a card to tick missions, strengths and a note. Typing saves by itself.", ko: "카드를 열어 미션, 잘한 점, 메모를 적어요. 글은 저절로 저장돼요." },
-      { t: "step", en: "When the trip ends, switch Live today off.", ko: "체험이 끝나면 오늘 진행을 꺼요." },
+      { t: "step", en: "After the last day the program wraps up by itself. If attendance is not confirmed yet, you get a reminder.", ko: "마지막 날이 지나면 저절로 마무리돼요. 출석을 아직 확정하지 않았으면 알림이 떠요." },
       { t: "p", en: "Cancel: card, Cancel trip. Nothing is deleted and Restore brings it back. A child who attended cannot be cancelled: remove the present mark first.", ko: "취소: 카드에서 체험 취소를 눌러요. 지워지지 않고 되돌리기로 복구해요. 출석한 아이는 출석 체크를 먼저 해제해야 해요." },
     ],
   },
@@ -8837,7 +9198,7 @@ const buildManual = () => [
     title: { en: "After the trip", ko: "체험 후" },
     items: [
       { t: "step", en: "Programs tab, Trip materials: check the review quiz and the big question.", ko: "프로그램등록 탭의 체험 자료에서 복습 퀴즈와 큰 질문을 확인해요." },
-      { t: "step", en: "Turn on Open review (or the Review switch in the Students tab). Children who attended can do it.", ko: "복습 열기를 켜요(학생관리 탭의 복습 스위치도 돼요). 출석한 아이가 풀 수 있어요." },
+      { t: "step", en: "The review opens by itself the day after the trip, when there is a quiz. Children who attended can do it. Open review or the Review switch in the Students tab is a manual override (closing it keeps it closed).", ko: "복습은 퀴즈가 있으면 체험 다음 날 저절로 열려요. 출석한 아이가 풀 수 있어요. 복습 열기나 학생관리 탭의 복습 스위치는 직접 바꿀 때만 써요(직접 닫으면 닫힌 채로 있어요)." },
       { t: "step", en: "Write each child's feedback: card, Full feedback report. Parents read it in their app.", ko: "아이마다 피드백을 써요: 카드에서 전체 피드백 리포트. 학부모가 앱에서 읽어요." },
       { t: "p", en: "Parents of children who attended also get a short survey. Results are in Stats.", ko: "출석한 아이의 학부모는 짧은 설문도 받아요. 결과는 통계 탭에 있어요." },
     ],
@@ -8861,7 +9222,7 @@ const buildManual = () => [
     title: { en: "Reading the Overview tab", ko: "현황 탭 보는 법" },
     items: [
       { t: "term", label: { en: "Stage", ko: "단계" }, en: "Setting up → Prep → Notice sent → Trip live → Feedback due → Complete. It follows the records; nobody sets it.", ko: "준비 중 → 예습 중 → 안내 전달 완료 → 체험 진행 중 → 피드백 전 → 완료. 기록을 따라 저절로 정해져요." },
-      { t: "term", label: { en: "Reminders at the top", ko: "위쪽 알림" }, en: "They follow each program's stage: send the notice, choose slots and teams, check attendance, switch Live today off, open the review, write feedback.", ko: "프로그램 단계에 맞게 떠요: 안내 보내기, 시간대와 팀 정하기, 출석 체크, 오늘 진행 끄기, 복습 열기, 피드백 쓰기." },
+      { t: "term", label: { en: "Reminders at the top", ko: "위쪽 알림" }, en: "They follow each program's stage: set the trip date, send the notice, choose slots and teams, confirm attendance, make the review quiz, write feedback.", ko: "프로그램 단계에 맞게 떠요: 체험 날짜 정하기, 안내 보내기, 시간대와 팀 정하기, 출석 확정, 복습 퀴즈 만들기, 피드백 쓰기." },
       { t: "term", label: { en: "Next step", ko: "다음 할 일" }, en: "The orange line. Tap it to open the right screen.", ko: "주황색 줄이에요. 누르면 해당 화면이 열려요." },
       { t: "term", label: { en: "Recent activity", ko: "최근 활동" }, en: "What was done lately. The app does not record who did it.", ko: "최근에 한 일이에요. 누가 했는지는 기록하지 않아요." },
       { t: "tip", en: "Numbers refresh about every 45 seconds. Tap Refresh to check now.", ko: "숫자는 약 45초마다 새로고침돼요. 새로고침을 누르면 바로 확인해요." },
@@ -8892,6 +9253,7 @@ const buildManual = () => [
     id: "faq",
     title: { en: "Troubleshooting", ko: "문제가 생겼을 때" },
     items: [
+      { t: "term", label: { en: "A program does not switch by itself", ko: "프로그램이 저절로 안 바뀌어요" }, en: "It has no trip date. Programs made before the calendar only have handwritten text: tap the reminder Please set the trip date, or pick the date in the Programs tab.", ko: "체험 날짜가 없어서예요. 달력이 생기기 전에 만든 프로그램은 손으로 쓴 글만 있어요. '체험 날짜를 정해 주세요' 알림을 누르거나 프로그램등록 탭에서 날짜를 골라요." },
       { t: "term", label: { en: "A parent cannot see the program", ko: "학부모가 프로그램을 못 봐요" }, en: "Check that the family is approved, the child is in the program and the trip is not cancelled.", ko: "가족이 수락됐는지, 아이가 프로그램에 들어 있는지, 체험이 취소되지 않았는지 확인해요." },
       { t: "term", label: { en: "Changes do not show on a parent's phone", ko: "학부모 폰에 바뀐 게 안 보여요" }, en: "Wait a minute. The app updates itself.", ko: "1분쯤 기다려요. 앱이 저절로 새로고침돼요." },
       { t: "term", label: { en: "I lost what I typed", ko: "쓴 내용이 사라졌어요" }, en: "Reopen the program and tap Continue writing.", ko: "프로그램을 다시 열고 '이어서 쓰기'를 눌러요." },
@@ -9748,7 +10110,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -9757,6 +10119,8 @@ export default function CarrotExplorer() {
       title,
       date,
       dateReached: !!dateReached,
+      startDate: startDate || "",
+      endDate: endDate || "",
       location,
       locationKo: location,
       level,
@@ -9786,7 +10150,7 @@ export default function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -9805,6 +10169,8 @@ export default function CarrotExplorer() {
       dateReached: !!dateReached,
       coverPhoto: coverPhoto || null,
     };
+    if (startDate !== undefined) patch.startDate = startDate || "";
+    if (endDate !== undefined) patch.endDate = endDate || "";
     if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;
     let slotFixes = [];
     if (sessions !== undefined) {
@@ -9866,13 +10232,22 @@ export default function CarrotExplorer() {
     sync(api.updateProgram(programId, patch));
   };
 
+  const setProgramDates = (programId, { startDate, endDate }) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    PROGRAMS[idx] = { ...PROGRAMS[idx], startDate: startDate || "", endDate: endDate || "" };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, { startDate: startDate || "", endDate: endDate || "" }));
+  };
+
   const setProgramToday = (programId, value) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
     const at = new Date().toISOString();
-    PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value, todayAt: at };
+    const liveOffOn = value ? "" : todayKst(); // switched off today: the calendar leaves it off until tomorrow
+    PROGRAMS[idx] = { ...PROGRAMS[idx], dateReached: !!value, todayAt: at, liveOffOn };
     rerender((v) => v + 1);
-    sync(api.updateProgram(programId, { dateReached: !!value, todayAt: at }));
+    sync(api.updateProgram(programId, { dateReached: !!value, todayAt: at, liveOffOn }));
   };
 
   const checkServerSave = async () => {
@@ -9897,9 +10272,10 @@ export default function CarrotExplorer() {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
     const at = new Date().toISOString();
-    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value, reviewAt: at };
+    const reviewHold = !value; // closed by hand: it stays closed even after the trip day
+    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value, reviewAt: at, reviewHold };
     rerender((v) => v + 1);
-    sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at }));
+    sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at, reviewHold }));
   };
 
   const hasRecords = (a) => !!(a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended);
@@ -10018,6 +10394,7 @@ export default function CarrotExplorer() {
               onDecideJoin={decideJoin}
               onAddPointEntry={addPointEntry}
               onSavePointItems={savePointItems}
+              onSetProgramDates={setProgramDates}
               onRejectFamily={rejectFamily}
               canceledAdventures={canceledAdventures}
               onCancelEnrollment={cancelEnrollment}

@@ -718,7 +718,8 @@ const EN = {
 "지급하기": "Give",
 "{0}를 {1}P 지급할까요?": "Give {1}P for \"{0}\"?",
 "지급한 포인트는 가족 내역에 항목 이름으로 남아요.": "The points appear in the family's history under the item's name.",
-"설정 (포인트 항목, 샘 공용 번호)": "Settings (point items, shared teacher number)"
+"설정 (포인트 항목, 샘 공용 번호)": "Settings (point items, shared teacher number)",
+"외 {0}건 더 보기 ▾": "{0} more ▾"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -3461,18 +3462,21 @@ function parentNotices(children, adventures, suggestions) {
 
 function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish }) {
   const [openId, setOpenId] = useState(null);
-  const cards = PROGRAMS.map((p) => ({
-    program: p,
-    pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
-  })).filter((x) => x.pending.length > 0);
+  // only programs that have not run yet, and that none of the family's children has applied to
+  const cards = upcomingPrograms(adventures)
+    .map((p) => ({
+      program: p,
+      pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
+    }))
+    .filter((x) => x.pending.length > 0);
 
   return (
     <div id="browse-programs">
       <div className="mb-2 mt-1">
-        <p className="f-display font-semibold" style={{ color: C.green }}>체험 둘러보기</p>
-        <p className="f-body text-[14px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청·문의는 카카오톡으로 해 주세요.</p>
+        <p className="f-display font-semibold" style={{ color: C.green }}>예정 체험</p>
+        <p className="f-body text-[14px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청은 카카오톡으로 문의해 주세요.</p>
         {KAKAO_CHAT_URL && (
-          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#191919" }}>
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#3A1D1D" }}>
             카카오톡으로 문의하기
           </a>
         )}
@@ -3487,8 +3491,10 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
             const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 찜`;
             const liked = suggestions.some((sg) => sg.id === wishId(familyPin, p.id) && !sg.resolved);
             const open = openId === p.id;
+            const fits = pending.some((c) => (p.levels || [p.level]).includes(c.level));
+            const slots = sessionsOf(p);
             return (
-              <div key={p.id} className="p-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+              <div key={p.id} className="p-3 border-b last:border-b-0" style={{ borderColor: C.beige }} data-testid="upcoming-card">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                     <span className="self-stretch w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
@@ -3496,6 +3502,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                       <span className="block f-headline text-[23px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
                       {splitTitle(p.title)[1] && <span className="block f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</span>}
                       <span className="block f-body text-[14px] text-gray-400 mt-0.5">{p.date} · Level {levelLabel(p)}</span>
+                      {fits && <span className="inline-block f-body text-[13px] font-bold px-2.5 py-0.5 rounded-full mt-1" style={{ background: "#EAF7EF", color: "#1F7A44" }}>우리 아이 레벨에 맞아요</span>}
                     </span>
                   </button>
                   <button
@@ -3512,7 +3519,8 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                   <div className="mt-3">
                     {p.themeKo && <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
                     {(p.locationKo || p.location) && <p className="f-body text-[14px] text-gray-400 mt-1">📍 {p.locationKo || p.location}</p>}
-                    {p.info?.published && p.info.time && <p className="f-body text-[14px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
+                    {slots.length > 0 && <p className="f-body text-[14px] text-gray-400 mt-0.5">🕘 {slots.map((x) => (x.time ? `${x.label} ${x.time}` : x.label)).join(" · ")}</p>}
+                    {slots.length === 0 && p.info?.published && p.info.time && <p className="f-body text-[14px] text-gray-400 mt-0.5">⏰ {p.info.time}</p>}
                     {p.info?.published && feeText(p.info) && <p className="f-body text-[14px] text-gray-400 mt-0.5">💰 {feeText(p.info)}</p>}
                   </div>
                 )}
@@ -4106,6 +4114,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
   const [showPoints, setShowPoints] = useState(false);
+  const [moreNotices, setMoreNotices] = useState(false);
   const [infoId, setInfoId] = useState(null);
   const [infoSessionId, setInfoSessionId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
@@ -4177,7 +4186,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <div>
             <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>🔔 알림 {notices.length}</p>
             <div className="space-y-2">
-              {notices.map((n) => (
+              {notices.slice(0, moreNotices ? notices.length : 3).map((n) => (
                 <button
                   key={n.key}
                   onClick={() => (n.kind === "report" ? onViewReport(n.childId) : n.kind === "survey" ? onOpenSurvey(n.childId, n.programId) : n.kind === "points" ? setShowPoints(true) : n.kind === "info" || n.kind === "team" ? (setInfoId(n.programId), setInfoSessionId(n.sessionId || null)) : onStartAdventure(n.childId))}
@@ -4192,6 +4201,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                   <span className="f-body text-[14px] font-bold shrink-0" style={{ color: C.orange }}>{n.action} →</span>
                 </button>
               ))}
+              {notices.length > 3 && (
+                <button onClick={() => setMoreNotices((v) => !v)} aria-expanded={moreNotices} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
+                  {moreNotices ? "접기 ▴" : `알림 ${notices.length - 3}개 더 보기 ▾`}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -4199,7 +4213,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         {myChildren.length > 0 && !adventures.some((a) => myChildren.some((c) => c.id === a.studentId)) && (
           <div className="rounded-2xl p-4 text-center" style={{ background: "#FFF1E2" }}>
             <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
-            <p className="f-body text-[15px] text-gray-500 mt-1">아래 "체험 둘러보기"에서 마음에 드는 체험을 골라 보세요.</p>
+            <p className="f-body text-[15px] text-gray-500 mt-1">아래 "예정 체험"에서 마음에 드는 체험을 골라 보세요.</p>
           </div>
         )}
 
@@ -4254,11 +4268,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                             const pr = childProgress(prog, a);
                             return (
                               <div className="mt-2" data-testid="child-progress">
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1">
                                   {pr.steps.map((x) => {
                                     const on = pr.current && pr.current.key === x.key;
                                     return (
-                                      <span key={x.key} className="f-body text-[14px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: x.done ? "#EAF7EF" : on ? "#FFE9D2" : "#F3EEE3", color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#9C927D", border: on ? "1px solid #F2B77B" : "1px solid transparent" }}>
+                                      <span key={x.key} className="f-body text-[13px] font-bold px-2 py-1 rounded-full whitespace-nowrap" style={{ background: x.done ? "#EAF7EF" : on ? "#FFE9D2" : "#F3EEE3", color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#9C927D", border: on ? "1px solid #F2B77B" : "1px solid transparent" }}>
                                         {x.done ? "✓ " : on ? "● " : ""}{x.label}
                                       </span>
                                     );
@@ -6918,7 +6932,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-06-k"; // change with every delivery
+const APP_BUILD = "2026-10-06-l"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7139,6 +7153,9 @@ const infoForSession = (info, session) =>
     : info;
 /** The teams a child can be in: only those of their own slot (teams made before slots existed are open to every slot). */
 const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(program).filter((t) => !t.sessionId || t.sessionId === adv?.sessionId) : teamsOf(program));
+
+/** Programs that have not run yet: nobody attended and "Live today" is off. Parents and teachers both see these as "Upcoming". */
+const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage));
 
 /** Where a program stands, worked out from existing data (nothing extra is stored). */
 function programStatus(program, adventures) {
@@ -7933,6 +7950,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
 
 function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
+  const [moreReminders, setMoreReminders] = useState(false);
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -8086,12 +8104,12 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const TABS = [
     { key: "overview", label: tr("현황") },
     ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
-    { key: "register", label: tr("현장등록") },
-    { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
     { key: "programs", label: tr("프로그램등록") },
-    { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+    { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
     { key: "teachers", label: pendingJoinCount ? tr("선생님 {0}", [pendingJoinCount]) : tr("선생님") },
     { key: "points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트") },
+    { key: "register", label: tr("현장등록") },
+    { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
     { key: "stats", label: tr("통계") },
   ];
 
@@ -8123,7 +8141,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         <div className="px-5 mb-4">
           <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</p>
           <div className="space-y-2">
-            {teacherNotices.slice(0, 5).map((n) => (
+            {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 3).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
                 <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                   <span className="text-[27px]">{n.icon}</span>
@@ -8138,7 +8156,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 )}
               </div>
             ))}
-            {teacherNotices.length > 5 && <p className="f-body text-[14px] text-gray-400 text-center">{tr("외 {0}건", [teacherNotices.length - 5])}</p>}
+            {teacherNotices.length > 3 && (
+                <button onClick={() => setMoreReminders((v) => !v)} aria-expanded={moreReminders} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
+                  {moreReminders ? tr("접기 ▴") : tr("외 {0}건 더 보기 ▾", [teacherNotices.length - 3])}
+                </button>
+              )}
           </div>
         </div>
       )}
@@ -8730,6 +8752,7 @@ const buildManual = () => [
       { t: "step", en: "Trip day: switch on Live today and mark children present (Students tab).", ko: "체험 날: 오늘 진행을 켜고 출석을 체크해요 (학생관리 탭)." },
       { t: "step", en: "After the trip: open the review and write the feedback.", ko: "체험 후: 복습을 열고 피드백을 써요." },
       { t: "tip", en: "Overview shows the next step for every program.", ko: "현황 탭에 프로그램마다 다음 할 일이 나와요." },
+      { t: "p", en: "A program that has not run yet shows as Upcoming: to parents (as \"Upcoming experiences\", with a heart and the level fit) and to teachers (Upcoming tab, to sign up).", ko: "아직 하지 않은 프로그램은 학부모에게 '예정 체험'(찜하기, 레벨 맞춤 표시), 샘에게 Upcoming 탭(참여 신청)으로 보여요." },
     ],
   },
   {
@@ -8737,12 +8760,12 @@ const buildManual = () => [
     title: { en: "The tabs at a glance", ko: "탭 한눈에 보기" },
     items: [
       { t: "term", label: { en: "Overview", ko: "현황" }, en: "Every program: stage, what is done, next step.", ko: "프로그램별 단계, 진행 상황, 다음 할 일." },
-      { t: "term", label: { en: "Approve", ko: "수락" }, en: "New families waiting for approval.", ko: "승인을 기다리는 새 가족." },
-      { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Add a child who has no parent sign-up.", ko: "학부모 가입 없이 온 아이를 등록." },
-      { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Per program: Live today, review, teams, time slots and a card for each child.", ko: "프로그램별 오늘 진행, 복습, 팀, 시간대, 아이 카드." },
+      { t: "term", label: { en: "Approve", ko: "수락" }, en: "New families waiting for approval (shown only when there are some).", ko: "승인을 기다리는 새 가족(있을 때만 보여요)." },
       { t: "term", label: { en: "Programs", ko: "프로그램등록" }, en: "Create and edit programs, pre-trip info and materials.", ko: "프로그램, 체험 전 안내, 자료를 만들고 고쳐요." },
+      { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Per program: Live today, review, teams, time slots and a card for each child.", ko: "프로그램별 오늘 진행, 복습, 팀, 시간대, 아이 카드." },
       { t: "term", label: { en: "Teachers", ko: "선생님" }, en: "Each teacher's number, and their sign-ups for upcoming programs.", ko: "선생님별 번호와 예정 프로그램 참여 신청." },
-      { t: "term", label: { en: "Points", ko: "포인트" }, en: "Review links to approve, and each family's points.", ko: "후기 링크 승인, 가족별 포인트." },
+      { t: "term", label: { en: "Points", ko: "포인트" }, en: "Point items and amounts, review links to approve, and each family's points.", ko: "포인트 항목과 액수, 후기 링크 승인, 가족별 포인트." },
+      { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Add a child who has no parent sign-up.", ko: "학부모 가입 없이 온 아이를 등록." },
       { t: "term", label: { en: "Parent notes", ko: "학부모의견" }, en: "Suggestions and inquiries from parents.", ko: "학부모 의견과 문의." },
       { t: "term", label: { en: "Stats", ko: "통계" }, en: "Usage numbers, server check, backup.", ko: "이용 통계, 서버 저장 점검, 백업." },
     ],
@@ -9085,7 +9108,7 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
     return j && j.status !== "withdrawn" ? j : null;
   };
   // programs that have not run yet: nobody attended and "Live today" is off
-  const upcoming = PROGRAMS.filter((p) => ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage));
+  const upcoming = upcomingPrograms(adventures);
   const openSlots = (p) => (sessionsOf(p).length ? sessionsOf(p).map((x) => ({ id: x.id, label: x.label })) : [{ id: "", label: "" }]);
   const toSignUp = upcoming.reduce((n, p) => n + openSlots(p).filter((x) => !stateOf(p.id, x.id)).length, 0);
 

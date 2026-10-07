@@ -592,7 +592,7 @@ const EN = {
 "체험 날짜": "Trip date",
 "추천받은 친구 이름": "Referred friend's name",
 "친구 추천 적립": "Friend referral",
-"친구 추천 적립과 포인트 사용 처리는 여기서 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.": "Add friend-referral points and mark points as used here. Points cannot be paid out in cash; they only go toward the next program.",
+"가족별 내역을 보고 적립, 사용 처리, 수동 조정을 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.": "See each family's history and add, use or adjust points here. Points cannot be paid out in cash; they only go toward the next program.",
 "친구의 첫 결제 완료를 확인했어요": "I checked that the friend completed their first payment",
 "포인트": "Points",
 "포인트 {0}": "Points {0}",
@@ -647,7 +647,78 @@ const EN = {
 "내 팀 {0}": "My team {0}",
 "모든 아이 {0}": "All children {0}",
 "아직 내 팀에 배정된 아이가 없어서 모두 보여요.": "No children are assigned to your team yet, so everyone is shown.",
-"아직 신청한 아이가 없어요.": "No children have applied yet."
+"아직 신청한 아이가 없어요.": "No children have applied yet.",
+"{0} 선생님을 확정할까요?": "Confirm {0}?",
+"{0} 선생님의 신청을 거절할까요?": "Decline {0}'s sign-up?",
+"{0} 참여를 신청할까요?": "Sign up for {0}?",
+"같은 이름의 선생님이 이미 있어요.": "A teacher with that name already exists.",
+"거절 {0}": "Declined {0}",
+"계정이 없어서 공용 번호 {0}로 들어가요. 첫 계정을 만들면 공용 번호는 쓸 수 없어요.": "There are no accounts, so teachers log in with the shared number {0}. Once you make the first account, the shared number stops working.",
+"끄기": "Turn off",
+"다른 선생님이 쓰는 번호예요.": "Another teacher uses that number.",
+"번호": "Number",
+"번호 4자리": "4-digit number",
+"번호 만들기": "Make a number",
+"본사 확인 중": "Waiting for HQ",
+"본사에 남길 말": "Note for HQ",
+"본사에 남길 말 (선택)": "Note for HQ (optional)",
+"본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.": "Once HQ gives you your own number, you can sign up.",
+"선생님": "Teachers",
+"선생님 {0}": "Teachers {0}",
+"선생님 계정": "Teacher accounts",
+"선생님 번호": "Teacher number",
+"선생님 신청 결과": "Teacher sign-up decisions",
+"선생님 참여 신청": "Teacher sign-ups",
+"선생님 참여 신청 {0}건": "Teacher sign-ups to review: {0}",
+"선생님 추가": "Add a teacher",
+"선생님 화면에 '이번엔 어려워요'로 보이고, 다시 신청할 수 있어요.": "The teacher sees \"Not this time\" and can sign up again.",
+"선생님 화면에 '확정'으로 보여요.": "The teacher sees \"Confirmed\".",
+"선생님마다 이름과 번호가 따로예요. 번호는 로그인 화면의 Teacher에서 써요.": "Each teacher has their own name and number. They use the number under Teacher on the login screen.",
+"선생님이 예정 프로그램에 낸 신청이에요. 확정하면 그 선생님이 팀 선생님으로 먼저 보여요.": "Sign-ups from teachers for upcoming programs. Teachers you confirm are offered first when you make teams.",
+"신청 취소": "Withdraw",
+"신청하기": "Sign up",
+"신청할 수 있는 예정 프로그램이 없어요.": "No upcoming programs to sign up for.",
+"이름 (팀에 쓰는 이름 그대로)": "Name (exactly as used in teams)",
+"이름을 써 주세요.": "Please write the name.",
+"이번엔 어려워요": "Not this time",
+"참여 신청": "Sign up",
+"추가": "Add",
+"취소함": "Withdrawn",
+"켜기": "Turn on",
+"프로그램 {0}": "Programs {0}",
+"해당하는 신청이 없어요.": "No sign-ups here.",
+"확인하고 확정해 주세요": "Please check and confirm",
+"확정": "Confirm",
+"확정 {0}": "Confirmed {0}",
+"확정 ✓": "Confirmed ✓",
+"예정": "Upcoming",
+"예정 {0}": "Upcoming {0}",
+"포인트 항목과 액수": "Point items and amounts",
+"항목 이름과 액수를 직접 정해요. 학부모 화면의 적립 기준과 안내가 같이 바뀌어요. 바꾼 액수는 그다음부터 쌓이는 포인트에 적용되고, 이미 쌓인 포인트는 그대로예요.": "Write the item names and amounts yourself. The parents' list and texts change with them. A new amount counts from then on; points already earned stay as they are.",
+"직접 적립": "Added by hand",
+"자동": "Automatic",
+"항목과 액수 수정": "Edit items and amounts",
+"직접 적립 항목": "Item added by hand",
+"친구 추천 (직접 적립)": "Friend referral (added by hand)",
+"자동 적립 항목": "Automatic item",
+"항목 삭제": "Delete item",
+"항목 이름": "Item name",
+"액수 (P)": "Amount (P)",
+"액수": "Amount",
+"내역에 보이는 이름": "Name shown in the history",
+"짧은 설명 (선택)": "Short note (optional)",
+"짧은 설명": "Short note",
+"+ 항목 추가": "+ Add item",
+"액수를 0으로 하면 그 항목은 꺼져요. 체험 완료, 설문, 외부 후기는 앱이 자동으로 세고, 친구 추천과 직접 만든 항목은 가족 화면에서 직접 적립해요.": "An amount of 0 turns the item off. Trip completed, survey and external review are counted by the app; friend referral and your own items are added by hand on the family.",
+"항목 이름을 모두 써 주세요.": "Please write every item name.",
+"액수는 0 이상 1,000,000 이하 숫자로 써 주세요.": "Write each amount as a number from 0 to 1,000,000.",
+"항목 지급": "Give an item",
+"메모 (선택)": "Memo (optional)",
+"지급 메모": "Giving memo",
+"지급하기": "Give",
+"{0}를 {1}P 지급할까요?": "Give {1}P for \"{0}\"?",
+"지급한 포인트는 가족 내역에 항목 이름으로 남아요.": "The points appear in the family's history under the item's name.",
+"설정 (포인트 항목, 샘 공용 번호)": "Settings (point items, shared teacher number)"
 };
 const I18N_MISSING = new Set();
 /** tr("한국어 {0}", [value]): Korean text (or its English version while a teacher uses English). */
@@ -3003,7 +3074,18 @@ const isVisit = (sg) => sg.type === VISIT_TYPE;
 /*  Everything stored is "create only" rows (like wishes and visits):    */
 /*  a review link, its decision, "seen by the parent", staff entries.    */
 /* ================================================================== */
+/** HQ's list of point items. The first four are built in (trip, survey and review are counted by the app, referral is added by staff);
+ *  HQ can change their names and amounts and add items of its own that staff give by hand. */
+const BUILT_IN_POINT_IDS = ["trip", "survey", "review", "referral"];
+const DEFAULT_POINT_ITEMS = [
+  { id: "trip", name: "체험 프로그램 완료", title: "Experience Completed", amount: 1000, note: "" },
+  { id: "survey", name: "부모 설문 완료", title: "Parent Survey", amount: 100, note: "" },
+  { id: "review", name: "외부 후기 작성", title: "External Review", amount: 300, note: "후기 링크 확인 후 적립" },
+  { id: "referral", name: "친구 추천", title: "Friend Referral", amount: 2000, note: "추천받은 친구가 첫 결제를 완료하면 적립" },
+];
+/** The amounts in force right now. They are refreshed from HQ's saved items every time a screen is drawn, so every text follows. */
 const POINT_RULES = { trip: 1000, survey: 100, review: 300, referral: 2000 };
+let POINT_ITEMS = DEFAULT_POINT_ITEMS;
 const REVIEW_TYPE = "외부후기";
 const REVIEW_RESULT_TYPE = "외부후기결과";
 const REVIEW_SEEN_TYPE = "외부후기확인";
@@ -3066,6 +3148,41 @@ function reviewRecords(suggestions) {
 const latestReview = (records, pin, programId) => records.find((r) => r.familyPin === pin && r.programId === programId) || null;
 const reviewUrlTaken = (records, norm) => records.some((r) => r.norm === norm && r.status !== "rejected");
 
+const clampAmount = (v, fallback) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 && n <= 1000000 ? n : fallback;
+};
+/** Keeps the four built-in items (with HQ's changes) and the items HQ added. */
+function normalizePointItems(items) {
+  const out = DEFAULT_POINT_ITEMS.map((d) => {
+    const f = (items || []).find((i) => i.id === d.id);
+    return f ? { ...d, name: String(f.name || d.name), title: String(f.title || d.title), note: f.note === undefined ? d.note : String(f.note || ""), amount: clampAmount(f.amount, d.amount) } : d;
+  });
+  (items || []).filter((i) => i && i.id && !BUILT_IN_POINT_IDS.includes(i.id) && String(i.name || "").trim()).forEach((i) => out.push({ id: String(i.id), name: String(i.name).trim(), title: String(i.title || i.name).trim(), note: String(i.note || ""), amount: clampAmount(i.amount, 0), custom: true }));
+  return out;
+}
+/** Every saved version of the items, oldest first (the first one is the built-in default). */
+function pointVersions(suggestions) {
+  const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "pointItems" && Array.isArray(r.items)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  return [{ at: "", items: DEFAULT_POINT_ITEMS }, ...rows.map((r) => ({ at: r.at || "", items: normalizePointItems(r.items) }))];
+}
+/** The items that were in force at a moment: points already earned keep the amounts of their day. */
+const pointItemsAt = (versions, at) => {
+  let cur = versions[0];
+  versions.forEach((v) => { if (v.at <= (at || "")) cur = v; });
+  return cur.items;
+};
+const currentPointItems = (suggestions) => {
+  const v = pointVersions(suggestions);
+  return v[v.length - 1].items;
+};
+function applyPointItems(items) {
+  POINT_ITEMS = items;
+  BUILT_IN_POINT_IDS.forEach((id) => {
+    const it = items.find((i) => i.id === id);
+    if (it) POINT_RULES[id] = it.amount;
+  });
+}
 /** One line in a family's point history. */
 function pointEntries(pin, students, adventures, suggestions) {
   const kids = students.filter((st) => st.familyPin === pin);
@@ -3075,21 +3192,34 @@ function pointEntries(pin, students, adventures, suggestions) {
     const p = getProgram(id);
     return p ? splitTitle(p.title)[0] || p.title : "";
   };
+  const versions = pointVersions(suggestions);
+  const itemAt = (id, at) => pointItemsAt(versions, at).find((i) => i.id === id) || DEFAULT_POINT_ITEMS.find((i) => i.id === id);
   const out = [];
   adventures.filter((a) => ids.has(a.studentId) && !a.canceled).forEach((a) => {
     const detail = `${progTitle(a.programId)} · ${nameOf(a.studentId)}`;
-    if (a.attended) out.push({ key: `trip:${a.studentId}:${a.programId}`, kind: "trip", delta: POINT_RULES.trip, at: a.attendedAt || a.enrolledAt || "", title: "Experience Completed", detail });
-    if (a.parentSurvey) out.push({ key: `survey:${a.studentId}:${a.programId}`, kind: "survey", delta: POINT_RULES.survey, at: a.parentSurvey.at || "", title: "Parent Survey", detail });
+    if (a.attended) {
+      const at = a.attendedAt || a.enrolledAt || "";
+      const it = itemAt("trip", at);
+      if (it.amount > 0) out.push({ key: `trip:${a.studentId}:${a.programId}`, kind: "trip", delta: it.amount, at, title: it.title, detail });
+    }
+    if (a.parentSurvey) {
+      const at = a.parentSurvey.at || "";
+      const it = itemAt("survey", at);
+      if (it.amount > 0) out.push({ key: `survey:${a.studentId}:${a.programId}`, kind: "survey", delta: it.amount, at, title: it.title, detail });
+    }
   });
   reviewRecords(suggestions).filter((r) => r.familyPin === pin && r.status === "approved").forEach((r) => {
-    out.push({ key: `review:${r.id}`, kind: "review", delta: POINT_RULES.review, at: r.decidedAt || r.submittedAt || "", title: "External Review", detail: progTitle(r.programId) });
+    const at = r.decidedAt || r.submittedAt || "";
+    const it = itemAt("review", at);
+    if (it.amount > 0) out.push({ key: `review:${r.id}`, kind: "review", delta: it.amount, at, title: it.title, detail: progTitle(r.programId) });
   });
   const rows = suggestions.filter((sg) => sg.type === POINT_TYPE && sg.familyPin === pin);
   const cancelled = new Set(rows.map(readRow).filter((r) => r.kind === "void").map((r) => r.target));
   rows.forEach((sg) => {
     const r = readRow(sg);
     if (r.kind === "void") return;
-    out.push({ key: `pt:${sg.id}`, rowId: sg.id, manual: true, voided: cancelled.has(sg.id), kind: r.kind, delta: Number(r.delta) || 0, at: r.at || "", title: r.kind === "referral" ? "Friend Referral" : r.kind === "redeem" ? "Redeemed" : "Adjustment", detail: r.kind === "referral" ? r.friend || "" : r.note || "" });
+    const title = r.kind === "item" ? r.title || r.name || "Points" : r.kind === "referral" ? r.title || itemAt("referral", r.at || "").title : r.kind === "redeem" ? "Redeemed" : "Adjustment";
+    out.push({ key: `pt:${sg.id}`, rowId: sg.id, manual: true, voided: cancelled.has(sg.id), kind: r.kind, delta: Number(r.delta) || 0, at: r.at || "", title, detail: r.kind === "referral" ? r.friend || "" : r.note || "" });
   });
   return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
@@ -3097,7 +3227,66 @@ function pointEntries(pin, students, adventures, suggestions) {
 const pointsBalance = (entries) => entries.reduce((sum, e) => sum + (e.voided ? 0 : e.delta), 0);
 /** The points a child's own trips have earned (shown on the teacher's card). */
 const carrotPoints = (adventures, studentId) => adventures.filter((a) => a.studentId === studentId && a.attended && !a.canceled).length * POINT_RULES.trip;
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE; // not shown as parent opinions
+/* ================================================================== */
+/*  TEACHER ACCOUNTS AND SIGN-UPS                                       */
+/*  Every foreign teacher has a name and a number of their own (set by   */
+/*  HQ). They can sign up for programs that have not run yet; HQ         */
+/*  approves. All of it is stored as create-only rows (the latest wins). */
+/* ================================================================== */
+const TEACHER_TYPE = "샘";
+const TEACHER_JOIN_TYPE = "샘신청";
+const TEACHER_JOIN_RESULT_TYPE = "샘신청결과";
+/** The accounts, worked out from the rows: "add" (name + number), "pin" (new number), "active" (on/off). */
+function teacherAccounts(suggestions) {
+  const rows = (suggestions || []).filter((sg) => sg.type === TEACHER_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const map = new Map();
+  rows.forEach((r) => {
+    const cur = map.get(r.id) || { id: r.id, name: "", pin: "", active: true };
+    if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; }
+    else if (r.kind === "pin") cur.pin = r.pin;
+    else if (r.kind === "active") cur.active = !!r.active;
+    map.set(r.id, cur);
+  });
+  return [...map.values()].filter((t) => t.name && /^\d{4}$/.test(t.pin)).sort((a, b) => a.name.localeCompare(b.name));
+}
+const teacherByPin = (accounts, pin) => accounts.find((t) => t.active && t.pin === pin) || null;
+const joinKey = (teacherId, programId, slotId) => `${teacherId}|${programId}|${slotId || ""}`;
+/** Every sign-up with where it stands: pending, approved, declined or withdrawn (the latest event wins). */
+function teacherJoins(suggestions) {
+  const events = [];
+  (suggestions || []).forEach((sg) => {
+    if (sg.type === TEACHER_JOIN_TYPE) {
+      const r = readRow(sg);
+      if (r.teacherId && r.programId) events.push({ key: joinKey(r.teacherId, r.programId, r.slotId), at: r.at || "", ev: r.kind === "withdraw" ? "withdraw" : "request", row: r });
+    } else if (sg.type === TEACHER_JOIN_RESULT_TYPE) {
+      const r = readRow(sg);
+      if (r.key) events.push({ key: r.key, at: r.at || "", ev: r.status, row: r });
+    }
+  });
+  events.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const map = new Map();
+  events.forEach((e) => {
+    const cur = map.get(e.key);
+    if (e.ev === "request") map.set(e.key, { key: e.key, teacherId: e.row.teacherId, programId: e.row.programId, slotId: e.row.slotId || "", note: e.row.note || "", requestedAt: e.at, status: "pending", decidedAt: null });
+    else if (!cur) return;
+    else if (e.ev === "withdraw") map.set(e.key, { ...cur, status: "withdrawn" });
+    else if ((e.ev === "approved" || e.ev === "declined") && cur.status !== "withdrawn") map.set(e.key, { ...cur, status: e.ev, decidedAt: e.at });
+  });
+  return [...map.values()].sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt)));
+}
+/** Names of the teachers HQ approved for a program (for the team form). */
+const confirmedTeacherNames = (joins, accounts, programId) => [...new Set(joins.filter((j) => j.programId === programId && j.status === "approved").map((j) => (accounts.find((t) => t.id === j.teacherId) || {}).name).filter(Boolean))];
+/** A free 4-digit number (not the HQ number, not used by another teacher, nothing too easy to guess). */
+function freeTeacherPin(accounts, hqPin) {
+  const taken = new Set([hqPin, ...accounts.filter((t) => t.active).map((t) => t.pin)]);
+  for (let i = 0; i < 500; i++) {
+    const pin = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+    if (taken.has(pin) || /^(\d)\1{3}$/.test(pin) || ["1234", "4321", "0123", "2580"].includes(pin)) continue;
+    return pin;
+  }
+  return "";
+}
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE; // not shown as parent opinions
 /** The teachers' login number: the latest one HQ saved, else the default. */
 const currentGuidePin = (suggestions) => {
   const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "guidePin" && /^\d{4}$/.test(r.value)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -3250,8 +3439,9 @@ function parentNotices(children, adventures, suggestions) {
         }
       });
   });
-  // a trip the family finished and has not yet sent a review link for: one reminder per program
-  if (suggestions) {
+  // a trip the family finished and has not yet sent a review link for: one reminder per program (only while the review item has points)
+  if (suggestions) applyPointItems(currentPointItems(suggestions));
+  if (suggestions && POINT_RULES.review > 0) {
     const records = reviewRecords(suggestions);
     const done = new Set();
     children.forEach((child) => {
@@ -3825,6 +4015,8 @@ function ReviewCard({ program, record, onSubmit }) {
 
 /** The parents' points page: balance, how points are earned, external review, history. */
 function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose }) {
+  applyPointItems(currentPointItems(suggestions));
+  const reviewOn = POINT_RULES.review > 0;
   const entries = pointEntries(familyPin, students, adventures, suggestions);
   const balance = pointsBalance(entries);
   const records = reviewRecords(suggestions);
@@ -3855,12 +4047,11 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
 
         <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 적립 기준</p>
         <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
-          {rule("체험 프로그램 완료", POINT_RULES.trip)}
-          {rule("부모 설문 완료", POINT_RULES.survey)}
-          {rule("외부 후기 작성", POINT_RULES.review, "후기 링크 확인 후 적립")}
-          {rule("친구 추천", POINT_RULES.referral, "추천받은 친구가 첫 결제를 완료하면 적립")}
+          {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
         </div>
 
+        {reviewOn && (
+          <>
         <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>외부 후기 작성하고 {POINT_RULES.review}P 받기 🥕</p>
         {attendedPrograms.length === 0 ? (
           <p className="f-body text-[15px] text-gray-500 mb-5">체험을 완료하면 후기 링크를 남기고 {POINT_RULES.review}P를 받을 수 있어요.</p>
@@ -3871,10 +4062,12 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
             ))}
           </div>
         )}
+          </>
+        )}
 
         <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 내역</p>
         {entries.length === 0 ? (
-          <p className="f-body text-[15px] text-gray-500">아직 적립 내역이 없어요. 체험을 완료하면 {POINT_RULES.trip.toLocaleString("en-US")}P가 쌓여요.</p>
+          <p className="f-body text-[15px] text-gray-500">{POINT_RULES.trip > 0 ? `아직 적립 내역이 없어요. 체험을 완료하면 ${POINT_RULES.trip.toLocaleString("en-US")}P가 쌓여요.` : "아직 적립 내역이 없어요."}</p>
         ) : (
           <div className="bg-white rounded-2xl px-4" style={{ border: `1px solid ${C.beige}` }} data-testid="points-history">
             {entries.map((e) => (
@@ -3921,6 +4114,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
     setShowGuide(false);
   };
   const myChildren = students.filter((s) => s.familyPin === familyPin);
+  applyPointItems(currentPointItems(suggestions));
   const notices = parentNotices(myChildren, adventures, suggestions);
   const myPoints = pointEntries(familyPin, students, adventures, suggestions);
   const myBalance = pointsBalance(myPoints);
@@ -6160,7 +6354,7 @@ function compareWithServer(local, fresh) {
     rows.push({ key: `student-${key}`, label, total: targets.length, saved });
   });
   const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
-  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")], [REVIEW_TYPE, tr("외부 후기 제출")], [REVIEW_RESULT_TYPE, tr("외부 후기 결과")], [POINT_TYPE, tr("포인트 내역")]].forEach(([type, label]) => {
+  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")], [REVIEW_TYPE, tr("외부 후기 제출")], [REVIEW_RESULT_TYPE, tr("외부 후기 결과")], [POINT_TYPE, tr("포인트 내역")], [TEACHER_TYPE, tr("선생님 계정")], [TEACHER_JOIN_TYPE, tr("선생님 참여 신청")], [TEACHER_JOIN_RESULT_TYPE, tr("선생님 신청 결과")], [SETTING_TYPE, tr("설정 (포인트 항목, 샘 공용 번호)")]].forEach(([type, label]) => {
     const targets = (local.suggestions || []).filter((x) => x.type === type);
     const saved = targets.filter((x) => freshSug.has(x.id)).length;
     rows.push({ key: `sug-${type}`, label, total: targets.length, saved });
@@ -6724,7 +6918,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-06-i"; // change with every delivery
+const APP_BUILD = "2026-10-06-k"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7422,7 +7616,8 @@ function TeamPanel({ program, roster, session, teacherSuggestions, onSaveTeams: 
 }
 
 /** Staff: external review links to approve or reject, and each family's points (referral, use). */
-function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEntry }) {
+function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEntry, onSaveItems }) {
+  applyPointItems(currentPointItems(suggestions));
   const records = reviewRecords(suggestions);
   const [filter, setFilter] = useState("pending");
   const [confirm, setConfirm] = useState(null); // { id, status }
@@ -7438,6 +7633,11 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   const [adjReason, setAdjReason] = useState("");
   const [confirmAdj, setConfirmAdj] = useState(null);
   const [confirmVoid, setConfirmVoid] = useState(null);
+  const [draft, setDraft] = useState(null); // the point items being edited
+  const [itemError, setItemError] = useState("");
+  const [awardId, setAwardId] = useState("");
+  const [awardNote, setAwardNote] = useState("");
+  const [confirmAward, setConfirmAward] = useState(null);
   const count = (st) => records.filter((r) => r.status === st).length;
   const shown = records.filter((r) => filter === "all" || r.status === filter);
   const look = {
@@ -7501,8 +7701,61 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
       </div>
 
       <div>
+        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("포인트 항목과 액수")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("항목 이름과 액수를 직접 정해요. 학부모 화면의 적립 기준과 안내가 같이 바뀌어요. 바꾼 액수는 그다음부터 쌓이는 포인트에 적용되고, 이미 쌓인 포인트는 그대로예요.")}</p>
+        {!draft ? (
+          <div className="bg-white rounded-2xl p-4">
+            <div className="space-y-1.5 mb-3" data-testid="point-items">
+              {POINT_ITEMS.map((i) => (
+                <div key={i.id} className="flex items-center justify-between gap-3">
+                  <p data-keep="1" className="f-body text-[15px] font-bold min-w-0" style={{ color: i.amount > 0 ? C.charcoal : "#B9AE99" }}>{i.name} <span className="font-normal text-[13px] text-gray-400">· {i.custom || i.id === "referral" ? tr("직접 적립") : tr("자동")}</span></p>
+                  <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: i.amount > 0 ? C.green : "#B9AE99" }}>{i.amount > 0 ? `+${i.amount.toLocaleString("en-US")}P` : tr("꺼짐")}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { setDraft(POINT_ITEMS.map((i) => ({ ...i, amount: String(i.amount) }))); setItemError(""); }} className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.beige, color: C.green }}>{tr("항목과 액수 수정")}</button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-4 space-y-3" data-testid="point-items-editor">
+            {draft.map((i, k) => (
+              <div key={i.id} className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{i.custom ? tr("직접 적립 항목") : i.id === "referral" ? tr("친구 추천 (직접 적립)") : tr("자동 적립 항목")}</p>
+                  {i.custom && <button onClick={() => setDraft((d) => d.filter((x) => x.id !== i.id))} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#B03A2E" }}>{tr("항목 삭제")}</button>}
+                </div>
+                <input value={i.name} onChange={(e) => { const v = e.target.value; setDraft((d) => d.map((x, j) => (j === k ? { ...x, name: v } : x))); setItemError(""); }} placeholder={tr("항목 이름")} aria-label={`${tr("항목 이름")} ${k + 1}`} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                <div className="flex gap-2 mt-2">
+                  <input value={i.amount} onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, ""); setDraft((d) => d.map((x, j) => (j === k ? { ...x, amount: v } : x))); setItemError(""); }} placeholder={tr("액수 (P)")} aria-label={`${tr("액수")} ${k + 1}`} inputMode="numeric" className={`${field} text-right`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                  <input value={i.title} onChange={(e) => { const v = e.target.value; setDraft((d) => d.map((x, j) => (j === k ? { ...x, title: v } : x))); }} placeholder={tr("내역에 보이는 이름")} aria-label={`${tr("내역에 보이는 이름")} ${k + 1}`} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                </div>
+                <input value={i.note} onChange={(e) => { const v = e.target.value; setDraft((d) => d.map((x, j) => (j === k ? { ...x, note: v } : x))); }} placeholder={tr("짧은 설명 (선택)")} aria-label={`${tr("짧은 설명")} ${k + 1}`} className={`${field} mt-2`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+              </div>
+            ))}
+            <button onClick={() => setDraft((d) => [...d, { id: `c${Date.now().toString(36)}${d.length}`, name: "", title: "", amount: "", note: "", custom: true }])} className="focus-ring tap f-body text-[15px] font-bold rounded-xl px-4 py-2.5" style={{ background: C.beige, color: C.green }}>{tr("+ 항목 추가")}</button>
+            <p className="f-body text-[13px] text-gray-400">{tr("액수를 0으로 하면 그 항목은 꺼져요. 체험 완료, 설문, 외부 후기는 앱이 자동으로 세고, 친구 추천과 직접 만든 항목은 가족 화면에서 직접 적립해요.")}</p>
+            {itemError && <p role="alert" className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{itemError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setDraft(null); setItemError(""); }} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
+              <button
+                onClick={() => {
+                  if (draft.some((i) => !i.name.trim())) return setItemError(tr("항목 이름을 모두 써 주세요."));
+                  if (draft.some((i) => i.amount === "" || Number(i.amount) > 1000000)) return setItemError(tr("액수는 0 이상 1,000,000 이하 숫자로 써 주세요."));
+                  onSaveItems(draft.map((i) => ({ id: i.id, name: i.name.trim(), title: (i.title || "").trim() || (i.custom ? i.name.trim() : DEFAULT_POINT_ITEMS.find((d) => d.id === i.id).title), note: (i.note || "").trim(), amount: Number(i.amount), ...(i.custom ? { custom: true } : {}) })));
+                  setDraft(null); setItemError("");
+                }}
+                className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white"
+                style={{ background: C.green }}
+              >
+                {tr("저장")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div>
         <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("가족별 포인트")}</p>
-        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("친구 추천 적립과 포인트 사용 처리는 여기서 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("가족별 내역을 보고 적립, 사용 처리, 수동 조정을 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
         <div className="space-y-2">
           {families.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 가족이 없어요.")}</p></div>}
           {families.map((f) => (
@@ -7534,6 +7787,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
                     ))}
                   </div>
 
+                  {POINT_RULES.referral > 0 && (
                   <div className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
                     <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("친구 추천 적립")} · +{POINT_RULES.referral.toLocaleString("en-US")}P</p>
                     <input value={friend} onChange={(e) => { setFriend(e.target.value); setError(""); }} placeholder={tr("추천받은 친구 이름")} aria-label={tr("추천받은 친구 이름")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
@@ -7554,7 +7808,19 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
                       {tr("{0}P 적립", [POINT_RULES.referral.toLocaleString("en-US")])}
                     </button>
                   </div>
-
+                  )}
+                  {POINT_ITEMS.some((i) => i.custom && i.amount > 0) && (
+                    <div className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
+                      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("항목 지급")}</p>
+                      <div className="flex flex-wrap gap-2 mb-2" role="group" aria-label="Items">
+                        {POINT_ITEMS.filter((i) => i.custom && i.amount > 0).map((i) => (
+                          <button key={i.id} onClick={() => setAwardId(awardId === i.id ? "" : i.id)} aria-pressed={awardId === i.id} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: awardId === i.id ? C.green : "white", color: awardId === i.id ? "white" : C.charcoal, border: `1px solid ${awardId === i.id ? C.green : C.beige}` }}>{i.name} +{i.amount.toLocaleString("en-US")}P</button>
+                        ))}
+                      </div>
+                      <input value={awardNote} onChange={(e) => setAwardNote(e.target.value)} placeholder={tr("메모 (선택)")} aria-label={tr("지급 메모")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                      <button onClick={() => { const it = POINT_ITEMS.find((i) => i.id === awardId); if (it) setConfirmAward({ pin: f.pin, item: it, note: awardNote }); }} disabled={!awardId} className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-2 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("지급하기")}</button>
+                    </div>
+                  )}
                   <div className="rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }}>
                     <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("포인트 사용 처리")}</p>
                     <input value={amount} onChange={(e) => { setAmount(e.target.value.replace(/[^\d]/g, "")); setError(""); }} placeholder={tr("사용할 포인트")} aria-label={tr("사용할 포인트")} inputMode="numeric" className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
@@ -7617,6 +7883,17 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
           {confirm.status === "approved" ? tr("링크가 열리는 공개 게시물인지, 당근나라 후기가 맞는지 확인해 주세요. 승인하면 바로 적립돼요.") : tr("부모님에게는 '확인 불가'로 보이고, 다른 링크를 다시 제출할 수 있어요.")}
         </ConfirmDialog>
       )}
+      {confirmAward && (
+        <ConfirmDialog
+          title={tr("{0}를 {1}P 지급할까요?", [confirmAward.item.name, confirmAward.item.amount.toLocaleString("en-US")])}
+          actions={[
+            { label: tr("지급하기"), tone: "primary", onClick: () => { onAddEntry({ familyPin: confirmAward.pin, kind: "item", delta: confirmAward.item.amount, title: confirmAward.item.title, name: confirmAward.item.name, itemId: confirmAward.item.id, note: confirmAward.note }); setConfirmAward(null); setAwardId(""); setAwardNote(""); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirmAward(null) },
+          ]}
+        >
+          {tr("지급한 포인트는 가족 내역에 항목 이름으로 남아요.")}
+        </ConfirmDialog>
+      )}
       {confirmAdj && (
         <ConfirmDialog
           title={tr("{0}를 조정할까요?", [fmtDelta(confirmAdj.n)])}
@@ -7654,7 +7931,8 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, guidePin, onSetGuidePin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+  applyPointItems(currentPointItems(suggestions));
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
   const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
@@ -7793,6 +8071,10 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => { setProgramId(r.program.id); setTab("manage"); },
     });
   });
+  const pendingJoinCount = joins.filter((j) => j.status === "pending").length;
+  if (pendingJoinCount) {
+    teacherNotices.push({ key: "teacher-joins", icon: "🧑‍🏫", title: tr("선생님 참여 신청 {0}건", [pendingJoinCount]), text: tr("확인하고 확정해 주세요"), onClick: () => setTab("teachers") });
+  }
   const pendingReviews = reviewRecords(suggestions).filter((r) => r.status === "pending");
   if (pendingReviews.length) {
     teacherNotices.push({ key: "ext-reviews", icon: "🥕", title: tr("외부 후기 확인 {0}건", [pendingReviews.length]), text: tr("링크를 확인하고 승인하면 {0}P가 적립돼요", [POINT_RULES.review]), onClick: () => setTab("points") });
@@ -7808,6 +8090,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
     { key: "programs", label: tr("프로그램등록") },
     { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+    { key: "teachers", label: pendingJoinCount ? tr("선생님 {0}", [pendingJoinCount]) : tr("선생님") },
     { key: "points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트") },
     { key: "stats", label: tr("통계") },
   ];
@@ -7815,7 +8098,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   return (
     <div className="pb-6">
       <ScreenHeader
-        title="Teacher View"
+        title="HQ View"
         right={onOpenGuide && <button onClick={onOpenGuide} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>}
       />
       {pendingNav && (() => {
@@ -7986,7 +8269,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
               program={program}
               roster={rosterShown}
               session={slots.length ? slots.find((x) => x.id === slotNow) : null}
-              teacherSuggestions={teacherNamesIn(PROGRAMS)}
+              teacherSuggestions={[...new Set([...confirmedTeacherNames(joins, teachers, programId), ...teachers.filter((t) => t.active).map((t) => t.name), ...teacherNamesIn(PROGRAMS)])]}
               onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
               onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
             />
@@ -8109,12 +8392,13 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         </div>
       )}
 
-      {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} />}
+      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} />}
+
+      {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
 
       {tab === "stats" && (
         <>
           <StatsPanel adventures={adventures} students={students} suggestions={suggestions} />
-          <GuideAccessCard pin={guidePin || GUIDE_PIN_DEFAULT} hqPin={TEACHER_PIN} onSave={onSetGuidePin || (() => {})} />
           <DataTools onCheck={onCheckSave || (async () => ({ rows: [], missing: [], checked: 0 }))} onExport={onExportData || (() => {})} />
         </>
       )}
@@ -8211,7 +8495,7 @@ function PinPad({ length = 4, validate, onSuccess }) {
 
 /** Links opened from a KakaoTalk chat run inside KakaoTalk's own browser, which is limited. */
 const isKakaoBrowser = () => typeof navigator !== "undefined" && /KAKAOTALK/i.test(navigator.userAgent || "");
-function LoginScreen({ students, guidePin = GUIDE_PIN_DEFAULT, onSelfRegister, onLogin, onLookupPin, onLookupPhone }) {
+function LoginScreen({ students, teachers = [], legacyPin = GUIDE_PIN_DEFAULT, onSelfRegister, onLogin, onLookupPin, onLookupPhone }) {
   const inKakao = isKakaoBrowser();
   const [hideKakaoTip, setHideKakaoTip] = useState(false);
   const openInBrowser = () => {
@@ -8221,7 +8505,7 @@ function LoginScreen({ students, guidePin = GUIDE_PIN_DEFAULT, onSelfRegister, o
   const [role, setRole] = useState(null);
 
   const [pinLocked, setPinLocked] = useState(false);
-  const baseValidate = role === "teacher" ? (pin) => pin === TEACHER_PIN : role === "guide" ? (pin) => pin === guidePin : (pin) => students.some((s) => s.familyPin === pin);
+  const baseValidate = role === "teacher" ? (pin) => pin === TEACHER_PIN : role === "guide" ? (pin) => !!teacherByPin(teachers, pin) || (!teachers.some((t) => t.active) && pin === legacyPin) : (pin) => students.some((s) => s.familyPin === pin);
   // a few wrong numbers in a row lock the number pad for a while (on this phone)
   const validate = (pin) => {
     if (lockedForMs(LOGIN_LOCK) > 0) {
@@ -8298,7 +8582,7 @@ function LoginScreen({ students, guidePin = GUIDE_PIN_DEFAULT, onSelfRegister, o
             <p className="f-body text-[17px] text-gray-500 text-center mb-8">
               {role === "parent" ? "로그인 번호 4자리" : role === "guide" ? "Teacher access" : "HQ access"}
             </p>
-            <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null })} />
+            <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null, pin: role === "guide" ? pin : undefined })} />
             {pinLocked && <p role="alert" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
             {role === "parent" && (
               <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }}>
@@ -8435,7 +8719,7 @@ function SplashScreen({ onDone }) {
 /* ================================================================== */
 /*  TEACHER MANUAL (English / 한국어). Written in both languages, not through tr(). */
 /* ================================================================== */
-const MANUAL = [
+const buildManual = () => [
   {
     id: "start",
     title: { en: "Quick start: the 5 steps of every trip", ko: "빠른 시작: 체험마다 하는 5단계" },
@@ -8457,9 +8741,10 @@ const MANUAL = [
       { t: "term", label: { en: "Register", ko: "현장등록" }, en: "Add a child who has no parent sign-up.", ko: "학부모 가입 없이 온 아이를 등록." },
       { t: "term", label: { en: "Students", ko: "학생관리" }, en: "Per program: Live today, review, teams, time slots and a card for each child.", ko: "프로그램별 오늘 진행, 복습, 팀, 시간대, 아이 카드." },
       { t: "term", label: { en: "Programs", ko: "프로그램등록" }, en: "Create and edit programs, pre-trip info and materials.", ko: "프로그램, 체험 전 안내, 자료를 만들고 고쳐요." },
+      { t: "term", label: { en: "Teachers", ko: "선생님" }, en: "Each teacher's number, and their sign-ups for upcoming programs.", ko: "선생님별 번호와 예정 프로그램 참여 신청." },
       { t: "term", label: { en: "Points", ko: "포인트" }, en: "Review links to approve, and each family's points.", ko: "후기 링크 승인, 가족별 포인트." },
       { t: "term", label: { en: "Parent notes", ko: "학부모의견" }, en: "Suggestions and inquiries from parents.", ko: "학부모 의견과 문의." },
-      { t: "term", label: { en: "Stats", ko: "통계" }, en: "Usage numbers, Teacher login number, server check, backup.", ko: "이용 통계, 샘 로그인 번호, 서버 저장 점검, 백업." },
+      { t: "term", label: { en: "Stats", ko: "통계" }, en: "Usage numbers, server check, backup.", ko: "이용 통계, 서버 저장 점검, 백업." },
     ],
   },
   {
@@ -8596,10 +8881,20 @@ const MANUAL = [
     id: "guide-start",
     title: { en: "Teacher login: what you can do", ko: "샘 로그인: 할 수 있는 일" },
     items: [
-      { t: "step", en: "On the login screen tap Teacher and enter the number from HQ.", ko: "로그인 화면에서 Teacher를 누르고 본사에서 받은 번호를 넣어요." },
-      { t: "step", en: "Choose your name to see only your team's children. You can change it any time.", ko: "이름을 고르면 내 팀 아이들만 보여요. 언제든 바꿀 수 있어요." },
+      { t: "step", en: "On the login screen tap Teacher and enter your own number from HQ. Your name appears at the top.", ko: "로그인 화면에서 Teacher를 누르고 본사에서 받은 내 번호를 넣어요. 위쪽에 내 이름이 나와요." },
+      { t: "step", en: "You see only the children of your team.", ko: "내 팀 아이들만 보여요." },
       { t: "tip", en: "EN / 한국어 at the top switches the language.", ko: "위쪽 EN / 한국어로 언어를 바꿔요." },
       { t: "p", en: "Attendance, points, parent information and program settings are handled by HQ.", ko: "출석, 포인트, 학부모 정보, 프로그램 설정은 본사가 해요." },
+    ],
+  },
+  {
+    id: "guide-programs",
+    title: { en: "Sign up for upcoming programs", ko: "예정 프로그램 참여 신청" },
+    items: [
+      { t: "step", en: "Upcoming tab: programs that have not run yet are listed.", ko: "예정 탭에 아직 하지 않은 프로그램이 나와요." },
+      { t: "step", en: "Tap Sign up (for each time slot if there are several), add a note for HQ if you like, and send.", ko: "참여 신청을 눌러요(시간대가 여러 개면 시간대마다). 본사에 남길 말이 있으면 쓰고 보내요." },
+      { t: "step", en: "HQ confirms. You see Waiting for HQ, then Confirmed or Not this time.", ko: "본사가 확정해요. 본사 확인 중, 그다음 확정 또는 이번엔 어려워요가 보여요." },
+      { t: "tip", en: "Withdraw cancels your sign-up. After Not this time you can sign up again.", ko: "신청 취소로 신청을 거둘 수 있어요. 이번엔 어려워요 뒤에는 다시 신청할 수 있어요." },
     ],
   },
   {
@@ -8627,25 +8922,37 @@ const MANUAL = [
     ],
   },
   {
+    id: "teachers",
+    title: { en: "Teacher accounts and sign-ups", ko: "선생님 계정과 참여 신청" },
+    items: [
+      { t: "step", en: "Teachers tab, Add a teacher: the name (exactly as you write it in teams) and a 4-digit number. Make a number gives a free one. Tell the teacher their number.", ko: "선생님 탭의 선생님 추가에서 이름(팀에 쓰는 이름 그대로)과 번호 4자리를 넣어요. 번호 만들기로 빈 번호를 받을 수 있어요. 선생님에게 번호를 알려 주세요." },
+      { t: "step", en: "Change number gives a new number. Turn off signs a teacher out and stops the number from working.", ko: "번호 바꾸기로 새 번호를 정해요. 끄기를 누르면 그 선생님은 로그아웃되고 번호가 쓸 수 없게 돼요." },
+      { t: "step", en: "Sign-ups: teachers sign up for upcoming programs. Confirm or Decline each one. Confirmed teachers are offered first when you make teams.", ko: "참여 신청: 선생님들이 예정 프로그램에 신청해요. 하나씩 확정하거나 거절해요. 확정한 선생님은 팀을 만들 때 먼저 나와요." },
+      { t: "tip", en: "Until you add the first teacher, everyone logs in with the shared number shown on that tab. After that the shared number stops working.", ko: "첫 선생님을 추가하기 전에는 이 탭에 보이는 공용 번호로 들어가요. 추가한 뒤에는 공용 번호를 쓸 수 없어요." },
+    ],
+  },
+  {
     id: "roles",
     title: { en: "Two logins: HQ and Teacher", ko: "로그인 두 가지: 본사와 샘" },
     items: [
       { t: "p", en: "HQ has full control. Teacher shows only the class materials and the feedback: no attendance, points, parent information or program settings.", ko: "본사는 모든 것을 관리해요. 샘은 수업자료와 피드백만 보여요. 출석, 포인트, 학부모 정보, 프로그램 설정은 볼 수 없어요." },
-      { t: "step", en: "Login screen: choose HQ or Teacher.", ko: "로그인 화면에서 HQ 또는 Teacher를 눌러요." },
-      { t: "step", en: "The Teacher number is in Stats, Teacher login. Change it there and tell the teachers.", ko: "샘 번호는 통계 탭의 샘 로그인에 있어요. 거기서 바꾸고 샘들에게 알려요." },
+      { t: "step", en: "Login screen: choose HQ or Teacher. Each teacher has their own number (Teachers tab).", ko: "로그인 화면에서 HQ 또는 Teacher를 눌러요. 샘마다 자기 번호가 있어요(선생님 탭)." },
       { t: "tip", en: "A teacher's save changes only the class materials. Titles, dates, notices and time slots are not touched.", ko: "샘이 저장하면 수업자료만 바뀌어요. 제목, 날짜, 안내, 시간대는 그대로예요." },
-      { t: "warn", en: "The numbers cannot prove who is using them. Give the Teacher number only to teachers and change it when one leaves.", ko: "번호로는 쓰는 사람을 확인할 수 없어요. 샘 번호는 샘에게만 알리고, 샘이 바뀌면 번호를 바꾸세요." },
+      { t: "warn", en: "A number cannot prove who is using it. Give each teacher only their own number, and turn the account off when a teacher leaves.", ko: "번호로는 쓰는 사람을 확인할 수 없어요. 샘에게는 자기 번호만 알리고, 샘이 그만두면 계정을 꺼요." },
     ],
   },
   {
     id: "points",
     title: { en: "Points and external reviews", ko: "포인트와 외부 후기" },
     items: [
-      { t: "p", en: "Parents earn points: experience completed +1,000P (child marked present), parent survey +100P, external review +300P, friend referral +2,000P. 1P = 1 won. Points are only used for the next program and never paid out in cash.", ko: "학부모는 포인트를 받아요: 체험 완료 +1,000P(출석 체크), 부모 설문 +100P, 외부 후기 +300P, 친구 추천 +2,000P. 1P는 1원이에요. 다음 프로그램 결제에만 쓰고 현금으로 출금할 수 없어요." },
+      { t: "p", en: `Parents earn points by the items in the Points tab. Now: ${POINT_ITEMS.filter((i) => i.amount > 0).map((i) => `${i.title} +${i.amount.toLocaleString("en-US")}P`).join(", ")}. 1P = 1 won. Points are only used for the next program and never paid out in cash.`, ko: `학부모는 포인트 탭의 항목대로 포인트를 받아요. 지금은 ${POINT_ITEMS.filter((i) => i.amount > 0).map((i) => `${i.name} +${i.amount.toLocaleString("en-US")}P`).join(", ")}예요. 1P는 1원이에요. 다음 프로그램 결제에만 쓰고 현금으로 출금할 수 없어요.` },
+      { t: "step", en: "Point items: Points tab, Point items and amounts, Edit. Change a name or an amount, or add your own item. Parents' lists and the texts update by themselves. A new amount counts from then on; points already earned stay as they are. An amount of 0 turns an item off.", ko: "포인트 항목: 포인트 탭의 포인트 항목과 액수에서 수정을 눌러요. 이름이나 액수를 바꾸거나 항목을 추가해요. 학부모 화면의 목록과 안내가 저절로 바뀌어요. 새 액수는 그때부터 쌓이는 포인트에 적용되고 이미 쌓인 포인트는 그대로예요. 액수를 0으로 하면 그 항목은 꺼져요." },
+      { t: "p", en: "Trip completed, parent survey and external review are counted by the app. Friend referral and your own items are added by you on the family.", ko: "체험 완료, 부모 설문, 외부 후기는 앱이 세요. 친구 추천과 직접 만든 항목은 가족 화면에서 직접 적립해요." },
       { t: "step", en: "External review: after a trip the parent pastes the link to their review. It shows as Pending in the Points tab.", ko: "외부 후기: 체험 후 학부모가 후기 링크를 붙여넣어요. 포인트 탭에 '확인 대기'로 보여요." },
-      { t: "step", en: "Open the link. If it is a public post about CarrotWorld, tap Approve (+300P is added). Reject lets the parent send another link.", ko: "링크를 열어서 당근나라에 대한 공개 게시물이면 승인을 눌러요(+300P 적립). 반려하면 학부모가 다른 링크를 낼 수 있어요." },
+      { t: "step", en: `Open the link. If it is a public post about CarrotWorld, tap Approve (+${POINT_RULES.review.toLocaleString("en-US")}P is added). Reject lets the parent send another link.`, ko: `링크를 열어서 당근나라에 대한 공개 게시물이면 승인을 눌러요(+${POINT_RULES.review.toLocaleString("en-US")}P 적립). 반려하면 학부모가 다른 링크를 낼 수 있어요.` },
       { t: "p", en: "One review reward per trip, and each link only once (even across families).", ko: "후기 포인트는 체험당 한 번이고, 같은 링크는 가족이 달라도 한 번만 인정돼요." },
-      { t: "step", en: "Friend referral: after the friend's first payment, open the family, enter the friend's name, tick the payment and tap Add 2,000P. One reward per friend.", ko: "친구 추천: 친구의 첫 결제 후 가족을 열고 친구 이름을 쓰고 결제 확인을 체크한 뒤 2,000P 적립을 눌러요. 친구당 한 번이에요." },
+      { t: "step", en: `Friend referral: after the friend's first payment, open the family, enter the friend's name, tick the payment and tap Add ${POINT_RULES.referral.toLocaleString("en-US")}P. One reward per friend.`, ko: `친구 추천: 친구의 첫 결제 후 가족을 열고 친구 이름을 쓰고 결제 확인을 체크한 뒤 ${POINT_RULES.referral.toLocaleString("en-US")}P 적립을 눌러요. 친구당 한 번이에요.` },
+      { t: "step", en: "Your own items: open the family, Give an item, choose the item and tap Give. The family sees it in its history under the item's name.", ko: "직접 만든 항목: 가족을 열고 항목 지급에서 항목을 고르고 지급하기를 눌러요. 가족의 내역에 항목 이름으로 남아요." },
       { t: "step", en: "Using points: open the family, Use points (amount and memo).", ko: "포인트 사용: 가족을 열고 포인트 사용 처리(금액과 메모)를 해요." },
       { t: "step", en: "Wrong count: open the family, Manual adjustment (add or subtract, with a reason). To undo a line you added, tap Cancel this entry. It stays as Cancelled.", ko: "계산이 틀리면 가족을 열고 수동 조정(더하기나 빼기, 이유)을 해요. 직접 넣은 줄은 '이 내역 취소'로 되돌려요. 기록에는 '취소됨'으로 남아요." },
       { t: "warn", en: "Points are worth money and the app cannot check who presses the buttons. Approve, add and use points yourself, and check the family's history first.", ko: "포인트는 돈과 같고, 앱은 누가 누르는지 확인하지 못해요. 승인, 적립, 사용 처리는 직접 하고, 먼저 그 가족의 내역을 확인하세요." },
@@ -8666,12 +8973,13 @@ const MANUAL = [
     ],
   },
 ];
+const MANUAL = buildManual();
 
 /** The manual page: sections open and close; the language follows the teacher's choice. */
 function TeacherManual({ lang, onClose, role }) {
   const L = lang === "ko" ? "ko" : "en";
   const [open, setOpen] = useState(() => (role === "guide" ? { "guide-start": true } : { start: true }));
-  const sections = MANUAL.filter((m) => (m.id !== "advice" || FEATURES.parentAdvice) && (role !== "guide" || m.id.startsWith("guide-")));
+  const sections = buildManual().filter((m) => (m.id !== "advice" || FEATURES.parentAdvice) && (role !== "guide" || m.id.startsWith("guide-")));
   const allOpen = sections.every((m) => open[m.id]);
   const toggleAll = () => setOpen(allOpen ? {} : Object.fromEntries(sections.map((m) => [m.id, true])));
   let stepNo = 0;
@@ -8743,36 +9051,43 @@ function LangToggle({ lang, onChange }) {
   );
 }
 
-/** What the foreign teachers see: only the class materials and the feedback. */
-function GuideApp({ students, adventures, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials }) {
-  const readName = () => {
-    try {
-      return localStorage.getItem(GUIDE_NAME_KEY) || "";
-    } catch (e) {
-      return "";
-    }
-  };
-  const [name, setNameState] = useState(readName);
-  const [step, setStep] = useState(() => (readName() ? "main" : "name"));
-  const [typed, setTyped] = useState("");
+/** A small question before a teacher signs up: an optional note for HQ. */
+function JoinDialog({ title, onSend, onClose }) {
+  const [note, setNote] = useState("");
+  return (
+    <ConfirmDialog
+      title={title}
+      actions={[
+        { label: tr("신청하기"), tone: "primary", onClick: () => onSend(note) },
+        { label: tr("취소"), tone: "plain", onClick: onClose },
+      ]}
+    >
+      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("본사에 남길 말 (선택)")} aria-label={tr("본사에 남길 말")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none mt-2" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+    </ConfirmDialog>
+  );
+}
+
+/** What the foreign teachers see: upcoming programs to sign up for, the class materials and the feedback. */
+function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
+  const name = (teacher && teacher.name) || "";
+  const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("materials");
   const [programId, setProgramId] = useState(() => (PROGRAMS[0] ? PROGRAMS[0].id : null));
   const [mineOnly, setMineOnly] = useState(true);
   const [formKey, setFormKey] = useState(0);
   const [savedAt, setSavedAt] = useState(null);
-  const saveName = (n) => {
-    const v = (n || "").trim();
-    try {
-      if (v) localStorage.setItem(GUIDE_NAME_KEY, v);
-    } catch (e) {
-      /* the name then lasts until the app is closed */
-    }
-    setNameState(v);
-    setStep("main");
-  };
+  const [asking, setAsking] = useState(null); // { program, slot }
   const program = PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null;
-  const names = teacherNamesIn(PROGRAMS);
   const shortTitle = (p) => splitTitle(p.title)[0] || p.title;
+  const mySignups = joins.filter((j) => j.teacherId === teacherId);
+  const stateOf = (programId2, slotId) => {
+    const j = mySignups.find((x) => x.programId === programId2 && (x.slotId || "") === (slotId || ""));
+    return j && j.status !== "withdrawn" ? j : null;
+  };
+  // programs that have not run yet: nobody attended and "Live today" is off
+  const upcoming = PROGRAMS.filter((p) => ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage));
+  const openSlots = (p) => (sessionsOf(p).length ? sessionsOf(p).map((x) => ({ id: x.id, label: x.label })) : [{ id: "", label: "" }]);
+  const toSignUp = upcoming.reduce((n, p) => n + openSlots(p).filter((x) => !stateOf(p.id, x.id)).length, 0);
 
   const header = (
     <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
@@ -8783,28 +9098,6 @@ function GuideApp({ students, adventures, lang, onLang, onLogout, onOpenGuide, u
       </div>
     </div>
   );
-
-  if (step === "name") {
-    return (
-      <div className="flex-1">
-        {header}
-        <div className="px-5 pt-8">
-          <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>{tr("누구세요?")}</h1>
-          <p className="f-body text-[16px] text-gray-500 mt-1 mb-4">{tr("이름을 고르면 내 팀의 아이들만 보여요.")}</p>
-          {names.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {names.map((n) => (
-                <button key={n} onClick={() => saveName(n)} className="focus-ring tap f-display text-[17px] font-semibold rounded-full px-5 py-2.5 bg-white" style={{ color: C.green, border: `1px solid ${C.beige}` }}>{n}</button>
-              ))}
-            </div>
-          )}
-          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={tr("이름 직접 입력")} aria-label={tr("이름 직접 입력")} className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
-          <button onClick={() => saveName(typed)} disabled={!typed.trim()} className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl py-3 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("계속")}</button>
-          <button onClick={() => saveName("")} className="focus-ring tap w-full f-body text-[15px] font-bold py-3" style={{ color: "#9C927D" }}>{tr("나중에 하기")}</button>
-        </div>
-      </div>
-    );
-  }
 
   const roster = program
     ? adventures
@@ -8818,28 +9111,67 @@ function GuideApp({ students, adventures, lang, onLang, onLogout, onOpenGuide, u
   const feedbackLeft = list.filter((x) => x.a.attended && !x.a.feedback).length;
   const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !x.a.feedback).length : 0;
   const TABS = [
+    { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
     { key: "materials", label: tr("수업자료") },
     { key: "feedback", label: allFeedbackLeft ? tr("피드백 {0}", [allFeedbackLeft]) : tr("피드백") },
   ];
+  const chipFor = (j) =>
+    j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("본사 확인 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
   return (
     <div className="flex-1">
       {header}
       <div className="px-5 pt-5 pb-3 flex items-center justify-between">
         <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>Teacher</h1>
-        <div className="flex gap-2">
-          <button onClick={() => setStep("name")} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>{tr("이름 바꾸기")}</button>
-          <button onClick={onOpenGuide} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>
-        </div>
+        <button onClick={onOpenGuide} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>
       </div>
-      <div className="px-5 mb-3 flex gap-2" role="tablist" aria-label="Teacher tabs">
+      <div className="px-5 mb-3 flex gap-2 flex-wrap" role="tablist" aria-label="Teacher tabs">
         {TABS.map((t) => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-5 py-2.5" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
         ))}
       </div>
-      {!program ? (
-        <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>
-      ) : (
+
+      {tab === "programs" && (
+        <div className="px-5 pb-8 space-y-3">
+          {!teacherId && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.")}</p>}
+          {upcoming.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
+          {upcoming.map((p) => (
+            <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
+              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}</p>
+              <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
+              <div className="space-y-2">
+                {openSlots(p).map((x) => {
+                  const j = stateOf(p.id, x.id);
+                  const chip = j ? chipFor(j) : null;
+                  return (
+                    <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
+                      <div className="min-w-0">
+                        {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>🕘 {x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
+                        {chip && <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>}
+                      </div>
+                      {!teacherId ? null : !j || j.status === "declined" ? (
+                        <button onClick={() => setAsking({ program: p, slot: x })} className="focus-ring tap shrink-0 f-display text-[15px] font-semibold rounded-xl px-4 py-2 text-white" style={{ background: C.green }}>{tr("참여 신청")}</button>
+                      ) : (
+                        <button onClick={() => onWithdraw(p.id, x.id)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {asking && (
+            <JoinDialog
+              title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program) + (asking.slot.label ? ` · ${asking.slot.label}` : "")])}
+              onSend={(note) => { onJoin(asking.program.id, asking.slot.id, note); setAsking(null); }}
+              onClose={() => setAsking(null)}
+            />
+          )}
+        </div>
+      )}
+
+      {tab !== "programs" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>}
+      {tab !== "programs" && program && (
         <>
           <div className="px-5 mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label="Programs">
             {PROGRAMS.map((p) => (
@@ -8899,32 +9231,136 @@ function GuideApp({ students, adventures, lang, onLang, onLogout, onOpenGuide, u
   );
 }
 
-/** HQ: the number the foreign teachers log in with. */
-function GuideAccessCard({ pin, hqPin, onSave }) {
-  const [value, setValue] = useState("");
+/** HQ: each teacher's own number, and the sign-ups to approve. */
+function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide }) {
+  const [filter, setFilter] = useState("pending");
+  const [confirm, setConfirm] = useState(null);
+  const [name, setName] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-  const save = () => {
-    if (!/^\d{4}$/.test(value)) return setError(tr("숫자 4자리를 입력해 주세요."));
-    if (value === hqPin) return setError(tr("본사 번호와 같아요. 다른 번호를 써 주세요."));
-    if (value === pin) return setError(tr("지금 쓰는 번호예요."));
-    onSave(value);
-    setValue("");
-    setError("");
-    setSaved(true);
+  const [editing, setEditing] = useState(null);
+  const [newPin, setNewPin] = useState("");
+  const [editError, setEditError] = useState("");
+  const count = (st) => joins.filter((j) => j.status === st).length;
+  const shown = joins.filter((j) => (filter === "all" ? true : j.status === filter));
+  const look = {
+    pending: { label: tr("확인 대기"), bg: "#FFF1E2", color: "#B25A0B" },
+    approved: { label: tr("확정"), bg: "#EAF7EF", color: "#1F7A44" },
+    declined: { label: tr("거절"), bg: "#FDEDEA", color: "#B03A2E" },
+    withdrawn: { label: tr("취소함"), bg: "#F3EEE3", color: "#8A8060" },
+  };
+  const chip = (key, label) => (
+    <button key={key} onClick={() => setFilter(key)} aria-pressed={filter === key} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-full px-3.5 py-2" style={{ background: filter === key ? C.green : "white", color: filter === key ? "white" : C.charcoal, border: `1px solid ${filter === key ? C.green : C.beige}` }}>{label}</button>
+  );
+  const field = "focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none";
+  const pinProblem = (value, exceptId) => {
+    if (!/^\d{4}$/.test(value)) return tr("숫자 4자리를 입력해 주세요.");
+    if (value === hqPin) return tr("본사 번호와 같아요. 다른 번호를 써 주세요.");
+    if (teachers.some((t) => t.active && t.pin === value && t.id !== exceptId)) return tr("다른 선생님이 쓰는 번호예요.");
+    return "";
+  };
+  const add = () => {
+    if (!name.trim()) return setError(tr("이름을 써 주세요."));
+    if (teachers.some((t) => t.name.trim().toLowerCase() === name.trim().toLowerCase())) return setError(tr("같은 이름의 선생님이 이미 있어요."));
+    const problem = pinProblem(pin, null);
+    if (problem) return setError(problem);
+    onAdd({ name, pin });
+    setName(""); setPin(""); setError("");
   };
   return (
-    <div className="px-5 mt-3">
-      <StatCard title={tr("샘 로그인")} hint={tr("외국인 샘들은 로그인 화면에서 Teacher를 누르고 이 번호를 넣어요. 수업자료와 피드백만 보여요.")}>
-        <p className="f-body text-[13px] text-gray-400">{tr("지금 번호")}</p>
-        <p className="f-display text-[28px] font-bold tracking-[0.2em] mb-2" style={{ color: C.green }} data-testid="guide-pin">{pin}</p>
-        <input value={value} onChange={(e) => { setValue(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); setSaved(false); }} placeholder={tr("새 번호 4자리")} aria-label={tr("새 번호 4자리")} inputMode="numeric" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none text-center tracking-[0.3em]" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
-        <div aria-live="polite" className="min-h-[18px] mt-1">
-          {error && <p className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{error}</p>}
-          {saved && !error && <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>{tr("바뀌었어요. 샘들에게 새 번호를 알려 주세요.")}</p>}
+    <div className="px-5 space-y-5">
+      <div>
+        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 확정하면 그 선생님이 팀 선생님으로 먼저 보여요.")}</p>
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Sign-up filter">
+          {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
+          {chip("approved", tr("확정 {0}", [count("approved")]))}
+          {chip("declined", tr("거절 {0}", [count("declined")]))}
+          {chip("all", tr("전체 {0}", [joins.length]))}
         </div>
-        <button onClick={save} disabled={value.length !== 4} className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-1 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("번호 바꾸기")}</button>
-      </StatCard>
+        {shown.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("해당하는 신청이 없어요.")}</p></div>}
+        <div className="space-y-2.5">
+          {shown.map((j) => {
+            const t = teachers.find((x) => x.id === j.teacherId);
+            const p = getProgram(j.programId);
+            const slot = p ? sessionsOf(p).find((x) => x.id === j.slotId) : null;
+            const st = look[j.status] || look.pending;
+            return (
+              <div key={j.key + j.requestedAt} className="bg-white rounded-2xl p-4" data-testid="join-row">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t ? t.name : "—"}</p>
+                    <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{p ? splitTitle(p.title)[0] || p.title : "—"}{slot ? ` · ${slot.label}` : ""}</p>
+                    <p className="f-body text-[13px] text-gray-400">{[p ? p.date : "", fmtDay(j.requestedAt)].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                </div>
+                {j.note && <p className="f-body text-[15px] mt-2 rounded-xl px-3 py-2" style={{ background: C.cream, color: C.charcoal }}>{j.note}</p>}
+                {j.status !== "withdrawn" && (
+                  <div className="flex gap-2 mt-3">
+                    {j.status !== "declined" && <button onClick={() => setConfirm({ key: j.key, status: "declined", who: t ? t.name : "" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("거절")}</button>}
+                    {j.status !== "approved" && <button onClick={() => setConfirm({ key: j.key, status: "approved", who: t ? t.name : "" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("확정")}</button>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 계정")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님마다 이름과 번호가 따로예요. 번호는 로그인 화면의 Teacher에서 써요.")}</p>
+        {!teachers.some((t) => t.active) && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5 mb-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("계정이 없어서 공용 번호 {0}로 들어가요. 첫 계정을 만들면 공용 번호는 쓸 수 없어요.", [legacyPin])}</p>}
+        <div className="space-y-2 mb-3">
+          {teachers.map((t) => (
+            <div key={t.id} className="bg-white rounded-2xl p-4" data-testid="teacher-row">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="f-display text-[18px] font-semibold" style={{ color: t.active ? C.green : "#9C927D" }}>{t.name}{!t.active ? ` · ${tr("꺼짐")}` : ""}</p>
+                  <p className="f-body text-[14px] text-gray-500">{tr("번호")} <b className="tracking-[0.15em]" data-testid="teacher-pin">{t.pin}</b></p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => { setEditing(editing === t.id ? null : t.id); setNewPin(""); setEditError(""); }} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>{tr("번호 바꾸기")}</button>
+                  <button onClick={() => onSetActive(t.id, !t.active)} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: t.active ? "#FDEDEA" : "#EAF7EF", color: t.active ? "#B03A2E" : "#1F7A44" }}>{t.active ? tr("끄기") : tr("켜기")}</button>
+                </div>
+              </div>
+              {editing === t.id && (
+                <div className="mt-3">
+                  <div className="flex gap-2">
+                    <input value={newPin} onChange={(e) => { setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setEditError(""); }} placeholder={tr("새 번호 4자리")} aria-label={tr("새 번호 4자리")} inputMode="numeric" className={`${field} text-center tracking-[0.3em]`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                    <button onClick={() => setNewPin(freeTeacherPin(teachers, hqPin))} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-xl px-3" style={{ background: C.beige, color: C.green }}>{tr("번호 만들기")}</button>
+                  </div>
+                  {editError && <p className="f-body text-[14px] font-bold mt-1" style={{ color: "#B03A2E" }}>{editError}</p>}
+                  <button onClick={() => { const p = pinProblem(newPin, t.id); if (p) return setEditError(p); onSetPin(t.id, newPin); setEditing(null); }} disabled={newPin.length !== 4} className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-2 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("저장")}</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl p-4">
+          <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.charcoal }}>{tr("선생님 추가")}</p>
+          <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder={tr("이름 (팀에 쓰는 이름 그대로)")} aria-label={tr("선생님 이름")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+          <div className="flex gap-2 mt-2">
+            <input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }} placeholder={tr("번호 4자리")} aria-label={tr("선생님 번호")} inputMode="numeric" className={`${field} text-center tracking-[0.3em]`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+            <button onClick={() => setPin(freeTeacherPin(teachers, hqPin))} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-xl px-3" style={{ background: C.beige, color: C.green }}>{tr("번호 만들기")}</button>
+          </div>
+          <div aria-live="polite" className="min-h-[18px] mt-1">{error && <p className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{error}</p>}</div>
+          <button onClick={add} disabled={!name.trim() || pin.length !== 4} className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-1 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("추가")}</button>
+        </div>
+      </div>
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.status === "approved" ? tr("{0} 선생님을 확정할까요?", [confirm.who]) : tr("{0} 선생님의 신청을 거절할까요?", [confirm.who])}
+          actions={[
+            { label: confirm.status === "approved" ? tr("확정") : tr("거절"), tone: confirm.status === "approved" ? "primary" : "danger", onClick: () => { onDecide(confirm.key, confirm.status); setConfirm(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >
+          {confirm.status === "approved" ? tr("선생님 화면에 '확정'으로 보여요.") : tr("선생님 화면에 '이번엔 어려워요'로 보이고, 다시 신청할 수 있어요.")}
+        </ConfirmDialog>
+      )}
     </div>
   );
 }
@@ -8964,7 +9400,7 @@ export default function CarrotExplorer() {
     setTeacherLangState(l);
   };
   const [showManual, setShowManual] = useState(false);
-  const [session, setSession] = useState(null); // { role: 'parent'|'teacher' }
+  const [session, setSession] = useState(null); // { role: 'parent'|'teacher'|'guide' }
   const [parentScreen, setParentScreen] = useState({ type: "list" }); // list | { type:'report', studentId } | { type:'student-mode', studentId }
   const [studentTab, setStudentTab] = useState("home");
   const [selectedProgramId, setSelectedProgramId] = useState(null);
@@ -9082,8 +9518,9 @@ export default function CarrotExplorer() {
     if (!rec || rec.seen) return;
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
-  const addPointEntry = ({ familyPin, kind, delta, friend, note, target }) => {
-    saveRow({ id: `pt-${familyPin}-${Date.now()}`, type: POINT_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind, delta, ...(friend ? { friend: friend.trim(), friendKey: friendKey(friend) } : {}), ...(note ? { note: note.trim() } : {}), ...(target ? { target } : {}), at: new Date().toISOString() }) });
+  const savePointItems = (items) => saveRow({ id: `set-pointItems-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "pointItems", items, at: new Date().toISOString() }) });
+  const addPointEntry = ({ familyPin, kind, delta, friend, note, target, title, name, itemId }) => {
+    saveRow({ id: `pt-${familyPin}-${Date.now()}`, type: POINT_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind, delta, ...(friend ? { friend: friend.trim(), friendKey: friendKey(friend) } : {}), ...(note ? { note: note.trim() } : {}), ...(target ? { target } : {}), ...(title ? { title } : {}), ...(name ? { name } : {}), ...(itemId ? { itemId } : {}), at: new Date().toISOString() }) });
   };
 
   const addSuggestion = ({ type, message, familyPin }) => {
@@ -9249,6 +9686,12 @@ export default function CarrotExplorer() {
     sync(api.createSuggestion(visit));
   };
   const loginAs = (sess) => {
+    if (sess.role === "guide") {
+      // a teacher is known by their own number; the shared number only works while HQ has not made any teacher accounts
+      const t = teacherByPin(teachers, sess.pin);
+      setSession({ role: "guide", teacherId: t ? t.id : "", teacherName: t ? t.name : "" });
+      return;
+    }
     setSession(sess);
     if (sess.role === "parent" && !familyPending(students, sess.familyPin)) recordVisit(sess.familyPin);
   };
@@ -9448,14 +9891,30 @@ export default function CarrotExplorer() {
     sync(api.deleteProgram(programId));
   };
 
-  const guidePin = currentGuidePin(suggestions);
-  const setGuidePin = (pin) => saveRow({ id: `set-guidePin-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "guidePin", value: pin, at: new Date().toISOString() }) });
+  const teachers = teacherAccounts(suggestions);
+  const joins = teacherJoins(suggestions);
+  const legacyPin = currentGuidePin(suggestions);
+  // a teacher whose account HQ turns off is signed out at the next refresh
+  useEffect(() => {
+    if (session && session.role === "guide" && session.teacherId && !teachers.some((t) => t.id === session.teacherId && t.active)) setSession(null);
+  }, [JSON.stringify(teachers), session]);
+  const nowIso = () => new Date().toISOString();
+  const addTeacher = ({ name, pin }) => saveRow({ id: `tc-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: `t${Date.now().toString(36)}`, name: name.trim(), pin, at: nowIso() }) });
+  const setTeacherPin = (id, pin) => saveRow({ id: `tc-${id}-pin-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "pin", id, pin, at: nowIso() }) });
+  const setTeacherActive = (id, active) => saveRow({ id: `tc-${id}-on-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "active", id, active, at: nowIso() }) });
+  const sendJoin = (kind, teacherId, programId, slotId, note) => saveRow({ id: `tj-${teacherId}-${programId}-${slotId || "all"}-${Date.now()}`, type: TEACHER_JOIN_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind, teacherId, programId, slotId: slotId || "", note: (note || "").trim(), at: nowIso() }) });
+  const decideJoin = (key, status) => {
+    const j = teacherJoins(suggestions).find((x) => x.key === key);
+    if (!j || j.status === status || (status !== "approved" && status !== "declined")) return;
+    saveRow({ id: `tjr-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: TEACHER_JOIN_RESULT_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ key, status, teacherId: j.teacherId, programId: j.programId, slotId: j.slotId, at: nowIso() }) });
+  };
   // a teacher saves only the class materials: the program's other fields are taken from what is live right now
   const editProgramMaterials = (programId, mats) => {
     const p = PROGRAMS.find((x) => x.id === programId);
     if (!p) return;
     editProgram(programId, { title: p.title, date: p.date, location: p.location, level: p.level, levels: p.levels, icon: p.icon, icons: p.icons, themeKo: p.themeKo, dateReached: p.dateReached, coverPhoto: p.coverPhoto, ...mats });
   };
+  applyPointItems(currentPointItems(suggestions)); // every text below shows HQ's current point items and amounts
   setUiLang(session && session.role === "teacher" ? hqLang : session && session.role === "guide" ? teacherLang : "ko"); // set before any screen below draws its text
   if (booting) {
     return (
@@ -9470,7 +9929,7 @@ export default function CarrotExplorer() {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
-        <LoginScreen students={students} guidePin={guidePin} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} onLookupPhone={lookupPhone} />
+        <LoginScreen students={students} teachers={teachers} legacyPin={legacyPin} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} onLookupPhone={lookupPhone} />
       </div>
     );
   }
@@ -9489,7 +9948,7 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           {showManual && <TeacherManual lang={teacherLang} role="guide" onClose={() => setShowManual(false)} />}
           <div className="flex-1 overflow-y-auto">
-            <GuideApp students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
+            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
           </div>
         </div>
       </div>
@@ -9527,9 +9986,15 @@ export default function CarrotExplorer() {
               lastSyncAt={lastSyncAt}
               onAcceptFamily={acceptFamily}
               onDecideReview={decideReview}
-              guidePin={guidePin}
-              onSetGuidePin={setGuidePin}
+              teachers={teachers}
+              joins={joins}
+              legacyPin={legacyPin}
+              onAddTeacher={addTeacher}
+              onSetTeacherPin={setTeacherPin}
+              onSetTeacherActive={setTeacherActive}
+              onDecideJoin={decideJoin}
               onAddPointEntry={addPointEntry}
+              onSavePointItems={savePointItems}
               onRejectFamily={rejectFamily}
               canceledAdventures={canceledAdventures}
               onCancelEnrollment={cancelEnrollment}

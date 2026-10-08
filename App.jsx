@@ -1378,8 +1378,7 @@ function rankFor(count) {
 
 /** Badge criteria — each check runs against a student's own adventures. No hard-coded "earned". */
 const BADGE_DEFS = [
-  { id: "first", name: "First Adventure", emoji: "🥕", check: (advs) => advs.some((a) => a.afterCompleted) },
-  { id: "themes", name: "Theme Explorer", emoji: "🗺️", check: (advs) => new Set(advs.filter((a) => a.afterCompleted).map((a) => { const p = getProgram(a.programId) || {}; return p.isMuseum ? "museum" : p.category || ""; }).filter(Boolean)).size >= 3 },
+  { id: "first", name: "First Adventure", emoji: "🥕", retired: true, check: (advs) => advs.some((a) => a.afterCompleted) },
   { id: "museum", name: "Museum Explorer", emoji: "🏛️", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).isMuseum) },
   { id: "science", name: "Science Explorer", emoji: "🔬", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "science") },
   { id: "nature", name: "Nature Explorer", emoji: "🌿", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "nature") },
@@ -1388,6 +1387,7 @@ const BADGE_DEFS = [
     id: "word",
     name: "Word Explorer",
     emoji: "⭐",
+    retired: true,
     // perfect score on the review quiz (or the old challenge quiz), or every word practiced 5 times
     check: (advs) =>
       advs.some((a) => {
@@ -1399,11 +1399,11 @@ const BADGE_DEFS = [
   },
   { id: "curious", name: "Curious Thinker", emoji: "💡", retired: true, check: (advs) => advs.filter((a) => a.bigQuestionCustom).length >= 2 },
   { id: "photographer", name: "Adventure Photographer", emoji: "📷", retired: true, check: (advs) => advs.some((a) => a.reflection?.photo) },
-  { id: "missionmaster", name: "Mission Master", emoji: "🧭", check: (advs) => advs.filter((a) => missionsAllDone(a)).length >= 2 },
+  { id: "missionmaster", name: "Mission Master", emoji: "🧭", retired: true, check: (advs) => advs.filter((a) => missionsAllDone(a)).length >= 2 },
   { id: "stamp10", name: "도장판 완성 (10회)", emoji: "🎟️", check: (advs) => advs.filter((a) => a.attended).length >= 10 },
-  { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", retired: true, check: (advs) => advs.filter((a) => a.attended).length >= 20 },
+  { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
   { id: "stamp30", name: "도장판 완성 (30회)", emoji: "🥈", check: (advs) => advs.filter((a) => a.attended).length >= 30 },
-  { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", retired: true, check: (advs) => advs.filter((a) => a.attended).length >= 40 },
+  { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
   { id: "stamp50", name: "도장판 완성 (50회)", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
 ];
 
@@ -1425,7 +1425,6 @@ const rankRanges = () => RANKS.map((r, i) => ({ ...r, to: RANKS[i + 1] ? RANKS[i
 /** One plain sentence per badge, in both languages. A test checks that every badge in the app has one. */
 const BADGE_HELP = {
   first: { ko: "첫 체험의 복습까지 마쳤어요.", en: "Finished the review of the first trip.", enName: "First Adventure" },
-  themes: { ko: "서로 다른 주제의 체험 3가지를 복습까지 마쳤어요.", en: "Finished the review of trips on 3 different themes.", enName: "Theme Explorer" },
   museum: { ko: "박물관 체험의 복습을 마쳤어요.", en: "Finished the review of a museum trip." },
   science: { ko: "과학 체험의 복습을 마쳤어요.", en: "Finished the review of a science trip." },
   nature: { ko: "자연 체험의 복습을 마쳤어요.", en: "Finished the review of a nature trip." },
@@ -1444,8 +1443,8 @@ const badgeGuide = () => BADGE_DEFS.filter((b) => !b.retired && BADGE_HELP[b.id]
 
 function computeBadges(adventures, studentId) {
   const mine = adventures.filter((a) => a.studentId === studentId);
-  // retired badges (photos are no longer taken in the app) only show for children who already earned one
-  return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) })).filter((b) => !b.retired || b.earned);
+  // every child sees the same badges: one for each 10 stamps (retired ones stay hidden even if earned before)
+  return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) })).filter((b) => !b.retired); // only the stamp badges are shown, for every child alike
 }
 
 function speak(word) {
@@ -2496,11 +2495,23 @@ function BadgeCollection({ adventures, studentId }) {
     <div className="pb-6">
       <ScreenHeader title="My Badges" />
       <div className="px-5">
+        {(() => {
+          const n = attendedCount(adventures, studentId);
+          const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
+          return (
+            <div className="bg-white rounded-2xl p-4 mb-5" data-testid="stamp-board">
+              <p className="f-display font-semibold text-[18px] mb-1" style={{ color: C.green }}>도장판</p>
+              <p className="f-body text-[14px] text-gray-500 mb-3">체험을 마칠 때마다 도장 1개와 {POINT_RULES.trip > 0 ? `${POINT_RULES.trip.toLocaleString("en-US")}P` : "포인트"}를 받아요. 도장 10개를 모으면 뱃지가 생겨요.</p>
+              <StampCard count={n} />
+              <p className="f-body text-[15px] font-bold mt-3" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
+            </div>
+          );
+        })()}
         <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Earned ({earned.length})</p>
         <div className="grid grid-cols-4 gap-y-4 mb-6">
           {earned.map((b) => <Badge key={b.id} b={b} />)}
         </div>
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Keep exploring to earn</p>
+        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Next badges</p>
         <div className="grid grid-cols-4 gap-y-4">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
@@ -7315,7 +7326,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-i"; // change with every delivery
+const APP_BUILD = "2026-10-08-k"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

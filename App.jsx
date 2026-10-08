@@ -664,6 +664,25 @@ const EN = {
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
 "선생님 가입 신청": "Teacher account requests",
+"선생님 이름": "Teacher",
+"수당 정산서": "Pay statement",
+"정산일": "Date",
+"합계": "Subtotal",
+"소득세 3%": "Income tax 3%",
+"지방소득세 0.3%": "Local income tax 0.3%",
+"실지급액": "Net pay",
+"복사했어요 ✓": "Copied ✓",
+"자동 복사가 안 돼요": "Could not copy",
+"복사": "Copy",
+"인쇄·PDF": "Print / PDF",
+"사업소득 3.3% 원천징수 기준의 예상 금액이에요. 실제 신고 금액은 세무 기준을 따라요.": "An estimate based on 3.3% withholding for freelance income. The actual filing follows tax rules.",
+"원천징수 없이 계산한 금액이에요.": "Calculated without withholding.",
+"3.3% 원천징수 공제 (소득세 3% + 지방소득세 0.3%)": "Deduct 3.3% withholding (income tax 3% + local tax 0.3%)",
+"합계 {0} − 세금 {1} = 실지급액": "Subtotal {0} − tax {1} = net pay",
+"합계 {0} − 세금 {1}": "Subtotal {0} − tax {1}",
+"정산서 보기": "View statement",
+"정산서": "Statement",
+"세금 3.3%를 뺀 실지급액이에요. ": "This is the net pay after 3.3% tax. ",
 "시급": "Hourly rate",
 "체험 시간에 시급을 곱해서 자동으로 계산해요. 캠프처럼 금액이 다르면 아래에서 직접 입력하세요.": "Worked out from the trip time x the hourly rate. For camps or anything different, type the amount below.",
 "지금 시급 {0}": "Current rate {0}",
@@ -3525,6 +3544,14 @@ function teacherJoins(suggestions) {
 /* ---------- Teacher pay: hours x rate, camps by hand, reset when HQ marks it paid ---------- */
 const PAY_TYPE = "수당정산"; // one row per payout (or its undo)
 const DEFAULT_PAY_RATE = 30000; // won per hour
+/** 3.3% withheld on freelance pay: income tax 3% + local income tax 0.3% (10% of the income tax). Estimate: amounts are cut down to whole won / 10 won. */
+function payTax(gross, on = true) {
+  const g = Math.max(0, Math.round(gross || 0));
+  if (!on) return { gross: g, incomeTax: 0, localTax: 0, tax: 0, net: g, withheld: false };
+  const incomeTax = Math.floor(g * 0.03);
+  const localTax = Math.floor((incomeTax * 0.1) / 10) * 10;
+  return { gross: g, incomeTax, localTax, tax: incomeTax + localTax, net: g - incomeTax - localTax, withheld: true };
+}
 const won = (n) => `${Math.round(n || 0).toLocaleString("en-US")}원`;
 /** "10:30 ~ 12:00" -> 1.5 (0 when there is no clock time to read) */
 function parseHours(text) {
@@ -3537,18 +3564,20 @@ function parseHours(text) {
 /** HQ's hourly rate and the amounts typed by hand: per program (everyone on it) or per teacher and program. The latest entry wins; an empty value clears it. */
 function paySettings(suggestions) {
   let rate = DEFAULT_PAY_RATE;
+  let taxOn = true;
   const amounts = {};
-  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "payRate" || r.key === "payAmount").sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
-    if (r.key === "payRate") { const n = Number(r.value); if (n > 0) rate = Math.round(n); }
+  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "payRate" || r.key === "payAmount" || r.key === "payTax").sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
+    if (r.key === "payTax") taxOn = !!r.value;
+    else if (r.key === "payRate") { const n = Number(r.value); if (n > 0) rate = Math.round(n); }
     else if (r.scope) { if (r.value === "" || r.value === null || r.value === undefined) delete amounts[r.scope]; else if (Number(r.value) >= 0) amounts[r.scope] = Math.round(Number(r.value)); }
   });
-  return { rate, amounts };
+  return { rate, amounts, taxOn };
 }
 /** Every payout HQ recorded, newest first (undone ones are marked). */
 function payPayouts(suggestions) {
   const rows = (suggestions || []).filter((sg) => sg.type === PAY_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const map = new Map();
-  rows.forEach((r) => { if (r.kind === "paid") map.set(r.id, { id: r.id, teacherId: r.teacherId, keys: Array.isArray(r.keys) ? r.keys : [], amount: Number(r.amount) || 0, at: r.at || "", voided: false }); else if (r.kind === "void" && map.has(r.id)) map.get(r.id).voided = true; });
+  rows.forEach((r) => { if (r.kind === "paid") map.set(r.id, { id: r.id, teacherId: r.teacherId, keys: Array.isArray(r.keys) ? r.keys : [], lines: Array.isArray(r.lines) ? r.lines : null, taxOn: r.taxOn !== false, rate: Number(r.rate) || 0, amount: Number(r.amount) || 0, at: r.at || "", voided: false }); else if (r.kind === "void" && map.has(r.id)) map.get(r.id).voided = true; });
   return [...map.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 /** What each confirmed teacher earned on programs that are over, and whether it was paid already. */
@@ -7428,7 +7457,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-s"; // change with every delivery
+const APP_BUILD = "2026-10-08-t"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8498,7 +8527,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -9019,7 +9048,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
 
-      {tab === "pay" && payData && <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />}
+      {tab === "pay" && payData && <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />}
 
       {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
 
@@ -9744,7 +9773,7 @@ function JoinDialog({ title, onSend, onClose }) {
 }
 
 /** What the foreign teachers see: upcoming programs to sign up for, the class materials and the feedback. */
-function GuideApp({ teacher, payItems = [], payouts = [], students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
+function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("materials");
@@ -9808,7 +9837,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], students, adventures, 
         ))}
       </div>
 
-      {tab === "pay" && teacherId && <MyPay items={payItems} payouts={payouts} />}
+      {tab === "pay" && teacherId && <MyPay items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -9911,8 +9940,76 @@ function GuideApp({ teacher, payItems = [], payouts = [], students, adventures, 
 }
 
 /** HQ: each teacher's own number, and the sign-ups to approve. */
+const lineOf = (i) => ({ title: i.title, slot: i.slotLabel || "", date: i.date || "", hours: i.source === "hours" ? i.hours : 0, amount: i.amount });
+/** A pay statement like a quotation: the lines, the total, the 3.3% withheld and what is paid out. Printable, or copied as text for KakaoTalk. */
+function PayStatement({ teacherName, lines, taxOn, rate, date, onClose }) {
+  const gross = lines.reduce((n, l) => n + l.amount, 0);
+  const t = payTax(gross, taxOn);
+  const [note, setNote] = useState("");
+  const text = [
+    `[${tr("수당 정산서")}] ${teacherName}`,
+    `${tr("정산일")}: ${date}`,
+    "",
+    ...lines.map((l) => `· ${l.title}${l.slot ? ` ${l.slot}` : ""} ${l.date ? `(${l.date})` : ""} ${l.hours ? `${l.hours}h × ${won(rate)} = ` : ""}${won(l.amount)}`),
+    "",
+    `${tr("합계")}: ${won(t.gross)}`,
+    ...(t.withheld ? [`${tr("소득세 3%")}: -${won(t.incomeTax)}`, `${tr("지방소득세 0.3%")}: -${won(t.localTax)}`] : []),
+    `${tr("실지급액")}: ${won(t.net)}`,
+  ].join("\n");
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); setNote(tr("복사했어요 ✓")); } catch (e) { setNote(tr("자동 복사가 안 돼요")); }
+  };
+  const row = (label, value, strong, minus) => (
+    <div className="flex items-baseline justify-between gap-3 py-2">
+      <span className={`f-body ${strong ? "text-[17px] font-bold" : "text-[15px]"}`} style={{ color: C.charcoal }}>{label}</span>
+      <span className={`f-display ${strong ? "text-[22px] font-bold" : "text-[16px] font-semibold"}`} style={{ color: strong ? C.orange : minus ? "#C0674A" : C.charcoal }}>{minus ? "-" : ""}{value}</span>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label={tr("수당 정산서")} data-testid="pay-statement">
+      <div className="max-w-md mx-auto px-5 pt-6 pb-12">
+        <div className="flex items-center justify-between mb-4 print:hidden">
+          <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("닫기")}</button>
+          <div className="flex gap-2">
+            <button onClick={copy} className="focus-ring tap f-body text-[15px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("복사")}</button>
+            <button onClick={() => window.print()} className="focus-ring tap f-body text-[15px] font-bold px-4 py-2 rounded-full text-white" style={{ background: C.green }}>{tr("인쇄·PDF")}</button>
+          </div>
+        </div>
+        {note && <p className="f-body text-[13px] text-gray-500 mb-2 print:hidden">{note}</p>}
+        <div className="bg-white rounded-2xl p-5" style={{ border: `1px solid ${C.beige}` }}>
+          <p className="f-body text-[12px] font-bold tracking-[0.14em] uppercase" style={{ color: C.orange }}>CarrotWorld</p>
+          <h2 className="f-headline text-[26px] leading-tight mb-3" style={{ color: C.green }}>{tr("수당 정산서")}</h2>
+          <div className="flex justify-between f-body text-[14px] text-gray-500 pb-3 border-b" style={{ borderColor: C.beige }}>
+            <span>{tr("선생님 이름")}: <b style={{ color: C.charcoal }}>{teacherName}</b></span>
+            <span>{date}</span>
+          </div>
+          <div className="py-2">
+            {lines.map((l, i) => (
+              <div key={i} className="flex items-start justify-between gap-3 py-2 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                <div className="min-w-0">
+                  <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{l.title}{l.slot ? ` · ${l.slot}` : ""}</p>
+                  <p className="f-body text-[12px] text-gray-400">{[l.date, l.hours ? `${l.hours}h × ${won(rate)}` : ""].filter(Boolean).join(" · ")}</p>
+                </div>
+                <p className="f-display text-[15px] font-semibold shrink-0" style={{ color: C.charcoal }}>{won(l.amount)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="border-t pt-1" style={{ borderColor: C.beige }}>
+            {row(tr("합계"), won(t.gross))}
+            {t.withheld && row(tr("소득세 3%"), won(t.incomeTax), false, true)}
+            {t.withheld && row(tr("지방소득세 0.3%"), won(t.localTax), false, true)}
+            <div className="border-t mt-1 pt-1" style={{ borderColor: C.beige }}>{row(tr("실지급액"), won(t.net), true)}</div>
+          </div>
+          <p className="f-body text-[12px] text-gray-400 mt-3">{t.withheld ? tr("사업소득 3.3% 원천징수 기준의 예상 금액이에요. 실제 신고 금액은 세무 기준을 따라요.") : tr("원천징수 없이 계산한 금액이에요.")}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** HQ: what each teacher has earned since the last payout. "정산 완료" empties it; camps and special trips are typed by hand. */
-function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
+function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVoid }) {
+  const [stmt, setStmt] = useState(null); // { teacherName, lines, taxOn, rate, date }
   const [rateText, setRateText] = useState("");
   const [edit, setEdit] = useState(null); // { scope, text }
   const [confirm, setConfirm] = useState(null); // { teacher, items }
@@ -9939,6 +10036,10 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
           <button onClick={() => { if (Number(rateText) > 0) { onSetRate(Number(rateText)); setRateText(""); } }} className="focus-ring tap f-body text-[15px] font-bold rounded-xl px-4 py-2 text-white" style={{ background: C.green }}>{tr("저장")}</button>
         </div>
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("지금 시급 {0}", [won(pay.rate)])}</p>
+        <label className="flex items-center gap-2 mt-3 f-body text-[15px]" style={{ color: C.charcoal }}>
+          <input type="checkbox" checked={pay.taxOn} onChange={(e) => onSetTax(e.target.checked)} className="w-5 h-5" data-testid="pay-tax-toggle" />
+          {tr("3.3% 원천징수 공제 (소득세 3% + 지방소득세 0.3%)")}
+        </label>
       </div>
 
       {byTeacher.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("정산할 수당이 없어요. 체험이 끝나면 여기에 쌓여요.")}</p></div>}
@@ -9977,8 +10078,9 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
           <div key={t.id} className="bg-white rounded-2xl p-4" data-testid="pay-teacher">
             <div className="flex items-baseline justify-between gap-2 mb-2">
               <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t.name}</p>
-              <p className="f-display text-[20px] font-bold" style={{ color: C.orange }} data-testid="pay-total">{won(total)}</p>
+              <p className="f-display text-[20px] font-bold" style={{ color: C.orange }} data-testid="pay-total">{won(payTax(total, pay.taxOn).net)}</p>
             </div>
+            {pay.taxOn && total > 0 && <p className="f-body text-[13px] text-gray-500 -mt-1 mb-2" data-testid="pay-tax-line">{tr("합계 {0} − 세금 {1} = 실지급액", [won(total), won(payTax(total, true).tax)])}</p>}
             <div className="space-y-1.5 mb-3">
               {t.items.map((i) => {
                 const editing = edit && edit.scope === i.key;
@@ -10001,7 +10103,10 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
               })}
             </div>
             {missing > 0 && <p className="f-body text-[13px] mb-2" style={{ color: "#B25A0B" }}>{tr("금액을 입력하지 않은 {0}건은 정산에서 빠져요.", [missing])}</p>}
-            <button onClick={() => ready.length && setConfirm({ teacher: t, items: ready, total })} disabled={ready.length === 0} className="focus-ring tap w-full rounded-xl py-3 f-display text-[16px] font-semibold text-white disabled:opacity-40" style={{ background: C.green }} data-testid="pay-done">{tr("정산 완료")}</button>
+            <div className="flex gap-2">
+              <button onClick={() => ready.length && setStmt({ teacherName: t.name, lines: ready.map(lineOf), taxOn: pay.taxOn, rate: pay.rate, date: new Date().toISOString().slice(0, 10) })} disabled={ready.length === 0} className="focus-ring tap flex-1 rounded-xl py-3 f-body text-[15px] font-bold disabled:opacity-40" style={{ background: C.cream, color: C.green, border: `1px solid ${C.beige}` }} data-testid="pay-statement-open">{tr("정산서 보기")}</button>
+              <button onClick={() => ready.length && setConfirm({ teacher: t, items: ready, total })} disabled={ready.length === 0} className="focus-ring tap flex-[1.4] rounded-xl py-3 f-display text-[16px] font-semibold text-white disabled:opacity-40" style={{ background: C.green }} data-testid="pay-done">{tr("정산 완료")}</button>
+            </div>
           </div>
         );
       })}
@@ -10017,7 +10122,8 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
                   <p className="f-body text-[13px] text-gray-400">{fmtDay(p.at)} · {tr("{0}건", [p.keys.length])}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <p className="f-display text-[16px] font-semibold" style={{ color: C.green }}>{won(p.amount)}</p>
+                  <p className="f-display text-[16px] font-semibold" style={{ color: C.green }}>{won(payTax(p.amount, p.taxOn).net)}</p>
+                  <button onClick={() => setStmt({ teacherName: nameOf(p.teacherId), lines: p.lines || pay.items.filter((i) => p.keys.includes(i.key)).map(lineOf), taxOn: p.taxOn, rate: p.rate || pay.rate, date: String(p.at).slice(0, 10) })} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: C.green }}>{tr("정산서")}</button>
                   <button onClick={() => setConfirmVoid(p)} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#C0674A" }}>{tr("취소")}</button>
                 </div>
               </div>
@@ -10026,14 +10132,15 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
         </div>
       )}
 
+      {stmt && <PayStatement {...stmt} onClose={() => setStmt(null)} />}
       {confirm && (
         <ConfirmDialog
-          title={tr("{0} 선생님께 {1}을 드렸나요?", [confirm.teacher.name, won(confirm.total)])}
+          title={tr("{0} 선생님께 {1}을 드렸나요?", [confirm.teacher.name, won(payTax(confirm.total, pay.taxOn).net)])}
           actions={[
             { label: tr("정산 완료"), tone: "primary", onClick: () => { onPay(confirm.teacher.id, confirm.items, confirm.total); setConfirm(null); } },
             { label: tr("돌아가기"), tone: "plain", onClick: () => setConfirm(null) },
           ]}
-        >{tr("정산하면 이 선생님의 수당이 0원으로 돌아가고, 아래 정산 내역에 남아요.")}</ConfirmDialog>
+        >{pay.taxOn ? tr("세금 3.3%를 뺀 실지급액이에요. ") : ""}{tr("정산하면 이 선생님의 수당이 0원으로 돌아가고, 아래 정산 내역에 남아요.")}</ConfirmDialog>
       )}
       {confirmVoid && (
         <ConfirmDialog
@@ -10049,7 +10156,8 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
 }
 
 /** Teacher: my own earnings since the last payout, and what was paid before. */
-function MyPay({ items, payouts }) {
+function MyPay({ items, payouts, taxOn = true, rate = DEFAULT_PAY_RATE, name = "" }) {
+  const [stmt, setStmt] = useState(null);
   const open = items.filter((i) => !i.paid);
   const ready = open.filter((i) => !i.needsAmount);
   const total = ready.reduce((n, i) => n + i.amount, 0);
@@ -10058,8 +10166,10 @@ function MyPay({ items, payouts }) {
     <div className="px-5 pb-8 space-y-4" data-testid="my-pay">
       <div className="rounded-2xl p-5" style={{ background: C.green }}>
         <p className="f-body text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>{tr("받을 수당")}</p>
-        <p className="f-display text-[36px] font-bold text-white leading-tight mt-1" data-testid="my-pay-total">{won(total)}</p>
+        <p className="f-display text-[36px] font-bold text-white leading-tight mt-1" data-testid="my-pay-total">{won(payTax(total, taxOn).net)}</p>
+        {taxOn && total > 0 && <p className="f-body text-[14px] mt-1" style={{ color: "#C9E6D6" }}>{tr("합계 {0} − 세금 {1}", [won(total), won(payTax(total, true).tax)])}</p>}
         <p className="f-body text-[14px] mt-1" style={{ color: "#C9E6D6" }}>{tr("본사에서 정산하면 0원으로 돌아가요.")}</p>
+        {ready.length > 0 && <button onClick={() => setStmt({ teacherName: name, lines: ready.map(lineOf), taxOn, rate, date: new Date().toISOString().slice(0, 10) })} className="focus-ring tap mt-3 f-body text-[14px] font-bold rounded-full px-4 py-2" style={{ background: "rgba(255,255,255,0.16)", color: "white" }} data-testid="my-pay-statement">{tr("정산서 보기")}</button>}
       </div>
       {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}
       {open.length > 0 && (
@@ -10076,6 +10186,7 @@ function MyPay({ items, payouts }) {
         </div>
       )}
       {pending > 0 && <p className="f-body text-[13px] text-gray-500">{tr("금액을 확인 중인 {0}건은 본사가 금액을 정하면 합계에 들어가요.", [pending])}</p>}
+      {stmt && <PayStatement {...stmt} onClose={() => setStmt(null)} />}
       {payouts.length > 0 && (
         <div>
           <p className="f-display font-semibold text-[17px] mb-1.5" style={{ color: C.green }}>{tr("받은 내역")}</p>
@@ -10083,7 +10194,7 @@ function MyPay({ items, payouts }) {
             {payouts.map((p) => (
               <div key={p.id} className="flex items-center justify-between py-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
                 <p className="f-body text-[14px] text-gray-500">{fmtDay(p.at)} · {tr("{0}건", [p.keys.length])}</p>
-                <p className="f-display text-[16px] font-semibold" style={{ color: C.charcoal }}>{won(p.amount)}</p>
+                <button onClick={() => setStmt({ teacherName: name, lines: p.lines || items.filter((i) => p.keys.includes(i.key)).map(lineOf), taxOn: p.taxOn, rate: p.rate || rate, date: String(p.at).slice(0, 10) })} className="focus-ring tap f-display text-[16px] font-semibold underline decoration-dotted" style={{ color: C.charcoal }}>{won(payTax(p.amount, p.taxOn).net)}</button>
               </div>
             ))}
           </div>
@@ -10438,8 +10549,9 @@ export default function CarrotExplorer() {
   const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
   const savePaySetting = (row) => saveRow({ id: `set-pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ ...row, at: new Date().toISOString() }) });
   const setPayRate = (value) => savePaySetting({ key: "payRate", value });
+  const setPayTax = (on) => savePaySetting({ key: "payTax", value: !!on });
   const setPayAmount = (scope, value) => savePaySetting({ key: "payAmount", scope, value });
-  const payTeacher = (teacherId, items, amount) => saveRow({ id: `pay-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "paid", id: `p${Date.now().toString(36)}`, teacherId, keys: items.map((i) => i.key), amount, at: new Date().toISOString() }) });
+  const payTeacher = (teacherId, items, amount) => saveRow({ id: `pay-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "paid", id: `p${Date.now().toString(36)}`, teacherId, keys: items.map((i) => i.key), lines: items.map(lineOf), taxOn: payData.taxOn, rate: payData.rate, amount, at: new Date().toISOString() }) });
   const voidPayout = (id) => saveRow({ id: `payv-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "void", id, at: new Date().toISOString() }) });
   const rememberPlace = (p) => {
     const known = savedPlaces(suggestions).find((x) => x.name.toLowerCase() === p.name.toLowerCase());
@@ -10907,7 +11019,7 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           {showManual && <TeacherManual lang={teacherLang} role="guide" onClose={() => setShowManual(false)} />}
           <div className="flex-1 overflow-y-auto">
-            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
+            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} payInfo={{ taxOn: payData.taxOn, rate: payData.rate }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
           </div>
         </div>
       </div>
@@ -10959,6 +11071,7 @@ export default function CarrotExplorer() {
               payData={payData}
               onSetPayRate={setPayRate}
               onSetPayAmount={setPayAmount}
+              onSetPayTax={setPayTax}
               onPayTeacher={payTeacher}
               onVoidPayout={voidPayout}
               places={savedPlaces(suggestions)}

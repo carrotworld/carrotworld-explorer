@@ -1400,11 +1400,11 @@ const BADGE_DEFS = [
   { id: "curious", name: "Curious Thinker", emoji: "💡", retired: true, check: (advs) => advs.filter((a) => a.bigQuestionCustom).length >= 2 },
   { id: "photographer", name: "Adventure Photographer", emoji: "📷", retired: true, check: (advs) => advs.some((a) => a.reflection?.photo) },
   { id: "missionmaster", name: "Mission Master", emoji: "🧭", retired: true, check: (advs) => advs.filter((a) => missionsAllDone(a)).length >= 2 },
-  { id: "stamp10", name: "도장판 완성 (10회)", emoji: "🎟️", check: (advs) => advs.filter((a) => a.attended).length >= 10 },
-  { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
-  { id: "stamp30", name: "도장판 완성 (30회)", emoji: "🥈", check: (advs) => advs.filter((a) => a.attended).length >= 30 },
-  { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
-  { id: "stamp50", name: "도장판 완성 (50회)", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
+  { id: "stamp10", name: "First Steps", emoji: "🎟️", check: (advs) => advs.filter((a) => a.attended).length >= 10 },
+  { id: "stamp20", name: "Curious Explorer", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
+  { id: "stamp30", name: "Challenge Master", emoji: "🥈", check: (advs) => advs.filter((a) => a.attended).length >= 30 },
+  { id: "stamp40", name: "World Adventurer", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
+  { id: "stamp50", name: "Carrot Legend", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
 ];
 
 /* ================================================================== */
@@ -1432,11 +1432,11 @@ const BADGE_HELP = {
   word: { ko: "복습 퀴즈를 모두 맞혔거나, 예습 단어를 전부 5번씩 연습했어요.", en: "Got every review question right, or practised every prep word 5 times." },
   curious: { ko: "직접 만든 큰 질문을 2번 이상 남겼어요.", en: "Wrote their own big question 2 or more times." },
   missionmaster: { ko: "현장 미션을 모두 해낸 체험이 2번 이상이에요.", en: "Completed every mission on 2 or more trips." },
-  stamp10: { ko: "체험에 10번 출석했어요.", en: "Attended 10 trips.", enName: "Stamp board (10 trips)" },
-  stamp20: { ko: "체험에 20번 출석했어요.", en: "Attended 20 trips.", enName: "Stamp board (20 trips)" },
-  stamp30: { ko: "체험에 30번 출석했어요.", en: "Attended 30 trips.", enName: "Stamp board (30 trips)" },
-  stamp40: { ko: "체험에 40번 출석했어요.", en: "Attended 40 trips.", enName: "Stamp board (40 trips)" },
-  stamp50: { ko: "체험에 50번 출석했어요.", en: "Attended 50 trips.", enName: "Stamp board (50 trips)" },
+  stamp10: { ko: "첫 번째 발자국 · 체험에 10번 출석했어요.", en: "Attended 10 trips.", enName: "First Steps" },
+  stamp20: { ko: "호기심 탐험가 · 체험에 20번 출석했어요.", en: "Attended 20 trips.", enName: "Curious Explorer" },
+  stamp30: { ko: "도전 마스터 · 체험에 30번 출석했어요.", en: "Attended 30 trips.", enName: "Challenge Master" },
+  stamp40: { ko: "월드 어드벤처러 · 체험에 40번 출석했어요.", en: "Attended 40 trips.", enName: "World Adventurer" },
+  stamp50: { ko: "당근 레전드 · 체험에 50번 출석했어요.", en: "Attended 50 trips.", enName: "Carrot Legend" },
 };
 /** The badges shown in the guides (retired ones are left out). */
 const badgeGuide = () => BADGE_DEFS.filter((b) => !b.retired && BADGE_HELP[b.id]).map((b) => ({ id: b.id, emoji: b.emoji, name: b.name, enName: BADGE_HELP[b.id].enName || b.name, ko: BADGE_HELP[b.id].ko, en: BADGE_HELP[b.id].en }));
@@ -7326,7 +7326,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-k"; // change with every delivery
+const APP_BUILD = "2026-10-08-l"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

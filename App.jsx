@@ -4402,7 +4402,7 @@ function ReviewCard({ program, record, onSubmit }) {
 }
 
 /** The parents' points page: balance, how points are earned, external review, history. */
-function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose, embedded = false }) {
+function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose, embedded = false, inline = false }) {
   applyPointItems(currentPointItems(suggestions));
   const reviewOn = POINT_RULES.review > 0 && !embedded; // the review link is for parents; the child tab only explains and shows the balance
   const entries = pointEntries(familyPin, students, adventures, suggestions);
@@ -4419,11 +4419,11 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
     </div>
   );
   return (
-    <div className={embedded ? "" : "fixed inset-0 z-50 overflow-y-auto"} style={embedded ? undefined : { background: C.cream }} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="포인트">
-      <div className={embedded ? "px-5 pt-7 pb-6" : "max-w-md mx-auto px-5 pt-6 pb-12"}>
+    <div className={embedded || inline ? "" : "fixed inset-0 z-50 overflow-y-auto"} style={embedded || inline ? undefined : { background: C.cream }} role={embedded || inline ? undefined : "dialog"} aria-modal={embedded || inline ? undefined : "true"} aria-label="포인트">
+      <div className={embedded || inline ? "px-5 pt-2 pb-6" : "max-w-md mx-auto px-5 pt-6 pb-12"}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>포인트</h2>
-          {!embedded && <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>}
+          {!embedded && !inline && <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>}
         </div>
 
         <div className="rounded-2xl p-5 mb-4" style={{ background: C.green, boxShadow: "0 4px 14px rgba(23,76,53,0.18)" }}>
@@ -4486,16 +4486,34 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
 /** The points row at the top of the parents' home: the balance on one line (and the review invitation when there is one). */
 function PointsCard({ balance, canReview, onOpen }) {
   return (
-    <button onClick={onOpen} className="focus-ring tap w-full rounded-2xl px-4 py-3 text-left" style={{ background: C.green }} data-testid="points-card">
-      <span className="flex items-center justify-between gap-3">
-        <span className="f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</span>
-        <span className="flex items-center gap-1.5">
-          <span className="f-display text-[20px] font-bold text-white">{fmtBalance(balance)}</span>
-          <ChevronRight size={18} color="#9FD1B8" />
-        </span>
+    <button onClick={onOpen} className="focus-ring tap w-full rounded-2xl px-4 py-3.5 text-left min-h-[92px] flex flex-col justify-between" style={{ background: C.green }} data-testid="points-card">
+      <span className="flex items-center justify-between">
+        <span className="f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Points</span>
+        <ChevronRight size={18} color="#9FD1B8" />
       </span>
-      {canReview && <span className="block f-body text-[14px] mt-0.5" style={{ color: "#C9E6D6" }}>{`외부 후기 작성하고 ${POINT_RULES.review}P 받기 🥕`}</span>}
+      <span className="block">
+        <span className="block f-display text-[24px] font-bold text-white leading-tight">{fmtBalance(balance)}</span>
+        {canReview && <span className="block f-body text-[12px] mt-0.5" style={{ color: "#C9E6D6" }}>{`후기 쓰고 ${POINT_RULES.review}P 🥕`}</span>}
+      </span>
     </button>
+  );
+}
+
+/** Badges tab: child switcher on top (only with several children), then the stamp board and badges. */
+function BadgesPane({ kids, adventures }) {
+  const [i, setI] = useState(0);
+  const k = kids[Math.min(i, kids.length - 1)];
+  return (
+    <div>
+      {kids.length > 1 && (
+        <div className="px-5 pt-2 flex gap-1.5 overflow-x-auto">
+          {kids.map((st, j) => (
+            <button key={st.id} onClick={() => setI(j)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: j === i ? C.green : "white", color: j === i ? "white" : C.charcoal }}>{st.name}</button>
+          ))}
+        </div>
+      )}
+      {k && <BadgeCollection adventures={adventures} studentId={k.id} />}
+    </div>
   );
 }
 
@@ -4637,7 +4655,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
-  const [showPoints, setShowPoints] = useState(false);
+  const [ptab, setPtab] = useState("home");
+  const myKids = students.filter((st) => st.familyPin === familyPin);
   const [infoId, setInfoId] = useState(null);
   const [infoSessionId, setInfoSessionId] = useState(null);
   const [addingChild, setAddingChild] = useState(false);
@@ -4654,7 +4673,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const canReview = notices.some((n) => n.kind === "points");
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
-    <div className="pb-6">
+    <div className="pb-24">
       <ScreenHeader
         title="내 자녀 관리"
         right={
@@ -4663,21 +4682,13 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           </button>
         }
       />
-      <div className="px-5 flex gap-4 mb-3">
-        <button onClick={() => setShowLevels(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.green }}>당근나라 레벨</button>
-        <button onClick={() => setShowSheet(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.green }}>도움말</button>
-      </div>
-      <div className="px-5 mb-3">
-        <PointsCard balance={myBalance} canReview={canReview} onOpen={() => setShowPoints(true)} />
-      </div>
       {showGuide && <ParentGuide onClose={closeGuide} />}
-      {showPoints && <PointsSheet familyPin={familyPin} students={students} adventures={adventures} suggestions={suggestions} onSubmitReview={onSubmitReview} onClose={() => setShowPoints(false)} />}
       {newlyApproved && !showGuide && (
         <ConfirmDialog
           title={`🥕 ${POINT_RULES.review}P가 적립되었습니다!`}
           actions={[
             { label: "확인", tone: "primary", onClick: () => onSeenReview(newlyApproved.id) },
-            { label: "포인트 내역 보기", tone: "plain", onClick: () => { onSeenReview(newlyApproved.id); setShowPoints(true); } },
+            { label: "포인트 내역 보기", tone: "plain", onClick: () => { onSeenReview(newlyApproved.id); setPtab("points"); } },
           ]}
         >
           외부 후기가 승인되었어요. 현재 보유 포인트는 {fmtBalance(myBalance)}예요.
@@ -4696,6 +4707,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           onClose={() => setInfoId(null)}
         />
       )}
+      {ptab === "home" && (
       <div className="px-5 space-y-3">
         {myChildren.length === 0 && (
           <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
@@ -4744,6 +4756,23 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
 
         <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
       </div>
+      )}
+      {ptab === "points" && <PointsSheet inline familyPin={familyPin} students={students} adventures={adventures} suggestions={suggestions} onSubmitReview={onSubmitReview} onClose={() => setPtab("home")} />}
+      {ptab === "badges" && <BadgesPane kids={myKids} adventures={adventures} />}
+      {ptab === "help" && (
+        <div className="px-5 pt-2 space-y-4">
+          <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
+          <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
+          <LevelGuideForParents showTitle />
+        </div>
+      )}
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-white" style={{ borderTop: `1px solid ${C.beige}` }} aria-label="메뉴">
+        <div className="max-w-md mx-auto grid grid-cols-4 px-2 pt-1.5 pb-2.5">
+          {[["home", "홈"], ["points", "포인트"], ["badges", "뱃지"], ["help", "안내"]].map(([k, label]) => (
+            <button key={k} onClick={() => { setPtab(k); window.scrollTo({ top: 0 }); }} aria-current={ptab === k} className="focus-ring tap f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ color: ptab === k ? C.green : "#9C927D", background: ptab === k ? C.beige : "transparent" }} data-testid={`ptab-${k}`}>{label}</button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
@@ -7488,7 +7517,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-y"; // change with every delivery
+const APP_BUILD = "2026-10-08-a2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

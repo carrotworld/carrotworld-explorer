@@ -1404,7 +1404,8 @@ const BADGE_DEFS = [
   { id: "stamp20", name: "Curious Explorer", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
   { id: "stamp30", name: "Challenge Master", emoji: "🥈", check: (advs) => advs.filter((a) => a.attended).length >= 30 },
   { id: "stamp40", name: "World Adventurer", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
-  { id: "stamp50", name: "Carrot Legend", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
+  { id: "stamp50", name: "Carrot Champion", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
+  { id: "stamp60", name: "Carrot Legend", emoji: "👑", check: (advs) => advs.filter((a) => a.attended).length >= 60 },
 ];
 
 /* ================================================================== */
@@ -1436,7 +1437,8 @@ const BADGE_HELP = {
   stamp20: { ko: "호기심 탐험가 · 체험에 20번 출석했어요.", en: "Attended 20 trips.", enName: "Curious Explorer" },
   stamp30: { ko: "도전 마스터 · 체험에 30번 출석했어요.", en: "Attended 30 trips.", enName: "Challenge Master" },
   stamp40: { ko: "월드 어드벤처러 · 체험에 40번 출석했어요.", en: "Attended 40 trips.", enName: "World Adventurer" },
-  stamp50: { ko: "당근 레전드 · 체험에 50번 출석했어요.", en: "Attended 50 trips.", enName: "Carrot Legend" },
+  stamp50: { ko: "당근 챔피언 · 체험에 50번 출석했어요.", en: "Attended 50 trips.", enName: "Carrot Champion" },
+  stamp60: { ko: "당근 레전드 · 체험에 60번 출석했어요.", en: "Attended 60 trips.", enName: "Carrot Legend" },
 };
 /** The badges shown in the guides (retired ones are left out). */
 const badgeGuide = () => BADGE_DEFS.filter((b) => !b.retired && BADGE_HELP[b.id]).map((b) => ({ id: b.id, emoji: b.emoji, name: b.name, enName: BADGE_HELP[b.id].enName || b.name, ko: BADGE_HELP[b.id].ko, en: BADGE_HELP[b.id].en }));
@@ -1712,23 +1714,29 @@ function Badge({ b, size = "md" }) {
       <span className="text-[14px] leading-tight font-bold f-body" style={{ color: C.charcoal }}>
         {b.name}
       </span>
+      {/^stamp\d+$/.test(b.id) && size !== "sm" && <span className="f-body text-[13px] -mt-1.5" style={{ color: b.earned ? C.orange : "#9C927D" }}>{b.id.replace("stamp", "")}회 출석</span>}
     </div>
   );
 }
 
 function StampCard({ count, fillColor = C.orange, emptyColor = C.beige, fillBg = "#FFF1E2", size = 26 }) {
   const filled = count % STAMP_CARD_SIZE === 0 && count > 0 ? STAMP_CARD_SIZE : count % STAMP_CARD_SIZE;
+  // before the stamp: a pale grey carrot (the last place shows the badge waiting at the end); after: the carrot in colour, pressed a little crooked like a real stamp
   return (
-    <div className="flex items-center justify-between">
-      {Array.from({ length: STAMP_CARD_SIZE }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-full flex items-center justify-center"
-          style={{ width: size, height: size, border: `1.5px dashed ${i < filled ? fillColor : emptyColor}`, background: i < filled ? fillBg : "transparent" }}
-        >
-          {i < filled && <span style={{ fontSize: size * 0.5 }}>🥕</span>}
-        </div>
-      ))}
+    <div className="flex items-center justify-between" role="img" aria-label={`${filled}/${STAMP_CARD_SIZE}`}>
+      {Array.from({ length: STAMP_CARD_SIZE }).map((_, i) => {
+        const on = i < filled;
+        const last = i === STAMP_CARD_SIZE - 1;
+        return (
+          <div
+            key={i}
+            className="rounded-full flex items-center justify-center"
+            style={{ width: size, height: size, border: on ? `1.5px solid ${fillColor}` : `1.5px dashed ${emptyColor}`, background: on ? fillBg : "#FAF7F2" }}
+          >
+            <span style={{ fontSize: size * 0.55, lineHeight: 1, transform: on ? `rotate(${i % 2 ? 9 : -9}deg)` : "none", filter: on ? "none" : "grayscale(1)", opacity: on ? 1 : 0.28 }}>{last && !on ? "🏅" : "🥕"}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2500,19 +2508,19 @@ function BadgeCollection({ adventures, studentId }) {
           const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
           return (
             <div className="bg-white rounded-2xl p-4 mb-5" data-testid="stamp-board">
-              <p className="f-display font-semibold text-[18px] mb-1" style={{ color: C.green }}>도장판</p>
-              <p className="f-body text-[14px] text-gray-500 mb-3">체험을 마칠 때마다 도장 1개와 {POINT_RULES.trip > 0 ? `${POINT_RULES.trip.toLocaleString("en-US")}P` : "포인트"}를 받아요. 도장 10개를 모으면 뱃지가 생겨요.</p>
+              <p className="f-display font-semibold text-[18px] mb-3" style={{ color: C.green }}>도장판</p>
               <StampCard count={n} />
               <p className="f-body text-[15px] font-bold mt-3" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
+              <p className="f-body text-[13px] text-gray-400 mt-1">{`체험 완료 시 도장 1개 + ${POINT_RULES.trip > 0 ? POINT_RULES.trip.toLocaleString("en-US") + "P" : "포인트"} · 10개마다 뱃지`}</p>
             </div>
           );
         })()}
         <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Earned ({earned.length})</p>
-        <div className="grid grid-cols-4 gap-y-4 mb-6">
+        <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
           {earned.map((b) => <Badge key={b.id} b={b} />)}
         </div>
         <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Next badges</p>
-        <div className="grid grid-cols-4 gap-y-4">
+        <div className="grid grid-cols-3 gap-y-5 justify-items-center">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
       </div>
@@ -7326,7 +7334,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-l"; // change with every delivery
+const APP_BUILD = "2026-10-08-o"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

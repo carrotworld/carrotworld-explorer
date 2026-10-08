@@ -1182,6 +1182,16 @@ function objectiveSets(program) {
   if (!lv.length) { const o = one(program && program.objective); return o ? [{ level: null, ...o }] : []; }
   return lv.map((l) => ({ level: l, ...(one(program.levelMaterials[l].objective) || {}) })).filter((x) => x.ko || x.en);
 }
+/** One-line objective for a child's own level: "A2 Describe — ..." (null when HQ has not written it). */
+function childObjective(program, child, adv) {
+  const sets = objectiveSets(program);
+  if (!sets.length) return null;
+  const lv = levelFor(program, child, adv);
+  const o = sets.find((x) => x.level === lv) || sets.find((x) => x.level === null);
+  if (!o || !(o.ko || o.en)) return null;
+  const g = lv && CEFR_GOALS[lv];
+  return { level: lv, verb: g ? g.verb : "", ko: o.ko, en: o.en };
+}
 function focusSets(program) {
   const lv = materialLevels(program);
   if (!lv.length) return (program.focus || []).length ? [{ level: null, items: program.focus }] : [];
@@ -4716,6 +4726,14 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
             </p>
             <p className="f-body text-[15px] mt-1" style={{ color: C.charcoal }}>{primary.act.status}</p>
           </div>
+          {["live", "prep", "info", "check"].includes(primary.act.key) && (() => {
+            const ob = childObjective(primary.program, child, primary.a);
+            return ob ? (
+              <p data-testid="child-objective" className="f-body text-[14px] mt-2 rounded-xl px-3 py-2" style={{ background: "#EEF6F0", color: C.green }}>
+                🎯 <b>이번 체험 목표</b>{ob.level ? ` · ${ob.level}${ob.verb ? " " + ob.verb : ""}` : ""} — {ob.ko || ob.en}
+              </p>
+            ) : null;
+          })()}
           {primary.act.cta && primary.act.cta.act !== "browse" && cta(primary, primary.act.cta) && (
             <button data-testid="primary-action" onClick={() => run(primary.act.cta)} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-3 text-white" style={{ background: C.orange }}>
               {primary.act.cta.label}
@@ -4767,6 +4785,38 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
         </div>
       </div>
     </div>
+  );
+}
+
+function ProgramObjectives({ programs }) {
+  if (!programs.length) return null;
+  return (
+    <section data-testid="program-objectives" className="space-y-3">
+      <SectionBar>프로그램별 학습 목표</SectionBar>
+      {programs.map((p) => (
+        <div key={p.id} className="bg-white rounded-2xl px-4 py-3.5" style={{ border: `1px solid ${C.beige}` }}>
+          <div className="flex gap-3">
+            <TitleBar program={p} />
+            <div className="min-w-0">
+              <p className="f-headline text-[18px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+              {p.themeKo && <p className="f-body text-[14px] text-gray-500 mt-0.5">{p.themeKo}</p>}
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {objectiveSets(p).map((o) => {
+              const g = o.level && CEFR_GOALS[o.level];
+              return (
+                <div key={o.level || "all"} className="rounded-xl px-3 py-2" style={{ background: "#EEF6F0" }}>
+                  <p className="f-body text-[13px] font-bold" style={{ color: C.green }}>{o.level ? `${o.level}${g ? " · " + g.verb : ""}` : "목표"}</p>
+                  {o.ko && <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{o.ko}</p>}
+                  {o.en && <p className="f-body text-[13px] text-gray-500">{o.en}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -4875,6 +4925,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         <div className="px-5 pt-2 space-y-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
+          <ProgramObjectives programs={(() => {
+            const mine = new Set(adventures.filter((a) => myChildren.some((c) => c.id === a.studentId)).map((a) => a.programId));
+            const up = new Set(upcomingPrograms(adventures).map((p) => p.id));
+            return PROGRAMS.filter((p) => (mine.has(p.id) || up.has(p.id)) && objectiveSets(p).length);
+          })()} />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -7719,7 +7774,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-l2"; // change with every delivery
+const APP_BUILD = "2026-10-09-m2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

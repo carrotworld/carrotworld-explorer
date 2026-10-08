@@ -1156,7 +1156,7 @@ const PROGRAMS = [
 /*  and big question for each level (`levelMaterials`). A child gets the */
 /*  set of their own level; without levelMaterials everyone shares one.  */
 /* ================================================================== */
-const LEVEL_FIELDS = ["vocabulary", "bigQuestion", "bigQuestionOptions", "missions", "remember", "focus"];
+const LEVEL_FIELDS = ["vocabulary", "bigQuestion", "bigQuestionOptions", "missions", "remember", "focus", "objective"];
 /** The levels that have their own set ([] while the program uses one shared set). */
 const materialLevels = (program) => (program && program.levelMaterials ? sortLevels(Object.keys(program.levelMaterials)) : []);
 /** The program as a child of this level sees it. */
@@ -1173,6 +1173,13 @@ function levelFor(program, student, adv) {
 }
 const programFor = (program, student, adv) => programForLevel(program, levelFor(program, student, adv));
 /** The focus points of every level; one entry when they are all the same. */
+/** The learning objective written for each level of a program (the goal verb of the level stays fixed; HQ or the teacher writes the topic part). */
+function objectiveSets(program) {
+  const one = (o) => (o && ((o.ko || "").trim() || (o.en || "").trim()) ? { ko: (o.ko || "").trim(), en: (o.en || "").trim() } : null);
+  const lv = materialLevels(program);
+  if (!lv.length) { const o = one(program && program.objective); return o ? [{ level: null, ...o }] : []; }
+  return lv.map((l) => ({ level: l, ...(one(program.levelMaterials[l].objective) || {}) })).filter((x) => x.ko || x.en);
+}
 function focusSets(program) {
   const lv = materialLevels(program);
   if (!lv.length) return (program.focus || []).length ? [{ level: null, items: program.focus }] : [];
@@ -2278,7 +2285,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
       </div>
 
       <div className="px-5 mt-5">
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-2">Your Next Adventure</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-2.5" style={{ color: C.green }}>Your Next Adventure</p>
         <div
           role="button"
           tabIndex={0}
@@ -2287,7 +2294,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           className="focus-ring tap w-full text-left cursor-pointer relative"
         >
           <div className="bg-white rounded-2xl p-5">
-            <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>
+            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>
               {next.program.date} · Level {levelLabel(next.program)}
             </p>
             <div className="mb-3"><ProgramHeadline program={next.program} size={34} /></div>
@@ -2313,7 +2320,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           )}
           {otherDone.length > 0 && (
             <>
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-2">Completed</p>
+              <p className="f-display text-[22px] font-bold leading-tight mb-2.5" style={{ color: C.green }}>Completed</p>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
                 {otherDone.map(({ program }) => (
                   <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
@@ -2571,18 +2578,18 @@ function BadgeCollection({ adventures, studentId }) {
           const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
           return (
             <div className="bg-white rounded-2xl p-4 mb-5" data-testid="stamp-board">
-              <p className="f-display font-semibold text-[18px] mb-3" style={{ color: C.green }}>도장판</p>
+              <p className="f-display font-bold text-[20px] mb-3" style={{ color: C.green }}>도장판</p>
               <StampCard count={n} perRow={5} size={56} />
               <p className="f-body text-[16px] font-bold mt-4" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
               <p className="f-body text-[13px] text-gray-400 mt-1">{`체험 완료 시 도장 1개 + ${POINT_RULES.trip > 0 ? POINT_RULES.trip.toLocaleString("en-US") + "P" : "포인트"} · 10개마다 뱃지`}</p>
             </div>
           );
         })()}
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Earned ({earned.length})</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-3" style={{ color: C.green }}>Earned ({earned.length})</p>
         <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
           {earned.map((b) => <Badge key={b.id} b={b} />)}
         </div>
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 mb-3">Next badges</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-3" style={{ color: C.green }}>Next badges</p>
         <div className="grid grid-cols-3 gap-y-5 justify-items-center">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
@@ -2698,7 +2705,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
       <div className="px-5 pb-10">
         {(program.focus || []).length > 0 && (
           <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
+            <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
             <ul className="space-y-1">
               {program.focus.map((f, i) => (
                 <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
@@ -2727,7 +2734,7 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
 
       {(program.focus || []).length > 0 && (
         <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
+          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
           <ul className="space-y-1">
             {program.focus.map((f, i) => (
               <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
@@ -2770,7 +2777,7 @@ function ScoreCard({ score, className = "" }) {
   if (!score) return null;
   return (
     <div className={`bg-white rounded-2xl p-5 text-center ${className}`}>
-      <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>Review score</p>
+      <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>Review score</p>
       <p className="f-display text-5xl font-bold" style={{ color: C.green }}>{score.percent}%</p>
       <p className="f-body text-[17px] text-gray-500 mt-1">{score.correct} of {score.total} correct</p>
       <div className="h-2 rounded-full overflow-hidden mt-3" style={{ background: C.beige }} role="img" aria-label={`${score.percent} percent correct`}>
@@ -2821,12 +2828,12 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
         </div>
         <ScoreCard score={reviewScoreOf(adv)} className="mb-3" />
         <div className="bg-white rounded-2xl p-4 mb-3">
-          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
+          <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>My favorite moment</p>
           <p className="f-body text-[17px]" style={{ color: C.charcoal }}>"{r.favoriteText}" because {r.favoriteReason}</p>
           {r.photo && <img src={r.photo} alt="Favorite moment" className="w-full h-36 object-cover rounded-xl mt-3" />}
         </div>
         <div className="bg-white rounded-2xl p-4">
-          <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
+          <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>One thing I discovered</p>
           <p className="f-body text-[17px]" style={{ color: C.charcoal }}>Today I discovered that {r.discovery}.</p>
         </div>
       </div>
@@ -2891,7 +2898,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       {step === "quiz" && phase === "bigq" && (
         <div>
           <div className="bg-white rounded-2xl p-5 mb-5">
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>Today's Big Question</p>
+            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>Today's Big Question</p>
             <p className="f-display text-[21px] font-semibold mb-1" style={{ color: C.green }}>{program.bigQuestion}</p>
             <p className="f-body text-[15px] text-gray-400 mb-4">What do you think now?</p>
             <div className="flex flex-wrap gap-2 mb-3">
@@ -2988,14 +2995,14 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
           <ScoreCard score={score} className="relative mb-3" />
           <p className="relative inline-block f-body text-[15px] font-bold px-3 py-1 rounded-full mb-5" style={{ background: "#FFF1E2", color: C.orange }}>🥕 Adventure complete</p>
           <div className="relative bg-white rounded-2xl p-5 text-left mb-4">
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>My favorite moment</p>
+            <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>My favorite moment</p>
             <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>"{favoriteText}" because {favoriteReason}</p>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>One thing I discovered</p>
+            <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>One thing I discovered</p>
             <p className="f-body text-[17px]" style={{ color: C.charcoal }}>Today I discovered that {discovery}.</p>
           </div>
           {badgesJustEarned?.length > 0 && (
             <div className="bg-white rounded-2xl p-4 mb-4">
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>New badges</p>
+              <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>New badges</p>
               <div className="flex justify-center gap-3 flex-wrap">
                 {badgesJustEarned.map((b) => <Badge key={b.id} b={b} size="sm" />)}
               </div>
@@ -3153,7 +3160,7 @@ function StudyRecap({ a, program }) {
   const checks = a.insights?.wordChecks || {};
   const focus = ((focusSets(program)[0] || {}).items || []).map((f) => (typeof f === "string" ? f : f.text || f.ko || f.en || "")).filter(Boolean);
   const quiz = (view.remember || []).filter((q) => q.type === "mc" || q.type === "tf");
-  const h = (t) => <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2 mt-4" style={{ color: C.orange }}>{t}</p>;
+  const h = (t) => <p className="f-display text-[18px] font-bold mb-2 mt-4" style={{ color: C.orange }}>{t}</p>;
   return (
     <div className="mt-3 rounded-xl" style={{ border: `1px solid ${C.beige}` }} data-testid="study-recap">
       <button onClick={() => setOpen(!open)} aria-expanded={open} className="focus-ring tap w-full flex items-center justify-between px-3.5 py-3 text-left">
@@ -3162,6 +3169,11 @@ function StudyRecap({ a, program }) {
       </button>
       {open && (
         <div className="px-3.5 pb-4 -mt-2">
+          {view.objective && (view.objective.ko || view.objective.en) && <>
+            {h(`학습 목표${a.materialLevel && CEFR_GOALS[a.materialLevel] ? ` · ${CEFR_GOALS[a.materialLevel].verb}` : ""}`)}
+            {view.objective.ko && <p className="f-body text-[16px] font-semibold" style={{ color: C.charcoal }}>{view.objective.ko}</p>}
+            {view.objective.en && <p className="f-body text-[14px] text-gray-500">{view.objective.en}</p>}
+          </>}
           {words.length > 0 && <>
             {h("오늘 배운 단어")}
             <div className="space-y-1.5">
@@ -3232,16 +3244,16 @@ function ParentAdventureReport({ a, program }) {
           </div>
         )}
 
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>무엇을 탐험했나요</p>
+        <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>무엇을 탐험했나요</p>
         <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{program.themeKo}</p>
 
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>배운 단어</p>
+        <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>배운 단어</p>
         <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{view.vocabulary.map((v) => v.en).join(" · ")}</p>
 
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.orange }}>오늘의 질문</p>
+        <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>오늘의 질문</p>
         <p className="f-body text-[17px] mb-3" style={{ color: C.charcoal }}>{view.bigQuestion}</p>
 
-        <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
+        <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
         <div className="space-y-1.5 mb-3">
           <HighlightLine ok={missionsAllDone(a)} text={`미션 ${missionsDoneCount(a)}/${a.missionsCompleted.length}개 완료`} />
           <HighlightLine ok={!!a.reflection} text="복습과 소감 작성 완료" />
@@ -3296,21 +3308,21 @@ function ParentFeedbackReport({ feedback: fb }) {
 
       {fb.overview && (
         <div className="mb-4">
-          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>체험 요약</p>
+          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>체험 요약</p>
           <p className="f-body text-[17px] whitespace-pre-line" style={{ color: C.charcoal }}>{fb.overview}</p>
         </div>
       )}
 
       {fb.guideNotes && (
         <div className="mb-4">
-          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-1.5" style={{ color: C.orange }}>선생님 코멘트</p>
+          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>선생님 코멘트</p>
           <p className="f-body text-[17px] italic whitespace-pre-line" style={{ color: C.charcoal }}>"{fb.guideNotes}"</p>
         </div>
       )}
 
       {Object.keys(fb.language || {}).length > 0 && (
         <div className="mb-4">
-          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>언어 사용 평가</p>
+          <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>언어 사용 평가</p>
           <div className="space-y-1.5">
             {LANGUAGE_ROWS.filter((row) => fb.language[row.key]).map((row) => (
               <div key={row.key} className="flex items-center justify-between">
@@ -3324,7 +3336,7 @@ function ParentFeedbackReport({ feedback: fb }) {
 
       {Object.keys(fb.personality || {}).length > 0 && (
         <div>
-          <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2" style={{ color: C.orange }}>성향</p>
+          <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>성향</p>
           <div className="flex flex-wrap gap-1.5">
             {PERSONALITY_ROWS.filter((row) => fb.personality[row.key]).map((row) => (
               <span key={row.key} className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: "white", color: C.green }}>
@@ -3793,7 +3805,7 @@ function SuggestionBox({ suggestions, familyPin, onAdd }) {
   return (
     <div className="bg-white rounded-2xl p-4">
       <button onClick={() => setOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between">
-        <span className="f-display font-semibold" style={{ color: C.green }}>건의사항 · 장소 요청</span>
+        <span className="f-display text-[20px] font-bold" style={{ color: C.green }}>건의사항 · 장소 요청</span>
         <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
 
@@ -3924,7 +3936,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
   return (
     <div id="browse-programs">
       <div className="mb-2 mt-1">
-        <p className="f-display font-semibold" style={{ color: C.green }}>예정 체험</p>
+        <p className="f-display text-[24px] font-bold leading-tight" style={{ color: C.green }}>예정 체험</p>
         <p className="f-body text-[14px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청은 카카오톡으로 문의해 주세요.</p>
         {KAKAO_CHAT_URL && (
           <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#3A1D1D" }}>
@@ -4514,12 +4526,12 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
           <p className="f-body text-[13px] mt-2" style={{ color: "#9FD1B8" }}>포인트는 현금으로 출금할 수 없어요.</p>
         </div>
 
-        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 적립 기준</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>포인트 적립 기준</p>
         <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
           {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
         </div>
 
-        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>이렇게 쓰여요</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>이렇게 쓰여요</p>
         <div className="bg-white rounded-2xl px-4 py-3 mb-5 space-y-1.5" style={{ border: `1px solid ${C.beige}` }} data-testid="points-how">
           <p className="f-body text-[15px]" style={{ color: C.charcoal }}>① 체험을 마치고 설문을 남기면 포인트가 자동으로 쌓여요.</p>
           <p className="f-body text-[15px]" style={{ color: C.charcoal }}>② 1P는 1원이에요. 다음 프로그램 결제 금액에서 빼 드려요.</p>
@@ -4542,7 +4554,7 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
           </>
         )}
 
-        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 내역</p>
+        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>포인트 내역</p>
         {entries.length === 0 ? (
           <p className="f-body text-[15px] text-gray-500">{POINT_RULES.trip > 0 ? `아직 적립 내역이 없어요. 체험을 완료하면 ${POINT_RULES.trip.toLocaleString("en-US")}P가 쌓여요.` : "아직 적립 내역이 없어요."}</p>
         ) : (
@@ -4677,7 +4689,7 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
             </p>
             <p className="f-body text-[15px] mt-1" style={{ color: C.charcoal }}>{primary.act.status}</p>
           </div>
-          {primary.act.cta && cta(primary, primary.act.cta) && (
+          {primary.act.cta && primary.act.cta.act !== "browse" && cta(primary, primary.act.cta) && (
             <button data-testid="primary-action" onClick={() => run(primary.act.cta)} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-3 text-white" style={{ background: C.orange }}>
               {primary.act.cta.label}
             </button>
@@ -4693,7 +4705,6 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
       ) : (
         <div className="mt-3">
           <p className="f-body text-[15px] text-gray-500">아직 신청한 체험이 없어요.</p>
-          {hasUpcoming && <button data-testid="primary-action" onClick={onBrowse} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-2.5 text-white" style={{ background: C.orange }}>예정 체험 보기</button>}
         </div>
       )}
       {others.length > 0 && (
@@ -4889,7 +4900,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 
         {inProgress.length > 0 && (
           <>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">진행중인 체험</p>
+            <p className="f-display text-[22px] font-bold leading-tight pt-2" style={{ color: C.green }}>진행중인 체험</p>
             {inProgress.map(({ a, program }) => {
               const status = getStatus(a);
               const label = status === "reflection_pending" ? "소감 작성 대기중" : status === "ready" ? "체험 준비 완료" : "준비 중";
@@ -4939,7 +4950,7 @@ function AdviceBox({ student, program, adv, onSave }) {
   const chip = (on) => ({ background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` });
   return (
     <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
-      <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-1" style={{ color: C.green }}>{tr("학부모 학습 조언")}</p>
+      <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.green }}>{tr("학부모 학습 조언")}</p>
       <p className="f-body text-[14px] text-gray-500 mb-3">{tr("아이의 예습·복습 기록과 선생님 평가로 초안을 만들어요. 학부모에게는 선생님이 확인하고 보내야 전달돼요.")}</p>
 
       {draft ? (
@@ -5267,7 +5278,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           {!limited && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>{tr("학생 정보")}</p>
+              <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{tr("학생 정보")}</p>
               {!editing && (
                 <button onClick={() => setEditing(true)} className="focus-ring tap f-body text-[14px] font-bold" style={{ color: C.orange }}>{tr("수정")}</button>
               )}
@@ -5355,7 +5366,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 
           {badgesEarned.length > 0 && (
             <div>
-              <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>{tr("획득한 뱃지")}</p>
+              <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>{tr("획득한 뱃지")}</p>
               <div className="flex gap-2 flex-wrap">
                 {badgesEarned.map((b) => <Badge key={b.id} b={b} size="sm" />)}
               </div>
@@ -5364,7 +5375,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           )}
 
           <div>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Mission participation</p>
+            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Mission participation</p>
             <div className="space-y-1.5">
               {programFor(program, student, adv).missions.map((m, i) => (
                 <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={!!adv.missionsCompleted[i]?.done} className="focus-ring tap w-full flex items-center gap-2 text-left">
@@ -5376,14 +5387,14 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           </div>
 
           <div>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Strengths noticed</p>
+            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Strengths noticed</p>
             <div className="flex flex-wrap gap-1.5">
               {TEACHER_TAGS.map((tag) => <TagChip key={tag} label={tag} selected={adv.teacherTags.includes(tag)} onClick={() => toggleTag(tag)} />)}
             </div>
           </div>
 
           <div>
-            <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Teacher note</p>
+            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Teacher note</p>
             <textarea
               value={adv.teacherNote}
               onChange={(e) => onUpdate({ teacherNote: e.target.value })}
@@ -5397,7 +5408,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 
           <div className="pt-1 border-t" style={{ borderColor: C.beige }}>
             <button onClick={() => setFeedbackOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between pt-3">
-              <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>
+              <span className="f-display text-[18px] font-bold" style={{ color: C.green }}>
                 Full Feedback Report {done && "✓"}
               </span>
               <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${feedbackOpen ? "rotate-90" : ""}`} />
@@ -5452,7 +5463,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
                 </div>
 
                 <div>
-                  <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Language Usage</p>
+                  <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Language Usage</p>
                   {LANGUAGE_ROWS.map((row) => (
                     <RatingRow
                       key={row.key}
@@ -5465,7 +5476,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
                 </div>
 
                 <div>
-                  <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>Personality</p>
+                  <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Personality</p>
                   {PERSONALITY_ROWS.map((row) => (
                     <RatingRow
                       key={row.key}
@@ -5547,7 +5558,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 const AVATAR_CHOICES = ["🐿️", "🦊", "🐥", "🐢", "🦉", "🐰", "🐨", "🐯"];
 /** The learning goal of each CEFR level: what the child does with the English in the activity. */
 const CEFR_GOALS = {
-  "Pre-A1": { verb: "Recognize", ko: "단어를 알아듣고 따라 말해요" },
+  "Pre-A1": { verb: "Recognize & Respond", ko: "단어나 몸짓으로 반응해요" },
   A1: { verb: "Identify", ko: "보이는 것의 이름을 말해요" },
   A2: { verb: "Describe", ko: "본 것과 과정을 설명해요" },
   B1: { verb: "Explain", ko: "원인과 결과를 설명해요" },
@@ -5922,6 +5933,7 @@ function defaultMaterials() {
     ],
     remember: [], // review quiz: written by the teacher after the trip
     focus: [],
+    objective: { ko: "", en: "" },
     reviewOpen: false,
     autoWords: true, // a new program makes its word quiz by itself
     bulk: "",
@@ -5941,6 +5953,7 @@ function materialsFrom(program) {
     missions: (program.missions || d.missions).map((m) => ({ ...m })),
     remember,
     focus: [...(program.focus || [])],
+    objective: { ko: (program.objective && program.objective.ko) || "", en: (program.objective && program.objective.en) || "" },
     reviewOpen: !!program.reviewOpen,
     autoWords: (program.remember || []).some((q) => q.auto || q.id === "match-auto"), // the old picture-matching switch becomes the word quiz switch
   };
@@ -5955,6 +5968,7 @@ function cloneMaterials(m) {
     remember: (m.remember || []).map((q) => (q.id === "match-auto" ? { ...q } : { ...q, id: newId("q"), options: q.options ? [...q.options] : q.options })),
     bigQuestionOptions: [...(m.bigQuestionOptions || [])],
     focus: [...(m.focus || [])],
+    objective: { ko: "", en: "" }, // the goal belongs to one level: a copy starts empty
     challenge: m.challenge || [],
     bulk: "",
   };
@@ -6036,6 +6050,7 @@ function buildMaterials(m) {
     missions: missions.length ? missions : d.missions,
     remember,
     focus,
+    objective: { ko: ((m.objective && m.objective.ko) || "").trim(), en: ((m.objective && m.objective.en) || "").trim() },
     reviewOpen: !!m.reviewOpen,
   };
 }
@@ -6056,7 +6071,7 @@ function MiniInput({ value, onChange, placeholder, label, className = "" }) {
 function EditorHeading({ children, hint }) {
   return (
     <div className="mb-1.5">
-      <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{children}</p>
+      <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{children}</p>
       {hint && <p className="f-body text-[13px] text-gray-400 mt-0.5">{hint}</p>}
     </div>
   );
@@ -6270,6 +6285,15 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
       <p className="f-body text-[14px] text-gray-500">{tr("아이 화면에 ")}<b>{tr("영어")}</b>{tr("로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.")}</p>
 
       <div>
+        <EditorHeading hint={tr("이 체험에서 이 레벨 아이가 영어로 할 일을 한 줄로 써 주세요. 학부모 안내와 정리에 나와요.")}>{tr("🎯 학습 목표")}{levelTabs && CEFR_GOALS[levelTabs.active] ? ` · ${levelTabs.active} ${CEFR_GOALS[levelTabs.active].verb}` : ""}</EditorHeading>
+        <div className="space-y-1.5">
+          <MiniInput value={(value.objective || {}).ko || ""} onChange={(ko) => set({ objective: { ...(value.objective || {}), ko } })} placeholder={tr("학습 목표 (예: 농작물과 농기구의 이름을 말한다)")} label={tr("학습 목표")} />
+          <MiniInput value={(value.objective || {}).en || ""} onChange={(en) => set({ objective: { ...(value.objective || {}), en } })} placeholder="Learning objective (e.g. Identify and name common crops and farming tools.)" label="Learning objective" />
+        </div>
+        <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이 체험에서 진행하는 레벨 탭에만 써요. 진행하지 않는 레벨은 목표가 나오지 않아요.")}</p>
+      </div>
+
+      <div>
         <EditorHeading hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")}>{tr("① 예습 · 단어 카드")}</EditorHeading>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
       </div>
@@ -6292,7 +6316,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.")}</p>
 
         <div className="mt-4">
-          <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🔍 오늘의 집중 포인트")}</p>
+          <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{tr("🔍 오늘의 집중 포인트")}</p>
           <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2">{tr("체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.")}</p>
           <div className="space-y-1.5 mb-2">
             {focus.map((f, i) => (
@@ -6605,6 +6629,13 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
               </div>
             </div>
           )}
+          {objectiveSets(program).map((o) => (
+            <div key={`obj-${o.level || "all"}`} className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: `1px solid ${C.beige}` }} data-testid="objective-card">
+              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>🎯 학습 목표{o.level ? ` · ${o.level}${CEFR_GOALS[o.level] ? ` ${CEFR_GOALS[o.level].verb}` : ""}` : ""}</p>
+              {o.ko && <p className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>{o.ko}</p>}
+              {o.en && <p className="f-body text-[15px] text-gray-500 mt-0.5">{o.en}</p>}
+            </div>
+          ))}
           {focusSets(program).map((fs) => (
             <div key={fs.level || "all"} className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
               <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트{fs.level ? ` · ${fs.level}` : ""}</p>
@@ -7641,7 +7672,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-e2"; // change with every delivery
+const APP_BUILD = "2026-10-09-h2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8440,7 +8471,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   return (
     <div className="px-5 space-y-4">
       <div>
-        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("외부 후기 확인")}</p>
+        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("외부 후기 확인")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("부모님이 올린 후기 링크를 열어 보고 승인하면 {0}P가 자동으로 적립돼요. 한 체험당 한 번, 같은 링크는 한 번만 인정돼요.", [POINT_RULES.review])}</p>
         <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Review filter">
           {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
@@ -8481,7 +8512,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
       </div>
 
       <div>
-        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("포인트 항목과 액수")}</p>
+        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("포인트 항목과 액수")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("항목 이름과 액수를 직접 정해요. 학부모 화면의 적립 기준과 안내가 같이 바뀌어요. 바꾼 액수는 그다음부터 쌓이는 포인트에 적용되고, 이미 쌓인 포인트는 그대로예요.")}</p>
         {!draft ? (
           <div className="bg-white rounded-2xl p-4">
@@ -8534,7 +8565,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
       </div>
 
       <div>
-        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("가족별 포인트")}</p>
+        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("가족별 포인트")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("가족별 내역을 보고 적립, 사용 처리, 수동 조정을 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
         <div className="space-y-2">
           {families.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 가족이 없어요.")}</p></div>}
@@ -9159,7 +9190,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
             {unenrolled.length > 0 && (
               <div className="bg-white rounded-2xl p-4">
-                <p className="f-body text-[15px] font-bold uppercase tracking-wide mb-2" style={{ color: C.green }}>{tr("이 프로그램에 없는 학생")}</p>
+                <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>{tr("이 프로그램에 없는 학생")}</p>
                 <div className="space-y-2">
                   {unenrolled.map((s) => (
                     <div key={s.id} className="flex items-center gap-3">
@@ -9189,7 +9220,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       {tab === "programs" && (
         <div className="px-5 space-y-3">
           <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
-          <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">{tr("등록된 프로그램")}</p>
+          <p className="f-display text-[22px] font-bold leading-tight pt-2" style={{ color: C.green }}>{tr("등록된 프로그램")}</p>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
@@ -10445,7 +10476,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     <div className="px-5 space-y-5">
       {apps.length > 0 && (
         <div data-testid="teacher-apps">
-          <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 가입 신청")}</p>
+          <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 가입 신청")}</p>
           <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.")}</p>
           <div className="space-y-2.5">
             {apps.map((a) => {
@@ -10474,7 +10505,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
         </div>
       )}
       <div>
-        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
+        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.", [TEACHER_CAP])}</p>
         {programs.length > 0 && (
           <div className="bg-white rounded-2xl p-3 mb-2.5 space-y-2" data-testid="teacher-caps">
@@ -10535,7 +10566,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
       </div>
 
       <div>
-        <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 계정")}</p>
+        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 계정")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님마다 이름과 번호가 따로예요. 번호는 로그인 화면의 Teacher에서 써요.")}</p>
         {!teachers.some((t) => t.active) && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5 mb-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("계정이 없어서 공용 번호 {0}로 들어가요. 첫 계정을 만들면 공용 번호는 쓸 수 없어요.", [legacyPin])}</p>}
         <div className="space-y-2 mb-3">

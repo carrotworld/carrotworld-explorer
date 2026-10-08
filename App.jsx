@@ -903,6 +903,8 @@ const FONTS = `
 @media (prefers-reduced-motion: reduce) { .confetti-piece { display: none; } .burst-in { animation: none; } }
 @supports (-webkit-touch-callout: none) { input, textarea, select { font-size: max(16px, 1em) !important; } }
 .focus-ring:focus-visible { outline: 3px solid ${C.orange}; outline-offset: 2px; }
+/* pills and tabs: the text sits in the middle, always (zero specificity, so any layout class still wins) */
+:where(button.rounded-full, [role="tab"]) { display: inline-flex; align-items: center; justify-content: center; text-align: center; gap: 0.3em; }
 `;
 
 /* ================================================================== */
@@ -1667,10 +1669,10 @@ function GhostButton({ children, onClick, icon: Icon }) {
 
 function ScreenHeader({ title, subtitle, onBack, right }) {
   return (
-    <div className="flex items-start justify-between px-5 pt-6 pb-3">
+    <div className="flex items-center justify-between px-5 pt-6 pb-3 min-h-[68px]">
       <div className="flex items-center gap-3">
         {onBack && (
-          <button onClick={onBack} aria-label="Go back" className="focus-ring tap w-9 h-9 rounded-full flex items-center justify-center bg-white border shrink-0 mt-0.5" style={{ borderColor: C.beige }}>
+          <button onClick={onBack} aria-label="Go back" className="focus-ring tap w-9 h-9 rounded-full flex items-center justify-center bg-white border shrink-0" style={{ borderColor: C.beige }}>
             <ArrowLeft size={18} color={C.green} />
           </button>
         )}
@@ -1681,6 +1683,28 @@ function ScreenHeader({ title, subtitle, onBack, right }) {
           {subtitle && <p className="f-body text-[15px] text-gray-500 mt-0.5">{subtitle}</p>}
         </div>
       </div>
+      {right}
+    </div>
+  );
+}
+
+/** The top bar every role shares: who is using the app on the left, language and Switch user on the right. */
+function RoleBar({ label, onLogout, lang, onLang }) {
+  return (
+    <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
+      <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>{label}</span>
+      <div className="flex items-center gap-3">
+        {onLang && <LangToggle lang={lang} onChange={onLang} />}
+        <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>Switch user</button>
+      </div>
+    </div>
+  );
+}
+/** The page title of the three home screens (parent, teacher, HQ): the brand, with one optional action on the right. */
+function BrandTitle({ right }) {
+  return (
+    <div className="px-5 pt-5 pb-3 flex items-center justify-between gap-3 min-h-[68px]">
+      <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>CarrotWorld</h1>
       {right}
     </div>
   );
@@ -3935,9 +3959,9 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
 
   return (
     <div id="browse-programs">
-      <div className="mb-2 mt-1">
+      <div className="mb-3 mt-6">
         <p className="f-display text-[24px] font-bold leading-tight" style={{ color: C.green }}>예정 체험</p>
-        <p className="f-body text-[14px] text-gray-500 mt-0.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청은 카카오톡으로 문의해 주세요.</p>
+        <p className="f-body text-[14px] text-gray-500 mt-1.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청은 카카오톡으로 문의해 주세요.</p>
         {KAKAO_CHAT_URL && (
           <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#3A1D1D" }}>
             카카오톡으로 문의하기
@@ -4766,14 +4790,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <div className="pb-24">
-      <ScreenHeader
-        title="내 자녀 관리"
-        right={
-          <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>
-            Switch user
-          </button>
-        }
-      />
+      <RoleBar label="Parent" onLogout={onLogout} />
+      <BrandTitle />
       {showGuide && <ParentGuide onClose={closeGuide} />}
       {newlyApproved && !showGuide && (
         <ConfirmDialog
@@ -6255,17 +6273,22 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
                 role="tab"
                 aria-selected={levelTabs.active === l}
                 onClick={() => levelTabs.onPick(l)}
-                className="focus-ring tap f-body text-[16px] font-bold rounded-full px-5 py-2"
-                style={{ background: levelTabs.active === l ? C.green : "white", color: levelTabs.active === l ? "white" : C.charcoal, border: `1px solid ${levelTabs.active === l ? C.green : C.beige}` }}
+                className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2"
+                style={{ background: levelTabs.active === l ? C.green : "white", color: levelTabs.active === l ? "white" : (levelTabs.live || levelTabs.levels).includes(l) ? C.charcoal : "#9C927D", border: `1px ${(levelTabs.live || levelTabs.levels).includes(l) ? "solid" : "dashed"} ${levelTabs.active === l ? C.green : C.beige}` }}
               >
                 {l}
               </button>
             ))}
           </div>
-          <p className="f-body text-[14px] text-gray-600">{tr("지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.", [levelTabs.active])}</p>
+          {levelTabs.live && !levelTabs.live.includes(levelTabs.active) ? (
+            <p className="f-body text-[14px] text-gray-600">{tr("{0} 레벨은 이 체험에서 아직 진행하지 않아요. 미리 준비해 두면, 위에서 {0} 레벨을 진행 레벨로 고르는 순간 학부모와 샘에게 보여요.", [levelTabs.active])}</p>
+          ) : (
+            <p className="f-body text-[14px] text-gray-600">{tr("지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.", [levelTabs.active])}</p>
+          )}
+          {levelTabs.live && <p className="f-body text-[13px] text-gray-400 mt-1">{tr("진행 레벨로 고른 레벨(실선)만 학부모와 샘에게 보여요. 점선은 본사만 보는 준비 공간이에요.")}</p>}
           {CEFR_GOALS[levelTabs.active] && <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: C.orange }} data-testid="level-goal">{levelTabs.active} goal: {CEFR_GOALS[levelTabs.active].verb} <span className="font-normal text-gray-500">· {CEFR_GOALS[levelTabs.active].ko}</span></p>}
           <div className="flex gap-2 flex-wrap mt-2">
-            {levelTabs.levels.filter((l) => l !== levelTabs.active).map((l) => (
+            {(levelTabs.copyable || levelTabs.levels.filter((l) => l !== levelTabs.active)).map((l) => (
               <button key={l} onClick={() => setCopyFrom(l)} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("{0} 내용 복사해 오기", [l])}</button>
             ))}
           </div>
@@ -6686,6 +6709,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const coverPhoto = initial?.coverPhoto || null; // old uploads stay saved but are no longer shown or changed
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [levelSets, setLevelSets] = useState(() => levelSetsFrom(initial)); // one set per level once two or more levels are chosen
+  const [prepSets, setPrepSets] = useState(() => Object.fromEntries(Object.entries((initial && initial.prepMaterials) || {}).map(([l, m]) => [l, materialsFrom(m)]))); // levels not run in this trip yet: prepared by HQ, hidden from parents and teachers
   const [activeLevel, setActiveLevel] = useState(null);
   const [sessions, setSessions] = useState(() => (initial ? (Array.isArray(initial.sessions) ? initial.sessions.map((x) => ({ ...x })) : []) : defaultSessions())); // time slots of the same day; a new program starts with the usual weekend times
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
@@ -6694,14 +6718,14 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
-  const formState = { title, date, startDate, endDate, location, levels, icons, themeKo, dateReached, materials, levelSets, sessions, noticeInfo };
+  const formState = { title, date, startDate, endDate, location, levels, icons, themeKo, dateReached, materials, levelSets, prepSets, sessions, noticeInfo };
   const snap = stableJson(formState);
   const startSnap = useRef(null);
   if (startSnap.current === null) startSnap.current = snap;
   const dirty = snap !== startSnap.current;
   const [draft, setDraft] = useState(() => {
     const d = draftGet(draftKey);
-    return d && d.state && stableJson({ levelSets: {}, sessions: [], startDate: "", endDate: "", ...d.state }) !== snap ? d : null;
+    return d && d.state && stableJson({ levelSets: {}, prepSets: {}, sessions: [], startDate: "", endDate: "", ...d.state }) !== snap ? d : null;
   });
 
   const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
@@ -6717,22 +6741,42 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
     const next = sortLevels(toggleIn(cur, l));
     levelsRef.current = next;
     const first = sortLevels(cur)[0];
+    const strip = (set) => { const { reviewOpen, ...rest } = set || {}; return rest; };
+    const removed = cur.find((x) => !next.includes(x));
+    if (removed) setPrepSets((p) => ({ ...p, [removed]: strip(cur.length >= 2 ? levelSets[removed] || materials : materials) })); // a level taken out keeps its work as a prepared set
     if (next.length >= 2) {
       setLevelSets((prev) => {
         const seed = prev[first] || materials;
-        return Object.fromEntries(next.map((lv) => [lv, prev[lv] || (cur.includes(lv) ? { ...materials } : cloneMaterials(seed))]));
+        return Object.fromEntries(next.map((lv) => [lv, prev[lv] || (cur.includes(lv) ? { ...materials } : prepSets[lv] ? { ...prepSets[lv] } : cloneMaterials(seed))]));
       });
     } else if (next.length === 1 && levelSets[next[0]]) {
       setMaterials((m) => ({ ...levelSets[next[0]], reviewOpen: m.reviewOpen })); // back to one shared set: keep the one that is left
+    } else if (next.length === 1 && !cur.includes(next[0]) && prepSets[next[0]]) {
+      setMaterials((m) => ({ ...prepSets[next[0]], reviewOpen: m.reviewOpen })); // a prepared level becomes the shared set
     }
+    if (!cur.includes(l) && prepSets[l]) setPrepSets((p) => { const n = { ...p }; delete n[l]; return n; }); // now live: no longer kept apart
     setLevels(next);
   };
-  const levelValue = tabbed ? { ...(levelSets[active] || materials), reviewOpen: materials.reviewOpen } : materials;
+  // HQ sees a tab for every level: the ones chosen above are live (parents and teachers see them), the others are prepared in advance
+  const hqTabs = !materialsOnly;
+  const tabList = hqTabs ? LEVEL_CHOICES : sortedLv;
+  const showTabs = hqTabs || tabbed;
+  const activeTab = tabList.includes(activeLevel) ? activeLevel : sortedLv[0] || tabList[0];
+  const isLive = sortedLv.includes(activeTab);
+  const setOf = (l) => (sortedLv.includes(l) ? (tabbed ? levelSets[l] || materials : materials) : prepSets[l] || null);
+  const levelValue = isLive ? (tabbed ? { ...(levelSets[activeTab] || materials), reviewOpen: materials.reviewOpen } : materials) : { ...(prepSets[activeTab] || defaultMaterials()), reviewOpen: materials.reviewOpen };
   const onLevelChange = (v) => {
-    if (!tabbed) return setMaterials(v);
+    if (isLive && !tabbed) return setMaterials(v);
     const { reviewOpen, ...rest } = v;
-    setLevelSets((prev) => ({ ...prev, [active]: rest }));
+    if (isLive) setLevelSets((prev) => ({ ...prev, [activeTab]: rest }));
+    else setPrepSets((prev) => ({ ...prev, [activeTab]: rest }));
     if (reviewOpen !== materials.reviewOpen) setMaterials((m) => ({ ...m, reviewOpen }));
+  };
+  const copyLevel = (from) => {
+    const src = setOf(from) || materials;
+    if (isLive && !tabbed) setMaterials((m) => ({ ...cloneMaterials(src), reviewOpen: m.reviewOpen }));
+    else if (isLive) setLevelSets((prev) => ({ ...prev, [activeTab]: cloneMaterials(src) }));
+    else setPrepSets((prev) => ({ ...prev, [activeTab]: (({ reviewOpen, ...r }) => r)(cloneMaterials(src)) }));
   };
 
   // keep what is being typed on this phone (after a short pause), and tell the screen whether there is unsaved work
@@ -6749,7 +6793,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const restoreDraft = () => {
     const d = draft.state;
     setTitle(d.title); setDate(d.date); setLocation(d.location); setLevels(d.levels); setIcons(d.icons); setThemeKo(d.themeKo);
-    setStartDate(d.startDate || ""); setEndDate(d.endDate || ""); setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setSessions(d.sessions || []); setNoticeInfo(d.noticeInfo);
+    setStartDate(d.startDate || ""); setEndDate(d.endDate || ""); setDateReached(d.dateReached); setMaterials(d.materials); setLevelSets(d.levelSets || {}); setPrepSets(d.prepSets || {}); setSessions(d.sessions || []); setNoticeInfo(d.noticeInfo);
     setShowMaterials(true);
     setDraft(null);
   };
@@ -6767,12 +6811,13 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
     const built = multi ? Object.fromEntries(lv.map((l) => [l, buildMaterials({ ...(levelSets[l] || materials), reviewOpen: materials.reviewOpen })])) : null;
     const shared = multi ? built[lv[0]] : buildMaterials(lv.length === 1 && levelSets[lv[0]] ? { ...levelSets[lv[0]], reviewOpen: materials.reviewOpen } : materials);
     const levelMaterials = multi ? Object.fromEntries(lv.map((l) => [l, pickLevelFields(built[l])])) : null;
+    const prepMaterials = Object.fromEntries(Object.entries(prepSets).filter(([l]) => !lv.includes(l)).map(([l, m]) => [l, pickLevelFields(buildMaterials({ ...m, reviewOpen: false }))]));
     if (materialsOnly) {
       // a teacher saves only the class materials: nothing HQ manages (title, date, notice, time slots, today) is sent
       onSave({ ...shared, levelMaterials });
       return;
     }
-    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (onRememberPlace && location.trim() && (noticeInfo.venue || "").trim()) onRememberPlace({ name: location.trim(), venue: noticeInfo.venue.trim(), meetingPoint: (noticeInfo.meetingPoint || "").trim(), intro: themeKo.trim() });
     if (isEdit) {
       onSave(info);
@@ -6999,7 +7044,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         <MaterialsEditor
           value={levelValue}
           onChange={onLevelChange}
-          levelTabs={tabbed ? { levels: sortedLv, active, onPick: setActiveLevel, onCopy: (from) => setLevelSets((prev) => ({ ...prev, [active]: cloneMaterials(prev[from] || materials) })) } : null}
+          levelTabs={showTabs ? { levels: tabList, live: sortedLv, active: activeTab, onPick: setActiveLevel, onCopy: copyLevel, copyable: tabList.filter((l) => l !== activeTab && (sortedLv.includes(l) || prepSets[l])) } : null}
         />
       )}
 
@@ -7672,7 +7717,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-h2"; // change with every delivery
+const APP_BUILD = "2026-10-09-j2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8943,9 +8988,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
   return (
     <div className="pb-6">
-      <ScreenHeader
-        title="HQ View"
-        right={onOpenGuide && <button onClick={onOpenGuide} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>}
+      <BrandTitle
+        right={onOpenGuide && <button onClick={onOpenGuide} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>}
       />
       {pendingNav && (() => {
         const dirtyApis = [dirtyNew && newApi.current, dirtyEdit && editApi.current].filter(Boolean);
@@ -10023,15 +10067,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const openSlots = (p) => (sessionsOf(p).length ? sessionsOf(p).map((x) => ({ id: x.id, label: x.label })) : [{ id: "", label: "" }]);
   const toSignUp = upcoming.reduce((n, p) => n + openSlots(p).filter((x) => !stateOf(p.id, x.id)).length, 0);
 
-  const header = (
-    <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
-      <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>Teacher{name ? ` · ${name}` : ""}</span>
-      <div className="flex items-center gap-3">
-        <LangToggle lang={lang} onChange={onLang} />
-        <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>Switch user</button>
-      </div>
-    </div>
-  );
+  const header = <RoleBar label={`Teacher${name ? ` · ${name}` : ""}`} onLogout={onLogout} lang={lang} onLang={onLang} />;
 
   const roster = program
     ? adventures
@@ -10056,10 +10092,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   return (
     <div className="flex-1">
       {header}
-      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-        <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>Teacher</h1>
-        <button onClick={onOpenGuide} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>
-      </div>
+      <BrandTitle right={<button onClick={onOpenGuide} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>} />
       <div className="px-5 mb-3 grid grid-cols-4 gap-1.5" role="tablist" aria-label="Teacher tabs">
         {TABS.map((t) => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap min-w-0 truncate whitespace-nowrap px-1 f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
@@ -11267,13 +11300,7 @@ export default function CarrotExplorer() {
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
-            <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>HQ</span>
-            <div className="flex items-center gap-3">
-              <LangToggle lang={hqLang} onChange={setHqLang} />
-              <button onClick={logout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>Switch user</button>
-            </div>
-          </div>
+          <RoleBar label="HQ" onLogout={logout} lang={hqLang} onLang={setHqLang} />
           <div className="flex-1 overflow-y-auto" key={programsVersion}>
             {showManual && <TeacherManual lang={hqLang} onClose={() => setShowManual(false)} />}
             <TeacherDashboard

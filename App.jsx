@@ -1379,10 +1379,11 @@ function rankFor(count) {
 /** Badge criteria — each check runs against a student's own adventures. No hard-coded "earned". */
 const BADGE_DEFS = [
   { id: "first", name: "First Adventure", emoji: "🥕", check: (advs) => advs.some((a) => a.afterCompleted) },
-  { id: "museum", name: "Museum Explorer", emoji: "🏛️", check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).isMuseum) },
-  { id: "science", name: "Science Explorer", emoji: "🔬", check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "science") },
-  { id: "nature", name: "Nature Explorer", emoji: "🌿", check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "nature") },
-  { id: "history", name: "History Explorer", emoji: "🛡️", check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "history") },
+  { id: "themes", name: "Theme Explorer", emoji: "🗺️", check: (advs) => new Set(advs.filter((a) => a.afterCompleted).map((a) => { const p = getProgram(a.programId) || {}; return p.isMuseum ? "museum" : p.category || ""; }).filter(Boolean)).size >= 3 },
+  { id: "museum", name: "Museum Explorer", emoji: "🏛️", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).isMuseum) },
+  { id: "science", name: "Science Explorer", emoji: "🔬", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "science") },
+  { id: "nature", name: "Nature Explorer", emoji: "🌿", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "nature") },
+  { id: "history", name: "History Explorer", emoji: "🛡️", retired: true, check: (advs) => advs.some((a) => a.afterCompleted && getProgram(a.programId).category === "history") },
   {
     id: "word",
     name: "Word Explorer",
@@ -1396,13 +1397,13 @@ const BADGE_DEFS = [
         return words.length > 0 && !!a.insights && words.every((w) => (a.insights.wordChecks?.[w.id] || 0) >= WORD_PRACTICE_GOAL);
       }),
   },
-  { id: "curious", name: "Curious Thinker", emoji: "💡", check: (advs) => advs.filter((a) => a.bigQuestionCustom).length >= 2 },
+  { id: "curious", name: "Curious Thinker", emoji: "💡", retired: true, check: (advs) => advs.filter((a) => a.bigQuestionCustom).length >= 2 },
   { id: "photographer", name: "Adventure Photographer", emoji: "📷", retired: true, check: (advs) => advs.some((a) => a.reflection?.photo) },
   { id: "missionmaster", name: "Mission Master", emoji: "🧭", check: (advs) => advs.filter((a) => missionsAllDone(a)).length >= 2 },
   { id: "stamp10", name: "도장판 완성 (10회)", emoji: "🎟️", check: (advs) => advs.filter((a) => a.attended).length >= 10 },
-  { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", check: (advs) => advs.filter((a) => a.attended).length >= 20 },
+  { id: "stamp20", name: "도장판 완성 (20회)", emoji: "🥉", retired: true, check: (advs) => advs.filter((a) => a.attended).length >= 20 },
   { id: "stamp30", name: "도장판 완성 (30회)", emoji: "🥈", check: (advs) => advs.filter((a) => a.attended).length >= 30 },
-  { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", check: (advs) => advs.filter((a) => a.attended).length >= 40 },
+  { id: "stamp40", name: "도장판 완성 (40회)", emoji: "🥇", retired: true, check: (advs) => advs.filter((a) => a.attended).length >= 40 },
   { id: "stamp50", name: "도장판 완성 (50회)", emoji: "🏆", check: (advs) => advs.filter((a) => a.attended).length >= 50 },
 ];
 
@@ -1424,6 +1425,7 @@ const rankRanges = () => RANKS.map((r, i) => ({ ...r, to: RANKS[i + 1] ? RANKS[i
 /** One plain sentence per badge, in both languages. A test checks that every badge in the app has one. */
 const BADGE_HELP = {
   first: { ko: "첫 체험의 복습까지 마쳤어요.", en: "Finished the review of the first trip.", enName: "First Adventure" },
+  themes: { ko: "서로 다른 주제의 체험 3가지를 복습까지 마쳤어요.", en: "Finished the review of trips on 3 different themes.", enName: "Theme Explorer" },
   museum: { ko: "박물관 체험의 복습을 마쳤어요.", en: "Finished the review of a museum trip." },
   science: { ko: "과학 체험의 복습을 마쳤어요.", en: "Finished the review of a science trip." },
   nature: { ko: "자연 체험의 복습을 마쳤어요.", en: "Finished the review of a nature trip." },
@@ -2113,6 +2115,15 @@ function NavJourneyIcon({ size = 20, color = "currentColor" }) {
 }
 function NavBadgeIcon({ size = 20, color = "currentColor" }) {
   return <ProgramIcon kind="medal" size={size} color={color} />;
+}
+
+function NavPointsIcon({ size = 20, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="8.7" stroke={color} strokeWidth="1.6" />
+      <path d="M12 7.5v9M9.6 9.6c.4-1 1.3-1.5 2.4-1.5 1.4 0 2.4.7 2.4 1.8 0 2.4-4.8 1.3-4.8 3.8 0 1.1 1 1.9 2.4 1.9 1.2 0 2.1-.5 2.5-1.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function BottomNavigation({ items, active, onSelect }) {
@@ -4247,9 +4258,9 @@ function ReviewCard({ program, record, onSubmit }) {
 }
 
 /** The parents' points page: balance, how points are earned, external review, history. */
-function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose }) {
+function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose, embedded = false }) {
   applyPointItems(currentPointItems(suggestions));
-  const reviewOn = POINT_RULES.review > 0;
+  const reviewOn = POINT_RULES.review > 0 && !embedded; // the review link is for parents; the child tab only explains and shows the balance
   const entries = pointEntries(familyPin, students, adventures, suggestions);
   const balance = pointsBalance(entries);
   const records = reviewRecords(suggestions);
@@ -4264,11 +4275,11 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
     </div>
   );
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="포인트">
-      <div className="max-w-md mx-auto px-5 pt-6 pb-12">
+    <div className={embedded ? "" : "fixed inset-0 z-50 overflow-y-auto"} style={embedded ? undefined : { background: C.cream }} role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : "true"} aria-label="포인트">
+      <div className={embedded ? "px-5 pt-7 pb-6" : "max-w-md mx-auto px-5 pt-6 pb-12"}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>포인트</h2>
-          <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>
+          {!embedded && <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>}
         </div>
 
         <div className="rounded-2xl p-5 mb-4" style={{ background: C.green, boxShadow: "0 4px 14px rgba(23,76,53,0.18)" }}>
@@ -4281,6 +4292,14 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
         <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>포인트 적립 기준</p>
         <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
           {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
+        </div>
+
+        <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>이렇게 쓰여요</p>
+        <div className="bg-white rounded-2xl px-4 py-3 mb-5 space-y-1.5" style={{ border: `1px solid ${C.beige}` }} data-testid="points-how">
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>① 체험을 마치고 설문을 남기면 포인트가 자동으로 쌓여요.</p>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>② 1P는 1원이에요. 다음 프로그램 결제 금액에서 빼 드려요.</p>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>③ 쓰고 싶을 때는 신청하면서 카카오톡으로 알려 주세요.</p>
+          <p className="f-body text-[13px] text-gray-400">현금으로 돌려받을 수는 없어요.</p>
         </div>
 
         {reviewOn && (
@@ -4314,7 +4333,7 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
             ))}
           </div>
         )}
-        <p className="f-body text-[13px] text-gray-400 text-center mt-5">포인트를 사용하고 싶으시면 다음 프로그램 신청 때 카카오톡으로 알려 주세요.</p>
+        {!embedded && <p className="f-body text-[13px] text-gray-400 text-center mt-5">포인트를 사용하고 싶으시면 다음 프로그램 신청 때 카카오톡으로 알려 주세요.</p>}
       </div>
     </div>
   );
@@ -7296,7 +7315,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-g"; // change with every delivery
+const APP_BUILD = "2026-10-08-i"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10670,6 +10689,7 @@ export default function CarrotExplorer() {
                 {studentTab === "adventures" && <AdventuresList adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} />}
                 {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} points={pointsBalance(pointEntries((students.find((x) => x.id === studentId) || {}).familyPin, students, liveAdventures, suggestions))} />}
                 {studentTab === "badges" && <BadgeCollection adventures={liveAdventures} studentId={studentId} />}
+                {studentTab === "points" && (() => { const me = students.find((x) => x.id === studentId) || {}; return <PointsSheet embedded familyPin={me.familyPin} students={students} adventures={liveAdventures} suggestions={suggestions} />; })()}
               </>
             )}
           </div>
@@ -10682,6 +10702,7 @@ export default function CarrotExplorer() {
               { key: "adventures", label: "Adventures", icon: NavCompassIcon },
               { key: "journey", label: "My Journey", icon: NavJourneyIcon },
               { key: "badges", label: "Badges", icon: NavBadgeIcon },
+              { key: "points", label: "Points", icon: NavPointsIcon },
             ]}
             active={studentTab}
             onSelect={setStudentTab}

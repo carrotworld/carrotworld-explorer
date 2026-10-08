@@ -3139,6 +3139,69 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
 /* ================================================================== */
 /*  PARENT VIEW                                                         */
 /* ================================================================== */
+/** After the trip: what the child learned, put together from the program's materials and the child's own activity (nothing for HQ to write). */
+function StudyRecap({ a, program }) {
+  const [open, setOpen] = useState(false);
+  const view = programForLevel(program, a.materialLevel);
+  const words = view.vocabulary || [];
+  const checks = a.insights?.wordChecks || {};
+  const focus = ((focusSets(program)[0] || {}).items || []).map((f) => (typeof f === "string" ? f : f.text || f.ko || f.en || "")).filter(Boolean);
+  const quiz = (view.remember || []).filter((q) => q.type === "mc" || q.type === "tf");
+  const h = (t) => <p className="f-body text-[14px] font-bold uppercase tracking-wide mb-2 mt-4" style={{ color: C.orange }}>{t}</p>;
+  return (
+    <div className="mt-3 rounded-xl" style={{ border: `1px solid ${C.beige}` }} data-testid="study-recap">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className="focus-ring tap w-full flex items-center justify-between px-3.5 py-3 text-left">
+        <span className="f-display font-semibold text-[17px]" style={{ color: C.green }}>배운 내용 정리</span>
+        <span className="f-body text-[14px] font-bold" style={{ color: "#9C927D" }}>{open ? "접기" : "보기"}</span>
+      </button>
+      {open && (
+        <div className="px-3.5 pb-4 -mt-2">
+          {words.length > 0 && <>
+            {h("오늘 배운 단어")}
+            <div className="space-y-1.5">
+              {words.map((w) => (
+                <div key={w.id} className="flex items-start gap-2.5">
+                  <span className="text-[20px] w-7 text-center shrink-0">{w.emoji || "•"}</span>
+                  <p className="f-body text-[16px] min-w-0" style={{ color: C.charcoal }}><b>{w.en}</b>{w.meaning ? <span className="text-gray-500"> · {w.meaning}</span> : null}{(checks[w.id] || 0) >= WORD_PRACTICE_GOAL && <span style={{ color: "#1F7A44" }}> ✓</span>}</p>
+                </div>
+              ))}
+            </div>
+          </>}
+          {(view.missions || []).length > 0 && <>
+            {h("체험 미션")}
+            <div className="space-y-1">
+              {view.missions.map((m) => {
+                const done = (a.missionsCompleted || []).find((x) => x.missionId === m.id)?.done;
+                return <p key={m.id} className="f-body text-[16px]" style={{ color: done ? C.charcoal : "#9C927D" }}>{done ? "✓" : "○"} {m.text}</p>;
+              })}
+            </div>
+          </>}
+          {focus.length > 0 && <>
+            {h("핵심 포인트")}
+            <ul className="space-y-1">{focus.map((f, i) => <li key={i} className="f-body text-[16px]" style={{ color: C.charcoal }}>• {f}</li>)}</ul>
+          </>}
+          {quiz.length > 0 && <>
+            {h("퀴즈 복습")}
+            <div className="space-y-2">
+              {quiz.map((q, i) => (
+                <div key={q.id || i}>
+                  <p className="f-body text-[16px]" style={{ color: C.charcoal }}>{i + 1}. {q.prompt}</p>
+                  <p className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>정답: {q.type === "tf" ? (q.answer ? "맞아요 (True)" : "아니에요 (False)") : (q.options || [])[q.answer]}</p>
+                </div>
+              ))}
+            </div>
+          </>}
+          {view.bigQuestion && <>
+            {h("집에서 이야기해 보세요")}
+            <p className="f-body text-[16px]" style={{ color: C.charcoal }}>"{view.bigQuestion}"</p>
+            {words.length > 0 && <p className="f-body text-[14px] text-gray-500 mt-1">{`단어 ${words.slice(0, 3).map((w) => w.en).join(", ")}을(를) 넣어서 한 문장씩 말해 보면 좋아요.`}</p>}
+          </>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ParentAdventureReport({ a, program }) {
   const view = programForLevel(program, a.materialLevel);
   return (
@@ -3201,6 +3264,7 @@ function ParentAdventureReport({ a, program }) {
         )}
 
         <PhotosRow photos={[...(a.photos || []).map((p) => p.url), a.reflection?.photo].filter(Boolean)} />
+        <StudyRecap a={a} program={program} />
       </div>
     </div>
   );
@@ -7517,7 +7581,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-a2"; // change with every delivery
+const APP_BUILD = "2026-10-08-b2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

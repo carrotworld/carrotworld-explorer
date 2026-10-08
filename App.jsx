@@ -664,6 +664,11 @@ const EN = {
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
 "선생님 가입 신청": "Teacher account requests",
+"전화번호 뒷자리 ": "Phone, last 4 digits ",
+"알고 있는 번호를 붙여넣어 확인": "Paste a number you know to check",
+"번호 확인": "Check number",
+"신청한 번호와 같아요 ✓": "Matches the number they gave ✓",
+"신청한 번호와 달라요": "Does not match the number they gave",
 "선생님 가입 신청 {0}건": "{0} teacher account request(s)",
 "수락하면 그 번호로 로그인할 수 있어요": "Accept, and they can log in with their number",
 "선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.": "Teachers asked for an account on the login screen. Accept, and they can log in with the number they chose.",
@@ -3426,7 +3431,7 @@ const TEACHER_APPLY_TYPE = "샘가입신청"; // a teacher asks for an account (
 function teacherApplications(suggestions, accounts) {
   const rows = (suggestions || []).filter((sg) => sg.type === TEACHER_APPLY_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const apps = new Map();
-  rows.forEach((r) => { if (r.kind === "reject") apps.delete(r.id); else if (r.name && /^\d{4}$/.test(r.pin || "")) apps.set(r.id, { id: r.id, name: String(r.name).trim(), pin: r.pin, at: r.at || "" }); });
+  rows.forEach((r) => { if (r.kind === "reject") apps.delete(r.id); else if (r.name && /^\d{4}$/.test(r.pin || "")) apps.set(r.id, { id: r.id, name: String(r.name).trim(), pin: r.pin, phoneLast4: r.phoneLast4 || "", phoneCode: r.phoneCode || "", at: r.at || "" }); });
   return [...apps.values()].filter((a) => !(accounts || []).some((t) => t.id === a.id)).sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 /** The accounts, worked out from the rows: "add" (name + number), "pin" (new number), "active" (on/off). */
@@ -3435,7 +3440,7 @@ function teacherAccounts(suggestions) {
   const map = new Map();
   rows.forEach((r) => {
     const cur = map.get(r.id) || { id: r.id, name: "", pin: "", active: true };
-    if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; }
+    if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; cur.phoneLast4 = r.phoneLast4 || ""; cur.phoneCode = r.phoneCode || ""; }
     else if (r.kind === "pin") cur.pin = r.pin;
     else if (r.kind === "active") cur.active = !!r.active;
     map.set(r.id, cur);
@@ -7346,7 +7351,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-q"; // change with every delivery
+const APP_BUILD = "2026-10-08-r"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9050,6 +9055,8 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
   const [waitingForHq, setWaitingForHq] = useState(false);
   const [tName, setTName] = useState("");
   const [tPin, setTPin] = useState("");
+  const [tPhone, setTPhone] = useState("");
+  const [tBusy, setTBusy] = useState(false);
   const [tError, setTError] = useState("");
   const [tSent, setTSent] = useState(false);
   const baseValidate = role === "teacher" ? (pin) => pin === TEACHER_PIN : role === "guide" ? (pin) => !!teacherByPin(teachers, pin) || (!teachers.some((t) => t.active) && pin === legacyPin) : (pin) => students.some((s) => s.familyPin === pin);
@@ -9159,16 +9166,19 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
               </div>
             ) : (
               <>
-                <p className="f-body text-[16px] text-gray-500 text-center mb-5">Your name and a 4-digit number of your own. HQ will accept it.</p>
+                <p className="f-body text-[16px] text-gray-500 text-center mb-5">Your name, phone number and a 4-digit login number of your own. HQ will accept it.</p>
                 <input value={tName} onChange={(e) => setTName(e.target.value)} placeholder="Name" aria-label="Name" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
-                <input value={tPin} onChange={(e) => setTPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="4-digit number" aria-label="4-digit number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+                <input value={tPhone} onChange={(e) => setTPhone(e.target.value)} inputMode="tel" placeholder="Phone number (010-0000-0000)" aria-label="Phone number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1" style={{ background: "white", border: `1px solid ${C.beige}` }} data-testid="teacher-join-phone" />
+                <p className="f-body text-[13px] text-gray-400 mb-3">HQ only sees the last 4 digits, to know it is you. The full number is not saved.</p>
+                <input value={tPin} onChange={(e) => setTPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="4-digit login number" aria-label="4-digit login number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
                 {tError && <p role="alert" className="f-body text-[14px] font-bold mb-2" style={{ color: "#C0392B" }}>{tError}</p>}
                 <button
-                  onClick={() => { const r = onTeacherApply({ name: tName, pin: tPin }); if (r && r.ok) { setTSent(true); setTError(""); } else setTError((r && r.error) || "Please check the name and number."); }}
-                  className="focus-ring tap w-full rounded-xl py-3 f-display text-[17px] font-semibold text-white"
+                  onClick={async () => { if (tBusy) return; setTBusy(true); const r = await onTeacherApply({ name: tName, pin: tPin, phone: tPhone }); setTBusy(false); if (r && r.ok) { setTSent(true); setTError(""); } else setTError((r && r.error) || "Please check the name and number."); }}
+                  disabled={tBusy}
+                  className="focus-ring tap w-full rounded-xl py-3 f-display text-[17px] font-semibold text-white disabled:opacity-60"
                   style={{ background: C.orange }}
                   data-testid="teacher-join-send"
-                >Send request</button>
+                >{tBusy ? "Sending…" : "Send request"}</button>
               </>
             )}
           </>
@@ -9846,6 +9856,8 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     if (teachers.some((t) => t.active && t.pin === value && t.id !== exceptId)) return tr("다른 선생님이 쓰는 번호예요.");
     return "";
   };
+  const [checkText, setCheckText] = useState({});
+  const [checkVerdict, setCheckVerdict] = useState({});
   const pinProblemFor = (value, exceptId) => (teachers.some((t) => t.active && t.pin === value && t.id !== exceptId) ? tr("다른 선생님이 쓰는 번호예요.") : value === hqPin ? tr("본사 번호와 같아요. 다른 번호를 써 주세요.") : "");
   const add = () => {
     if (!name.trim()) return setError(tr("이름을 써 주세요."));
@@ -9867,7 +9879,15 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
               return (
                 <div key={a.id} className="bg-white rounded-2xl p-4" data-testid="teacher-app-row">
                   <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{a.name}</p>
-                  <p className="f-body text-[13px] text-gray-400 mb-2">{fmtDay(a.at)}</p>
+                  <p className="f-body text-[13px] text-gray-400 mb-1">{fmtDay(a.at)}</p>
+                  <p className="f-body text-[15px] mb-2" style={{ color: C.charcoal }}>{tr("전화번호 뒷자리 ")}<b data-testid="teacher-app-last4">{a.phoneLast4 || "—"}</b></p>
+                  {a.phoneCode && (
+                    <div className="mb-2">
+                      <input value={checkText[a.id] || ""} onChange={async (e) => { const t = e.target.value; setCheckText((p) => ({ ...p, [a.id]: t })); if (phoneValid(t)) { const c = await phoneCode(t); setCheckVerdict((p) => ({ ...p, [a.id]: c === a.phoneCode ? "match" : "differ" })); } else setCheckVerdict((p) => ({ ...p, [a.id]: "" })); }} inputMode="tel" placeholder={tr("알고 있는 번호를 붙여넣어 확인")} aria-label={tr("번호 확인")} className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                      {checkVerdict[a.id] === "match" && <p className="f-body text-[13px] font-bold mt-1" style={{ color: "#1F7A44" }}>{tr("신청한 번호와 같아요 ✓")}</p>}
+                      {checkVerdict[a.id] === "differ" && <p className="f-body text-[13px] font-bold mt-1" style={{ color: "#C0392B" }}>{tr("신청한 번호와 달라요")}</p>}
+                    </div>
+                  )}
                   {clash && <p className="f-body text-[14px] font-bold mb-2" style={{ color: "#C0392B" }}>{clash}</p>}
                   <div className="flex gap-2">
                     <button onClick={() => onRejectApp(a)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("거절")}</button>
@@ -10553,16 +10573,19 @@ export default function CarrotExplorer() {
   }, [JSON.stringify(teachers), session]);
   const nowIso = () => new Date().toISOString();
   // a teacher asks for an account from the login screen (name + the number they want); HQ accepts in the People tab
-  const applyAsTeacher = ({ name, pin }) => {
+  const applyAsTeacher = async ({ name, pin, phone }) => {
     const n = (name || "").trim();
     if (!n) return { ok: false, error: "Please write your name." };
+    if (!phoneValid(phone)) return { ok: false, error: "Please check the phone number." };
     if (!/^\d{4}$/.test(pin || "")) return { ok: false, error: "Use 4 digits." };
     if (pin === TEACHER_PIN || teachers.some((t) => t.active && t.pin === pin) || teacherApps.some((a) => a.pin === pin) || pin === legacyPin) return { ok: false, error: "That number is taken. Please pick another." };
     if (teachers.some((t) => t.name.trim().toLowerCase() === n.toLowerCase()) || teacherApps.some((a) => a.name.toLowerCase() === n.toLowerCase())) return { ok: false, error: "This name is already registered or waiting." };
-    saveRow({ id: `ta-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind: "apply", id: `ta${Date.now().toString(36)}`, name: n, pin, at: nowIso() }) });
+    const code = await phoneCode(phone); // only the last 4 digits and a one-way code are kept
+    if (teachers.some((t) => t.phoneCode && t.phoneCode === code) || teacherApps.some((a) => a.phoneCode && a.phoneCode === code)) return { ok: false, error: "This phone number is already registered or waiting." };
+    saveRow({ id: `ta-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind: "apply", id: `ta${Date.now().toString(36)}`, name: n, pin, phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code, at: nowIso() }) });
     return { ok: true };
   };
-  const acceptTeacherApp = (a) => saveRow({ id: `tc-${a.id}-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: a.id, name: a.name, pin: a.pin, at: nowIso() }) });
+  const acceptTeacherApp = (a) => saveRow({ id: `tc-${a.id}-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: a.id, name: a.name, pin: a.pin, phoneLast4: a.phoneLast4 || "", phoneCode: a.phoneCode || "", at: nowIso() }) });
   const rejectTeacherApp = (a) => saveRow({ id: `tar-${a.id}-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "reject", id: a.id, at: nowIso() }) });
   const addTeacher = ({ name, pin }) => saveRow({ id: `tc-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: `t${Date.now().toString(36)}`, name: name.trim(), pin, at: nowIso() }) });
   const setTeacherPin = (id, pin) => saveRow({ id: `tc-${id}-pin-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "pin", id, pin, at: nowIso() }) });

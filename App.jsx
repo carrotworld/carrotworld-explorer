@@ -7474,7 +7474,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-v"; // change with every delivery
+const APP_BUILD = "2026-10-08-w"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10564,7 +10564,6 @@ export default function CarrotExplorer() {
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
   FAMILY_PHONES = familyPhones(suggestions);
-  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
   const savePaySetting = (row) => saveRow({ id: `set-pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ ...row, at: new Date().toISOString() }) });
   const setPayRate = (value) => savePaySetting({ key: "payRate", value });
   const setPayTax = (on) => savePaySetting({ key: "payTax", value: !!on });
@@ -10967,6 +10966,7 @@ export default function CarrotExplorer() {
 
   const teachers = teacherAccounts(suggestions);
   const joins = teacherJoins(suggestions);
+  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
   const teacherApps = teacherApplications(suggestions, teachers);
   const legacyPin = currentGuidePin(suggestions);
   // a teacher whose account HQ turns off is signed out at the next refresh

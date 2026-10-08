@@ -660,6 +660,16 @@ const EN = {
 "번호 4자리": "4-digit number",
 "번호 만들기": "Make a number",
 "본사 확인 중": "Waiting for HQ",
+"정원이 차서 대기 중": "Full: on the waiting list",
+"정원 초과 대기": "Over quota, waiting",
+"대기 {0}": "Waiting {0}",
+"프로그램별 선생님 정원": "Teacher places per program",
+"확정 {0}명": "{0} confirmed",
+"정원 줄이기": "Fewer places",
+"정원 늘리기": "More places",
+"정원 초과 대기 {0}건": "{0} over quota, waiting",
+"정원 {0}명이 찼어요. 더 받으려면 확정해 주세요": "{0} places are full. Confirm to take more",
+"선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.": "Teacher sign-ups for upcoming programs. Up to {0} teachers are confirmed automatically; after that they wait, and are confirmed in order when a place frees up.",
 "본사에 남길 말": "Note for HQ",
 "본사에 남길 말 (선택)": "Note for HQ (optional)",
 "본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.": "Once HQ gives you your own number, you can sign up.",
@@ -1755,7 +1765,7 @@ function VocabularyCard({ v, onTap, checks, onCheck }) {
     <div className="bg-white rounded-2xl p-4 text-left">
       <button onClick={() => { if (onTap) onTap(v); speak(v.en); }} aria-label={`Play pronunciation for ${v.en}`} className="focus-ring tap w-full text-left">
         <div className="flex items-start justify-between">
-          <span className="text-[27px]">{v.emoji}</span>
+          {wordEmoji(v.emoji) ? <span className="text-[27px]">{wordEmoji(v.emoji)}</span> : <span />}
           <Volume2 size={16} color={C.orange} />
         </div>
         <p className="f-display font-semibold mt-2" style={{ color: C.green }}>
@@ -1800,6 +1810,9 @@ function TagChip({ label, selected, onClick }) {
     </button>
   );
 }
+
+/** A report counts as sent unless the teacher is still drafting it (older reports have no flag and stay sent). */
+const feedbackSent = (a) => !!(a && a.feedback && a.feedback.submitted !== false);
 
 function RatingRow({ label, value, options, onChange }) {
   return (
@@ -2523,7 +2536,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
           <div className="grid grid-cols-3 gap-2">
             {program.vocabulary.map((v) => (
               <div key={v.id} className="rounded-xl text-center py-2" style={{ background: C.cream }}>
-                <div className="text-[23px]">{v.emoji}</div>
+                {wordEmoji(v.emoji) && <div className="text-[23px]">{wordEmoji(v.emoji)}</div>}
                 <div className="text-[14px] f-body font-bold" style={{ color: C.charcoal }}>{v.en}</div>
               </div>
             ))}
@@ -3074,7 +3087,7 @@ function ParentAdventureReport({ a, program }) {
           <HighlightLine ok={a.attended} text="모둠 활동 참여" />
         </div>
 
-        {a.feedback ? (
+        {feedbackSent(a) ? (
           <ParentFeedbackReport feedback={a.feedback} />
         ) : (
           a.teacherNote && (
@@ -3383,6 +3396,17 @@ function teacherAccounts(suggestions) {
   return [...map.values()].filter((t) => t.name && /^\d{4}$/.test(t.pin)).sort((a, b) => a.name.localeCompare(b.name));
 }
 const teacherByPin = (accounts, pin) => accounts.find((t) => t.active && t.pin === pin) || null;
+/** Most teachers per program (per session when a program has sessions). Sign-ups up to this number confirm by themselves. */
+const TEACHER_CAP = 6;
+/** HQ can set another number for one program; the latest setting wins. */
+function teacherCaps(suggestions) {
+  const caps = {};
+  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "teacherCap" && r.programId).sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
+    const n = Math.round(Number(r.value));
+    if (n >= 1 && n <= 50) caps[r.programId] = n;
+  });
+  return caps;
+}
 const joinKey = (teacherId, programId, slotId) => `${teacherId}|${programId}|${slotId || ""}`;
 /** Every sign-up with where it stands: pending, approved, declined or withdrawn (the latest event wins). */
 function teacherJoins(suggestions) {
@@ -3405,7 +3429,18 @@ function teacherJoins(suggestions) {
     else if (e.ev === "withdraw") map.set(e.key, { ...cur, status: "withdrawn" });
     else if ((e.ev === "approved" || e.ev === "declined") && cur.status !== "withdrawn") map.set(e.key, { ...cur, status: e.ev, decidedAt: e.at });
   });
-  return [...map.values()].sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt)));
+  // seats: a sign-up is confirmed by itself while the program (or session) has room; the rest wait until a seat frees up or HQ confirms one
+  const list = [...map.values()].sort((a, b) => String(a.requestedAt).localeCompare(String(b.requestedAt)));
+  const caps = teacherCaps(suggestions);
+  const seats = {};
+  const seatKey = (j) => `${j.programId}|${j.slotId}`;
+  list.forEach((j) => { if (j.status === "approved") seats[seatKey(j)] = (seats[seatKey(j)] || 0) + 1; });
+  list.forEach((j) => {
+    if (j.status !== "pending") return;
+    if ((seats[seatKey(j)] || 0) < (caps[j.programId] || TEACHER_CAP)) { j.status = "approved"; j.auto = true; j.decidedAt = j.requestedAt; seats[seatKey(j)] = (seats[seatKey(j)] || 0) + 1; }
+    else j.status = "waiting";
+  });
+  return list.reverse();
 }
 /** Names of the teachers HQ approved for a program (for the team form). */
 const confirmedTeacherNames = (joins, accounts, programId, slotId) => [...new Set(joins.filter((j) => j.programId === programId && j.status === "approved" && (slotId === undefined || !j.slotId || j.slotId === slotId)).map((j) => (accounts.find((t) => t.id === j.teacherId) || {}).name).filter(Boolean))];
@@ -3583,7 +3618,7 @@ function parentNotices(children, adventures, suggestions) {
         const program = getProgram(a.programId);
         if (!program) return;
         const base = `${child.name} · ${splitTitle(program.title)[0] || program.title}`;
-        if (a.feedback) {
+        if (feedbackSent(a)) {
           list.push({ key: `${base}-report`, icon: "📝", title: "선생님 리포트가 도착했어요", text: base, action: "리포트 보기", kind: "report", childId: child.id });
         }
         // with time slots the notice is the slot's own, and only children of a slot whose notice was shared get it
@@ -4124,13 +4159,13 @@ function childProgress(program, adv) {
     { key: "prep", label: "예습", done: !!adv.beforeCompleted },
     { key: "notice", label: "안내", done: noticeSent },
     { key: "trip", label: "체험", done: !!adv.attended },
-    { key: "report", label: "리포트", done: !!adv.feedback },
+    { key: "report", label: "리포트", done: feedbackSent(adv) },
     { key: "survey", label: "설문", done: !!adv.parentSurvey },
   ];
   const current = steps.find((x) => !x.done) || null;
   let hint = "모두 마쳤어요 🎉";
   if (current) {
-    if (adv.attended && !adv.feedback) hint = "체험이 끝났어요. 선생님이 리포트를 준비하고 있어요.";
+    if (adv.attended && !feedbackSent(adv)) hint = "체험이 끝났어요. 선생님이 리포트를 준비하고 있어요.";
     else if (isLive(program) && !adv.attended) hint = "오늘이 체험 날이에요! 아이가 모험을 시작해요.";
     else if (current.key === "prep") hint = noticeSent ? "안내를 받았어요. 예습도 해 주세요." : "단어 카드로 예습해요.";
     else if (current.key === "notice") hint = "예습을 마쳤어요. 체험 안내를 곧 보내 드려요.";
@@ -4298,8 +4333,8 @@ function parentAction(program, adv) {
   if (adv.absent && !adv.attended) return R(8, "absent", "이번 체험에는 참여하지 못했어요.", { label: "다음 예정 체험 보기", act: "browse" });
   if (adv.attended) {
     const advice = FEATURES.parentAdvice && adv.advice?.sent ? [{ label: "학습 조언 보기", act: "report" }] : [];
-    if (adv.feedback && adv.afterCompleted && !surveyOpen) return R(9, "done", "모두 마쳤어요.", { label: "다음 예정 체험 보기", act: "browse" }, [{ label: "리포트 보기", act: "report" }, ...advice]);
-    if (adv.feedback) return R(2, "report", "선생님 리포트가 도착했어요.", { label: "리포트 보기", act: "report" }, [...(surveyOpen ? [survey] : []), ...advice]);
+    if (feedbackSent(adv) && adv.afterCompleted && !surveyOpen) return R(9, "done", "모두 마쳤어요.", { label: "다음 예정 체험 보기", act: "browse" }, [{ label: "리포트 보기", act: "report" }, ...advice]);
+    if (feedbackSent(adv)) return R(2, "report", "선생님 리포트가 도착했어요.", { label: "리포트 보기", act: "report" }, [...(surveyOpen ? [survey] : []), ...advice]);
     if (isReviewOpen(program) && !adv.afterCompleted) return R(1, "review", "체험이 끝났어요. 배운 내용을 복습해 보세요.", { label: "복습하기", act: "start" }, surveyOpen ? [survey] : []);
     return R(3, "waiting", adv.afterCompleted ? "복습을 마쳤어요. 선생님이 리포트를 준비하고 있어요." : "체험이 끝났어요. 복습은 곧 열려요.", surveyOpen ? survey : null);
   }
@@ -4813,8 +4848,11 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
   const points = carrotPoints(adventures, student.id);
   const { rank } = rankFor(participationCount);
 
-  const fb = adv.feedback || { guideName: defaultGuideName || "", cefrLevel: program.level, overview: "", guideNotes: "", language: {}, personality: {} };
+  const fb = adv.feedback || { guideName: defaultGuideName || "", cefrLevel: program.level, overview: "", guideNotes: "", language: {}, personality: {}, submitted: false };
   const patchFeedback = (partial) => onUpdate({ feedback: { ...fb, ...partial } });
+  const sent = feedbackSent(adv);
+  const submitFeedback = () => { onUpdate({ feedback: { ...fb, submitted: true } }); setFeedbackOpen(false); };
+  const editFeedback = () => { onUpdate({ feedback: { ...fb, submitted: false } }); setFeedbackOpen(true); };
   const patchLanguage = (key, value) => patchFeedback({ language: { ...fb.language, [key]: value } });
   const patchPersonality = (key, value) => patchFeedback({ personality: { ...fb.personality, [key]: value } });
 
@@ -5066,14 +5104,14 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           <div className="pt-1 border-t" style={{ borderColor: C.beige }}>
             <button onClick={() => setFeedbackOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between pt-3">
               <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>
-                Full Feedback Report {adv.feedback && "✓"}
+                Full Feedback Report {sent && "✓"}
               </span>
               <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${feedbackOpen ? "rotate-90" : ""}`} />
             </button>
             <p className="f-body text-[14px] text-gray-400 mt-1">Usually filled out after the trip — not needed in the moment.</p>
 
             {feedbackOpen && (
-              <div className="mt-3 space-y-4">
+              <fieldset disabled={sent} className="mt-3 space-y-4 border-0 p-0 m-0 min-w-0" style={sent ? { opacity: 0.7 } : undefined}>
                 <div className="flex gap-2">
                   <input
                     value={fb.guideName}
@@ -5144,8 +5182,18 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
                     />
                   ))}
                 </div>
+              </fieldset>
+            )}
+            {feedbackOpen && (
+              <div className="mt-4 flex gap-2">
+                {sent ? (
+                  <button onClick={editFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.cream, color: C.charcoal, border: `1px solid ${C.beige}` }}>수정 (Edit)</button>
+                ) : (
+                  <button onClick={submitFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.orange, color: "#fff" }}>Submit</button>
+                )}
               </div>
             )}
+            {feedbackOpen && !sent && <p className="f-body text-[13px] text-gray-400 mt-1.5">Parents see the report after you press Submit.</p>}
           </div>
 
           {FEATURES.parentAdvice && <AdviceBox student={student} program={program} adv={adv} onSave={(advice) => onUpdate({ advice })} />}
@@ -5499,7 +5547,8 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
 /*  PROGRAM MATERIAL EDITOR (Get Ready words, big question, quizzes,   */
 /*  missions). Everything is plain data on the program object.         */
 /* ================================================================== */
-const DEFAULT_EMOJI = "📖";
+const DEFAULT_EMOJI = ""; // no default picture: only an emoji the teacher typed is shown
+const wordEmoji = (e) => (e && e !== "📖" ? e : ""); // older words saved with the book emoji show nothing too
 function newId(prefix) {
   return `${prefix}${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -6785,7 +6834,7 @@ function summarizeRows(rows) {
     { key: "prep", label: tr("예습(단어) 완료"), value: rows.filter((a) => a.beforeCompleted).length },
     { key: "attended", label: tr("현장 출석"), value: rows.filter((a) => a.attended).length },
     { key: "after", label: tr("복습 완료"), value: rows.filter((a) => a.afterCompleted).length },
-    { key: "report", label: tr("선생님 리포트 작성"), value: rows.filter((a) => a.feedback).length },
+    { key: "report", label: tr("선생님 리포트 작성"), value: rows.filter((a) => feedbackSent(a)).length },
   ];
   return {
     total: rows.length,
@@ -7055,7 +7104,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                     .map((w) => (
                       <StatBar
                         key={w.id}
-                        label={`${w.emoji} ${w.en}`}
+                        label={`${wordEmoji(w.emoji)} ${w.en}`.trim()}
                         value={w.avgChecks || 0}
                         total={WORD_PRACTICE_GOAL}
                         sub={tr("평균 {0} / {1}회", [oneDecimal(w.avgChecks || 0), WORD_PRACTICE_GOAL])}
@@ -7215,7 +7264,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-07-o"; // change with every delivery
+const APP_BUILD = "2026-10-08-d"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7449,7 +7498,7 @@ function programStatus(program, adventures) {
   const sessionUnset = slots.length ? mine.filter((a) => !sessionOf(program, a)).length : 0;
   const withKids = sessionInfo.filter((x) => x.count > 0);
   const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : isNoticeOut(program, null);
-  const reportsLeft = attended.filter((a) => !a.feedback).length;
+  const reportsLeft = attended.filter((a) => !feedbackSent(a)).length;
   // The stage follows what has really happened: nobody applied -> setting up; children preparing -> prep; notice shared -> notice sent;
   // "Live today" on -> trip live; the trip happened but feedback is missing -> feedback due; all feedback written -> complete.
   // (Opening the review does not mean the trip is over, so it no longer changes the stage.)
@@ -8285,7 +8334,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -8334,7 +8383,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
   const pendingOther = suggestions.filter((x) => !x.resolved && x.type !== "신청 문의" && !isSystemRow(x));
   const needReport = adventures
-    .filter((a) => a.attended && !a.feedback)
+    .filter((a) => a.attended && !feedbackSent(a))
     .map((a) => ({ a, student: students.find((st) => st.id === a.studentId), program: getProgram(a.programId) }))
     .filter((r) => r.student && r.program);
   const teacherNotices = [];
@@ -8434,9 +8483,9 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => { setProgramId(r.program.id); setTab("manage"); },
     });
   });
-  const pendingJoinCount = joins.filter((j) => j.status === "pending").length;
+  const pendingJoinCount = joins.filter((j) => j.status === "waiting").length;
   if (pendingJoinCount) {
-    teacherNotices.push({ key: "teacher-joins", icon: "🧑‍🏫", title: tr("선생님 참여 신청 {0}건", [pendingJoinCount]), text: tr("확인하고 확정해 주세요"), onClick: () => setTab("teachers") });
+    teacherNotices.push({ key: "teacher-joins", icon: "🧑‍🏫", title: tr("정원 초과 대기 {0}건", [pendingJoinCount]), text: tr("정원 {0}명이 찼어요. 더 받으려면 확정해 주세요", [TEACHER_CAP]), onClick: () => setTab("teachers") });
   }
   const pendingReviews = reviewRecords(suggestions).filter((r) => r.status === "pending");
   if (pendingReviews.length) {
@@ -8773,7 +8822,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         </ConfirmDialog>
       )}
 
-      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} />}
+      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
 
       {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
 
@@ -9278,7 +9327,7 @@ const buildManual = () => [
     items: [
       { t: "step", en: "Upcoming tab: programs that have not run yet are listed.", ko: "예정 탭에 아직 하지 않은 프로그램이 나와요." },
       { t: "step", en: "Tap Sign up (for each time slot if there are several), add a note for HQ if you like, and send.", ko: "참여 신청을 눌러요(시간대가 여러 개면 시간대마다). 본사에 남길 말이 있으면 쓰고 보내요." },
-      { t: "step", en: "HQ confirms. You see Waiting for HQ, then Confirmed or Not this time.", ko: "본사가 확정해요. 본사 확인 중, 그다음 확정 또는 이번엔 어려워요가 보여요." },
+      { t: "step", en: "Up to 6 teachers are confirmed automatically, in sign-up order. After that you wait; HQ can still confirm or remove anyone.", ko: "6명까지는 신청 순서대로 자동 확정돼요. 넘으면 대기하고, 본사가 직접 확정하거나 뺄 수도 있어요." },
       { t: "tip", en: "Withdraw cancels your sign-up. After Not this time you can sign up again.", ko: "신청 취소로 신청을 거둘 수 있어요. 이번엔 어려워요 뒤에는 다시 신청할 수 있어요." },
     ],
   },
@@ -9493,15 +9542,15 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
   const mine = name ? roster.filter((x) => ((teamOf(program, x.a) || {}).teacher || "").trim().toLowerCase() === name.trim().toLowerCase()) : [];
   const filtering = mineOnly && mine.length > 0;
   const list = (filtering ? mine : roster).slice().sort((x, y) => Number(!!y.a.attended) - Number(!!x.a.attended));
-  const feedbackLeft = list.filter((x) => x.a.attended && !x.a.feedback).length;
-  const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !x.a.feedback).length : 0;
+  const feedbackLeft = list.filter((x) => x.a.attended && !feedbackSent(x.a)).length;
+  const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackSent(x.a)).length : 0;
   const TABS = [
     { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
     { key: "materials", label: tr("수업자료") },
     { key: "feedback", label: allFeedbackLeft ? tr("피드백 {0}", [allFeedbackLeft]) : tr("피드백") },
   ];
   const chipFor = (j) =>
-    j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("본사 확인 중"), bg: "#FFF1E2", color: "#B25A0B" };
+    j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("정원이 차서 대기 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
   return (
     <div className="flex-1">
@@ -9617,8 +9666,8 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
 }
 
 /** HQ: each teacher's own number, and the sign-ups to approve. */
-function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide }) {
-  const [filter, setFilter] = useState("pending");
+function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide, caps = {}, onSetCap = () => {}, programs = [] }) {
+  const [filter, setFilter] = useState("approved");
   const [confirm, setConfirm] = useState(null);
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -9630,6 +9679,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
   const shown = joins.filter((j) => (filter === "all" ? true : j.status === filter));
   const look = {
     pending: { label: tr("확인 대기"), bg: "#FFF1E2", color: "#B25A0B" },
+    waiting: { label: tr("정원 초과 대기"), bg: "#FFF1E2", color: "#B25A0B" },
     approved: { label: tr("확정"), bg: "#EAF7EF", color: "#1F7A44" },
     declined: { label: tr("거절"), bg: "#FDEDEA", color: "#B03A2E" },
     withdrawn: { label: tr("취소함"), bg: "#F3EEE3", color: "#8A8060" },
@@ -9656,9 +9706,31 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     <div className="px-5 space-y-5">
       <div>
         <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
-        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 확정하면 그 선생님이 팀 선생님으로 먼저 보여요.")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.", [TEACHER_CAP])}</p>
+        {programs.length > 0 && (
+          <div className="bg-white rounded-2xl p-3 mb-2.5 space-y-2" data-testid="teacher-caps">
+            <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("프로그램별 선생님 정원")}</p>
+            {programs.map((p) => {
+              const cap = caps[p.id] || TEACHER_CAP;
+              const taken = joins.filter((j) => j.programId === p.id && j.status === "approved").length;
+              return (
+                <div key={p.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="f-body text-[15px] truncate" style={{ color: C.charcoal }}>{splitTitle(p.title)[0] || p.title}</p>
+                    <p className="f-body text-[13px] text-gray-400">{tr("확정 {0}명", [taken])}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button aria-label={tr("정원 줄이기")} disabled={cap <= 1} onClick={() => onSetCap(p.id, cap - 1)} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold disabled:opacity-30" style={{ background: C.cream, color: C.charcoal }}>−</button>
+                    <span className="f-body text-[16px] font-bold w-8 text-center" data-testid={`cap-${p.id}`}>{cap}</span>
+                    <button aria-label={tr("정원 늘리기")} disabled={cap >= 50} onClick={() => onSetCap(p.id, cap + 1)} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.cream, color: C.charcoal }}>+</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Sign-up filter">
-          {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
+          {chip("waiting", tr("대기 {0}", [count("waiting")]))}
           {chip("approved", tr("확정 {0}", [count("approved")]))}
           {chip("declined", tr("거절 {0}", [count("declined")]))}
           {chip("all", tr("전체 {0}", [joins.length]))}
@@ -9669,7 +9741,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
             const t = teachers.find((x) => x.id === j.teacherId);
             const p = getProgram(j.programId);
             const slot = p ? sessionsOf(p).find((x) => x.id === j.slotId) : null;
-            const st = look[j.status] || look.pending;
+            const st = look[j.status] || look.waiting;
             return (
               <div key={j.key + j.requestedAt} className="bg-white rounded-2xl p-4" data-testid="join-row">
                 <div className="flex items-start justify-between gap-2">
@@ -9903,6 +9975,7 @@ export default function CarrotExplorer() {
     if (!rec || rec.seen) return;
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
+  const setTeacherCap = (programId, value) => saveRow({ id: `set-teacherCap-${programId}-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "teacherCap", programId, value, at: new Date().toISOString() }) });
   const savePointItems = (items) => saveRow({ id: `set-pointItems-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "pointItems", items, at: new Date().toISOString() }) });
   const addPointEntry = ({ familyPin, kind, delta, friend, note, target, title, name, itemId }) => {
     saveRow({ id: `pt-${familyPin}-${Date.now()}`, type: POINT_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind, delta, ...(friend ? { friend: friend.trim(), friendKey: friendKey(friend) } : {}), ...(note ? { note: note.trim() } : {}), ...(target ? { target } : {}), ...(title ? { title } : {}), ...(name ? { name } : {}), ...(itemId ? { itemId } : {}), at: new Date().toISOString() }) });
@@ -9968,7 +10041,7 @@ export default function CarrotExplorer() {
     if (rawPatch.beforeCompleted === true && !current?.beforeCompletedAt) patch.beforeCompletedAt = now;
     if (rawPatch.attended === true && !current?.attendedAt) patch.attendedAt = now;
     if (rawPatch.afterCompleted === true && !current?.afterCompletedAt) patch.afterCompletedAt = now;
-    if (rawPatch.feedback && !current?.reportedAt) patch.reportedAt = now;
+    if (rawPatch.feedback && rawPatch.feedback.submitted !== false && !current?.reportedAt) patch.reportedAt = now;
     let updated;
     setAdventures((prev) => {
       updated = prev.map((a) => (a.studentId === studentId && a.programId === programId ? { ...a, ...patch } : a));
@@ -10392,6 +10465,8 @@ export default function CarrotExplorer() {
               onSetTeacherPin={setTeacherPin}
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
+              onSetTeacherCap={setTeacherCap}
+              teacherCapMap={teacherCaps(suggestions)}
               onAddPointEntry={addPointEntry}
               onSavePointItems={savePointItems}
               onSetProgramDates={setProgramDates}

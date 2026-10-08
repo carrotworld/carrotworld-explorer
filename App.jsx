@@ -1688,24 +1688,27 @@ function ScreenHeader({ title, subtitle, onBack, right }) {
   );
 }
 
-/** The top bar every role shares: who is using the app on the left, language and Switch user on the right. */
-function RoleBar({ label, onLogout, lang, onLang }) {
+/** The top bar of the three home screens (parent, teacher, HQ): a solid green band with the brand, the role under it, and the controls on the right. */
+function RoleBar({ label, onLogout, lang, onLang, action }) {
   return (
-    <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: C.beige }}>
-      <span className="f-body text-[15px] font-bold uppercase tracking-[0.12em]" style={{ color: C.green }}>{label}</span>
-      <div className="flex items-center gap-3">
+    <div className="px-5 py-3.5 flex items-center justify-between gap-3 min-h-[68px]" style={{ background: C.green }} data-testid="role-bar">
+      <div className="min-w-0">
+        <p className="f-headline text-[24px] leading-none text-white">CarrotWorld</p>
+        <p className="f-body text-[12px] font-bold uppercase tracking-[0.14em] mt-1.5 truncate" style={{ color: "#9FD1B8" }}>{label}</p>
+      </div>
+      <div className="flex items-center gap-2.5 shrink-0">
         {onLang && <LangToggle lang={lang} onChange={onLang} />}
-        <button onClick={onLogout} className="focus-ring tap f-body text-[14px] font-bold whitespace-nowrap" style={{ color: "#B9AE99" }}>Switch user</button>
+        {action}
+        <button onClick={onLogout} className="focus-ring tap f-body text-[13px] font-bold whitespace-nowrap" style={{ color: "#C9E6D6" }}>Switch user</button>
       </div>
     </div>
   );
 }
-/** The page title of the three home screens (parent, teacher, HQ): the brand, with one optional action on the right. */
-function BrandTitle({ right }) {
+/** A section headline as a bar: it divides the page into zones. */
+function SectionBar({ children, className = "" }) {
   return (
-    <div className="px-5 pt-5 pb-3 flex items-center justify-between gap-3 min-h-[68px]">
-      <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>CarrotWorld</h1>
-      {right}
+    <div className={`rounded-xl px-4 py-2.5 mb-2.5 flex items-center ${className}`} style={{ background: C.beige, borderLeft: `5px solid ${C.orange}` }}>
+      <p className="f-display text-[19px] font-bold leading-tight" style={{ color: C.green }}>{children}</p>
     </div>
   );
 }
@@ -2309,7 +2312,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
       </div>
 
       <div className="px-5 mt-5">
-        <p className="f-display text-[22px] font-bold leading-tight mb-2.5" style={{ color: C.green }}>Your Next Adventure</p>
+        <SectionBar>Your Next Adventure</SectionBar>
         <div
           role="button"
           tabIndex={0}
@@ -2344,7 +2347,7 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
           )}
           {otherDone.length > 0 && (
             <>
-              <p className="f-display text-[22px] font-bold leading-tight mb-2.5" style={{ color: C.green }}>Completed</p>
+              <SectionBar>Completed</SectionBar>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
                 {otherDone.map(({ program }) => (
                   <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
@@ -2609,11 +2612,11 @@ function BadgeCollection({ adventures, studentId }) {
             </div>
           );
         })()}
-        <p className="f-display text-[22px] font-bold leading-tight mb-3" style={{ color: C.green }}>Earned ({earned.length})</p>
+        <SectionBar>Earned ({earned.length})</SectionBar>
         <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
           {earned.map((b) => <Badge key={b.id} b={b} />)}
         </div>
-        <p className="f-display text-[22px] font-bold leading-tight mb-3" style={{ color: C.green }}>Next badges</p>
+        <SectionBar>Next badges</SectionBar>
         <div className="grid grid-cols-3 gap-y-5 justify-items-center">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
@@ -3960,7 +3963,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
   return (
     <div id="browse-programs">
       <div className="mb-3 mt-6">
-        <p className="f-display text-[24px] font-bold leading-tight" style={{ color: C.green }}>예정 체험</p>
+        <SectionBar>예정 체험</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mt-1.5">마음에 드는 체험은 ♡ 찜해 두세요. 신청은 카카오톡으로 문의해 주세요.</p>
         {KAKAO_CHAT_URL && (
           <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[15px] font-bold rounded-xl px-3 py-1.5 mt-2" style={{ background: "#FEE500", color: "#3A1D1D" }}>
@@ -4550,12 +4553,12 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
           <p className="f-body text-[13px] mt-2" style={{ color: "#9FD1B8" }}>포인트는 현금으로 출금할 수 없어요.</p>
         </div>
 
-        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>포인트 적립 기준</p>
+        <SectionBar>포인트 적립 기준</SectionBar>
         <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
           {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
         </div>
 
-        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>이렇게 쓰여요</p>
+        <SectionBar>이렇게 쓰여요</SectionBar>
         <div className="bg-white rounded-2xl px-4 py-3 mb-5 space-y-1.5" style={{ border: `1px solid ${C.beige}` }} data-testid="points-how">
           <p className="f-body text-[15px]" style={{ color: C.charcoal }}>① 체험을 마치고 설문을 남기면 포인트가 자동으로 쌓여요.</p>
           <p className="f-body text-[15px]" style={{ color: C.charcoal }}>② 1P는 1원이에요. 다음 프로그램 결제 금액에서 빼 드려요.</p>
@@ -4578,7 +4581,7 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
           </>
         )}
 
-        <p className="f-display text-[22px] font-bold leading-tight mb-2" style={{ color: C.green }}>포인트 내역</p>
+        <SectionBar>포인트 내역</SectionBar>
         {entries.length === 0 ? (
           <p className="f-body text-[15px] text-gray-500">{POINT_RULES.trip > 0 ? `아직 적립 내역이 없어요. 체험을 완료하면 ${POINT_RULES.trip.toLocaleString("en-US")}P가 쌓여요.` : "아직 적립 내역이 없어요."}</p>
         ) : (
@@ -4791,7 +4794,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   return (
     <div className="pb-24">
       <RoleBar label="Parent" onLogout={onLogout} />
-      <BrandTitle />
       {showGuide && <ParentGuide onClose={closeGuide} />}
       {newlyApproved && !showGuide && (
         <ConfirmDialog
@@ -4918,7 +4920,7 @@ function ParentDashboard({ adventures, studentId, onBack }) {
 
         {inProgress.length > 0 && (
           <>
-            <p className="f-display text-[22px] font-bold leading-tight pt-2" style={{ color: C.green }}>진행중인 체험</p>
+            <SectionBar>진행중인 체험</SectionBar>
             {inProgress.map(({ a, program }) => {
               const status = getStatus(a);
               const label = status === "reflection_pending" ? "소감 작성 대기중" : status === "ready" ? "체험 준비 완료" : "준비 중";
@@ -7717,7 +7719,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-j2"; // change with every delivery
+const APP_BUILD = "2026-10-09-k2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8516,7 +8518,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   return (
     <div className="px-5 space-y-4">
       <div>
-        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("외부 후기 확인")}</p>
+        <SectionBar>{tr("외부 후기 확인")}</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("부모님이 올린 후기 링크를 열어 보고 승인하면 {0}P가 자동으로 적립돼요. 한 체험당 한 번, 같은 링크는 한 번만 인정돼요.", [POINT_RULES.review])}</p>
         <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Review filter">
           {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
@@ -8557,7 +8559,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
       </div>
 
       <div>
-        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("포인트 항목과 액수")}</p>
+        <SectionBar>{tr("포인트 항목과 액수")}</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("항목 이름과 액수를 직접 정해요. 학부모 화면의 적립 기준과 안내가 같이 바뀌어요. 바꾼 액수는 그다음부터 쌓이는 포인트에 적용되고, 이미 쌓인 포인트는 그대로예요.")}</p>
         {!draft ? (
           <div className="bg-white rounded-2xl p-4">
@@ -8610,7 +8612,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
       </div>
 
       <div>
-        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("가족별 포인트")}</p>
+        <SectionBar>{tr("가족별 포인트")}</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("가족별 내역을 보고 적립, 사용 처리, 수동 조정을 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
         <div className="space-y-2">
           {families.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 가족이 없어요.")}</p></div>}
@@ -8988,9 +8990,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
   return (
     <div className="pb-6">
-      <BrandTitle
-        right={onOpenGuide && <button onClick={onOpenGuide} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>}
-      />
+
       {pendingNav && (() => {
         const dirtyApis = [dirtyNew && newApi.current, dirtyEdit && editApi.current].filter(Boolean);
         const canSaveAll = dirtyApis.length > 0 && dirtyApis.every((a) => a.canSave);
@@ -9264,7 +9264,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       {tab === "programs" && (
         <div className="px-5 space-y-3">
           <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
-          <p className="f-display text-[22px] font-bold leading-tight pt-2" style={{ color: C.green }}>{tr("등록된 프로그램")}</p>
+          <SectionBar>{tr("등록된 프로그램")}</SectionBar>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
@@ -9486,18 +9486,18 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
             <p className="f-body text-[17px] text-center mb-8" style={{ color: "#9C927D" }}>
               아이의 특별한 하루를 기록합니다
             </p>
-            <div className="space-y-3 mb-4">
+            <div className="space-y-3 mb-6">
               {[
                 { key: "parent", label: "Parent" },
                 { key: "guide", label: "Teacher" },
-                { key: "teacher", label: "HQ" },
+                { key: "teacher", label: "CarrotWorld", tag: "HQ" },
               ].map((r) => (
                 <button
                   key={r.key}
                   onClick={() => { setRole(r.key); setStep("pin"); }}
                   className="focus-ring tap w-full flex items-center justify-between bg-white rounded-2xl p-4"
                 >
-                  <span className="f-display font-semibold" style={{ color: C.green }}>{r.label}</span>
+                  <span className="f-display font-semibold" style={{ color: C.green }}>{r.label}{r.tag && <span className="f-body text-[12px] font-bold ml-2 px-2 py-0.5 rounded-full align-middle" style={{ background: C.beige, color: "#8A8060" }}>{r.tag}</span>}</span>
                   <ChevronRight size={18} color="#C9BFA8" />
                 </button>
               ))}
@@ -10067,7 +10067,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const openSlots = (p) => (sessionsOf(p).length ? sessionsOf(p).map((x) => ({ id: x.id, label: x.label })) : [{ id: "", label: "" }]);
   const toSignUp = upcoming.reduce((n, p) => n + openSlots(p).filter((x) => !stateOf(p.id, x.id)).length, 0);
 
-  const header = <RoleBar label={`Teacher${name ? ` · ${name}` : ""}`} onLogout={onLogout} lang={lang} onLang={onLang} />;
+  const header = <RoleBar label={`Teacher${name ? ` · ${name}` : ""}`} onLogout={onLogout} lang={lang} onLang={onLang} action={<button onClick={onOpenGuide} className="focus-ring tap f-body text-[13px] font-bold rounded-full px-3 py-1.5" style={{ background: C.beige, color: C.green }}>Guide</button>} />;
 
   const roster = program
     ? adventures
@@ -10092,7 +10092,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   return (
     <div className="flex-1">
       {header}
-      <BrandTitle right={<button onClick={onOpenGuide} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>} />
+      <div className="pt-4" />
       <div className="px-5 mb-3 grid grid-cols-4 gap-1.5" role="tablist" aria-label="Teacher tabs">
         {TABS.map((t) => (
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap min-w-0 truncate whitespace-nowrap px-1 f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
@@ -10509,7 +10509,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     <div className="px-5 space-y-5">
       {apps.length > 0 && (
         <div data-testid="teacher-apps">
-          <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 가입 신청")}</p>
+          <SectionBar>{tr("선생님 가입 신청")}</SectionBar>
           <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.")}</p>
           <div className="space-y-2.5">
             {apps.map((a) => {
@@ -10538,7 +10538,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
         </div>
       )}
       <div>
-        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
+        <SectionBar>{tr("선생님 참여 신청")}</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.", [TEACHER_CAP])}</p>
         {programs.length > 0 && (
           <div className="bg-white rounded-2xl p-3 mb-2.5 space-y-2" data-testid="teacher-caps">
@@ -10599,7 +10599,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
       </div>
 
       <div>
-        <p className="f-display font-bold text-[22px] leading-tight mb-1" style={{ color: C.green }}>{tr("선생님 계정")}</p>
+        <SectionBar>{tr("선생님 계정")}</SectionBar>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님마다 이름과 번호가 따로예요. 번호는 로그인 화면의 Teacher에서 써요.")}</p>
         {!teachers.some((t) => t.active) && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5 mb-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("계정이 없어서 공용 번호 {0}로 들어가요. 첫 계정을 만들면 공용 번호는 쓸 수 없어요.", [legacyPin])}</p>}
         <div className="space-y-2 mb-3">
@@ -11300,7 +11300,7 @@ export default function CarrotExplorer() {
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
-          <RoleBar label="HQ" onLogout={logout} lang={hqLang} onLang={setHqLang} />
+          <RoleBar label="HQ" onLogout={logout} lang={hqLang} onLang={setHqLang} action={<button onClick={() => setShowManual(true)} className="focus-ring tap f-body text-[13px] font-bold rounded-full px-3 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("사용법")}</button>} />
           <div className="flex-1 overflow-y-auto" key={programsVersion}>
             {showManual && <TeacherManual lang={hqLang} onClose={() => setShowManual(false)} />}
             <TeacherDashboard

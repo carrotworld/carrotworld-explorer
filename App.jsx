@@ -3490,6 +3490,7 @@ function teacherAccounts(suggestions) {
     const cur = map.get(r.id) || { id: r.id, name: "", pin: "", active: true };
     if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; cur.phoneLast4 = r.phoneLast4 || ""; cur.phoneCode = r.phoneCode || ""; cur.phone = r.phone || ""; }
     else if (r.kind === "pin") cur.pin = r.pin;
+    else if (r.kind === "phone") { cur.phone = r.phone || ""; cur.phoneLast4 = (r.phone || "").slice(-4); }
     else if (r.kind === "active") cur.active = !!r.active;
     map.set(r.id, cur);
   });
@@ -5465,6 +5466,19 @@ function familyPhones(suggestions) {
   return map;
 }
 let FAMILY_PHONES = {}; // set on every render of the app, read by the HQ screens
+let PHONE_SAVER = () => {};
+/** HQ: type the full number for people who signed up before full numbers were kept. */
+function PhoneAdd({ kind, id }) {
+  const [on, setOn] = useState(false); const [v, setV] = useState(""); const [err, setErr] = useState(false);
+  if (!on) return <button onClick={(e) => { e.stopPropagation(); setOn(true); }} className="focus-ring tap f-body text-[13px] font-semibold underline" style={{ color: C.orange }} data-testid="phone-add">{tr("전체 번호 입력")}</button>;
+  const save = () => { const p = normalizePhone(v); if (!phoneValid(p)) { setErr(true); return; } PHONE_SAVER(kind, id, p); setOn(false); };
+  return (
+    <span className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <input value={v} onChange={(e) => { setV(e.target.value); setErr(false); }} inputMode="tel" placeholder="010-0000-0000" aria-label={tr("전화번호")} className="focus-ring f-body text-[14px] rounded-lg px-2 py-1 w-[140px]" style={{ border: `1px solid ${err ? "#C0392B" : "#D9D2C0"}` }} />
+      <button onClick={save} className="focus-ring tap f-body text-[13px] font-semibold px-2 py-1 rounded-lg text-white" style={{ background: C.green }}>{tr("저장")}</button>
+    </span>
+  );
+}
 const phoneOfFamily = (pin) => (FAMILY_PHONES[pin] ? formatPhone(FAMILY_PHONES[pin]) : "");
 const PHONE_SALT = "carrotworld-explorer-join-v1";
 const PHONE_ITER = 120000;
@@ -7411,7 +7425,7 @@ function ApprovalPanel({ students, onAccept, onReject }) {
               </div>
             ))}
           </div>
-          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{phoneOfFamily(f.pin) ? <><span>{tr("전화번호 ")}</span><b data-testid="approve-phone">{phoneOfFamily(f.pin)}</b></> : <>{tr("신청 번호 뒷자리 ")}<b>{f.phoneLast4 || "—"}</b></>}
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{phoneOfFamily(f.pin) ? <><span>{tr("전화번호 ")}</span><b data-testid="approve-phone">{phoneOfFamily(f.pin)}</b></> : <>{tr("신청 번호 뒷자리 ")}<b>{f.phoneLast4 || "—"}</b> <PhoneAdd kind="family" id={f.pin} /></>}
             {f.registeredAt && <span className="text-gray-400">{tr(" · {0} 신청", [timeAgoKo(f.registeredAt)])}</span>}
           </p>
           {f.sameNumber.length > 0 && (
@@ -7474,7 +7488,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-w"; // change with every delivery
+const APP_BUILD = "2026-10-08-y"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8377,6 +8391,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
                 <span className="min-w-0">
                   <span className="block f-display text-[17px] font-semibold" style={{ color: C.green }}>{f.names.join(", ")}</span>
                   <span className="block f-body text-[13px] text-gray-400">{tr("로그인 번호 {0}", [f.pin])}{phoneOfFamily(f.pin) ? ` · ${phoneOfFamily(f.pin)}` : ""}</span>
+                  {!phoneOfFamily(f.pin) && <span className="block mt-0.5"><PhoneAdd kind="family" id={f.pin} /></span>}
                 </span>
                 <span className="f-display text-[18px] font-bold shrink-0" style={{ color: C.orange }}>{fmtBalance(f.balance)}</span>
               </button>
@@ -9848,9 +9863,9 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
         <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>Teacher</h1>
         <button onClick={onOpenGuide} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>Guide</button>
       </div>
-      <div className="px-5 mb-3 flex gap-2 flex-wrap" role="tablist" aria-label="Teacher tabs">
+      <div className="px-5 mb-3 grid grid-cols-4 gap-1.5" role="tablist" aria-label="Teacher tabs">
         {TABS.map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-5 py-2.5" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
+          <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap min-w-0 truncate whitespace-nowrap px-1 f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
         ))}
       </div>
 
@@ -10363,7 +10378,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="f-display text-[18px] font-semibold" style={{ color: t.active ? C.green : "#9C927D" }}>{t.name}{!t.active ? ` · ${tr("꺼짐")}` : ""}</p>
-                  <p className="f-body text-[14px] text-gray-500">{tr("번호")} <b className="tracking-[0.15em]" data-testid="teacher-pin">{t.pin}</b>{t.phone ? <span data-testid="teacher-phone"> · <b>{formatPhone(t.phone)}</b></span> : t.phoneLast4 ? <span data-testid="teacher-phone4"> · {tr("전화번호 뒷자리 ")}<b>{t.phoneLast4}</b></span> : null}</p>
+                  <p className="f-body text-[14px] text-gray-500">{tr("번호")} <b className="tracking-[0.15em]" data-testid="teacher-pin">{t.pin}</b>{t.phone ? <span data-testid="teacher-phone"> · <b>{formatPhone(t.phone)}</b></span> : t.phoneLast4 ? <span data-testid="teacher-phone4"> · {tr("전화번호 뒷자리 ")}<b>{t.phoneLast4}</b></span> : null}{!t.phone && <span> · <PhoneAdd kind="teacher" id={t.id} /></span>}</p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => { setEditing(editing === t.id ? null : t.id); setNewPin(""); setEditError(""); }} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>{tr("번호 바꾸기")}</button>
@@ -10527,6 +10542,11 @@ export default function CarrotExplorer() {
   const saveRow = (row) => {
     setSuggestions((prev) => (prev.some((x) => x.id === row.id) ? prev : [...prev, row]));
     sync(api.createSuggestion(row));
+  };
+  PHONE_SAVER = (kind, id, phone) => {
+    const at = new Date().toISOString(); const rid = `ph-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    if (kind === "family") saveRow({ id: rid, type: PHONE_TYPE, familyPin: id, resolved: false, message: JSON.stringify({ kind: "set", familyPin: id, phone, at }) });
+    else saveRow({ id: `tc-${id}-${rid}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "phone", id, phone, at }) });
   };
   const submitReviewLink = async (pin, programId, rawUrl) => {
     const v = normalizeReviewUrl(rawUrl);

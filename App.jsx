@@ -663,6 +663,10 @@ const EN = {
 "정원이 차서 대기 중": "Full: on the waiting list",
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
+"선생님 가입 신청": "Teacher account requests",
+"선생님 가입 신청 {0}건": "{0} teacher account request(s)",
+"수락하면 그 번호로 로그인할 수 있어요": "Accept, and they can log in with their number",
+"선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.": "Teachers asked for an account on the login screen. Accept, and they can log in with the number they chose.",
 "프로그램 {0}": "Programs {0}",
 "사람 {0}": "People {0}",
 "사람": "People",
@@ -3417,6 +3421,14 @@ const carrotPoints = (adventures, studentId) => adventures.filter((a) => a.stude
 const TEACHER_TYPE = "샘";
 const TEACHER_JOIN_TYPE = "샘신청";
 const TEACHER_JOIN_RESULT_TYPE = "샘신청결과";
+const TEACHER_APPLY_TYPE = "샘가입신청"; // a teacher asks for an account (name + the number they want); HQ accepts or declines
+/** Teachers waiting for HQ: asked for an account, not accepted and not declined yet. */
+function teacherApplications(suggestions, accounts) {
+  const rows = (suggestions || []).filter((sg) => sg.type === TEACHER_APPLY_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const apps = new Map();
+  rows.forEach((r) => { if (r.kind === "reject") apps.delete(r.id); else if (r.name && /^\d{4}$/.test(r.pin || "")) apps.set(r.id, { id: r.id, name: String(r.name).trim(), pin: r.pin, at: r.at || "" }); });
+  return [...apps.values()].filter((a) => !(accounts || []).some((t) => t.id === a.id)).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
 /** The accounts, worked out from the rows: "add" (name + number), "pin" (new number), "active" (on/off). */
 function teacherAccounts(suggestions) {
   const rows = (suggestions || []).filter((sg) => sg.type === TEACHER_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -3542,7 +3554,7 @@ function freeTeacherPin(accounts, hqPin) {
   }
   return "";
 }
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE; // not shown as parent opinions
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE; // not shown as parent opinions
 /** The teachers' login number: the latest one HQ saved, else the default. */
 const currentGuidePin = (suggestions) => {
   const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "guidePin" && /^\d{4}$/.test(r.value)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -7334,7 +7346,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-p"; // change with every delivery
+const APP_BUILD = "2026-10-08-q"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8404,7 +8416,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, places = [], onRememberPlace, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -8553,7 +8565,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       onClick: () => { setProgramId(r.program.id); setTab("manage"); },
     });
   });
-  const pendingJoinCount = joins.filter((j) => j.status === "waiting").length;
+  if (teacherApps.length) {
+    teacherNotices.push({ key: "teacher-apps", icon: "🧑‍🏫", title: tr("선생님 가입 신청 {0}건", [teacherApps.length]), text: tr("수락하면 그 번호로 로그인할 수 있어요"), onClick: () => setTab("teachers") });
+  }
+  const pendingJoinCount = joins.filter((j) => j.status === "waiting").length; // over the quota, waiting for HQ
+  const teacherTodo = pendingJoinCount + teacherApps.length; // everything waiting in the Teachers screen
   if (pendingJoinCount) {
     teacherNotices.push({ key: "teacher-joins", icon: "🧑‍🏫", title: tr("정원 초과 대기 {0}건", [pendingJoinCount]), text: tr("정원 {0}명이 찼어요. 더 받으려면 확정해 주세요", [TEACHER_CAP]), onClick: () => setTab("teachers") });
   }
@@ -8572,9 +8588,9 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       { key: "programs", label: tr("프로그램등록") },
       { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
     ] },
-    { key: "g-people", label: (pendingCount + pendingJoinCount + unresolvedCount) ? tr("사람 {0}", [pendingCount + pendingJoinCount + unresolvedCount]) : tr("사람"), subs: [
+    { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount]) : tr("사람"), subs: [
       ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
-      { key: "teachers", label: pendingJoinCount ? tr("선생님 {0}", [pendingJoinCount]) : tr("선생님") },
+      { key: "teachers", label: teacherTodo ? tr("선생님 {0}", [teacherTodo]) : tr("선생님") },
       { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
       { key: "register", label: tr("현장등록") },
     ] },
@@ -8918,7 +8934,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         </ConfirmDialog>
       )}
 
-      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
+      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
 
       {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
 
@@ -9021,7 +9037,7 @@ function PinPad({ length = 4, validate, onSuccess }) {
 
 /** Links opened from a KakaoTalk chat run inside KakaoTalk's own browser, which is limited. */
 const isKakaoBrowser = () => typeof navigator !== "undefined" && /KAKAOTALK/i.test(navigator.userAgent || "");
-function LoginScreen({ students, teachers = [], legacyPin = GUIDE_PIN_DEFAULT, onSelfRegister, onLogin, onLookupPin, onLookupPhone }) {
+function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply, legacyPin = GUIDE_PIN_DEFAULT, onSelfRegister, onLogin, onLookupPin, onLookupPhone }) {
   const inKakao = isKakaoBrowser();
   const [hideKakaoTip, setHideKakaoTip] = useState(false);
   const openInBrowser = () => {
@@ -9031,6 +9047,11 @@ function LoginScreen({ students, teachers = [], legacyPin = GUIDE_PIN_DEFAULT, o
   const [role, setRole] = useState(null);
 
   const [pinLocked, setPinLocked] = useState(false);
+  const [waitingForHq, setWaitingForHq] = useState(false);
+  const [tName, setTName] = useState("");
+  const [tPin, setTPin] = useState("");
+  const [tError, setTError] = useState("");
+  const [tSent, setTSent] = useState(false);
   const baseValidate = role === "teacher" ? (pin) => pin === TEACHER_PIN : role === "guide" ? (pin) => !!teacherByPin(teachers, pin) || (!teachers.some((t) => t.active) && pin === legacyPin) : (pin) => students.some((s) => s.familyPin === pin);
   // a few wrong numbers in a row lock the number pad for a while (on this phone)
   const validate = (pin) => {
@@ -9039,6 +9060,7 @@ function LoginScreen({ students, teachers = [], legacyPin = GUIDE_PIN_DEFAULT, o
       return false;
     }
     const ok = baseValidate(pin);
+    setWaitingForHq(!ok && role === "guide" && teacherApps.some((a) => a.pin === pin)); // a number that is still waiting for HQ
     if (ok) clearFailures(LOGIN_LOCK);
     else {
       recordFailure(LOGIN_LOCK);
@@ -9110,10 +9132,44 @@ function LoginScreen({ students, teachers = [], legacyPin = GUIDE_PIN_DEFAULT, o
             </p>
             <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null, pin: role === "guide" ? pin : undefined })} />
             {pinLocked && <p role="alert" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
+            {waitingForHq && <p role="status" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: C.orange }} data-testid="teacher-waiting">Your sign-up is waiting for HQ. You can log in once it is accepted.</p>}
             {role === "parent" && (
               <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }}>
                 처음이신가요? 자녀 등록하기
               </button>
+            )}
+            {role === "guide" && onTeacherApply && (
+              <button onClick={() => { setTSent(false); setTError(""); setStep("teacherjoin"); }} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }} data-testid="teacher-join-link">
+                First time? Ask to join as a teacher
+              </button>
+            )}
+          </>
+        )}
+
+        {step === "teacherjoin" && (
+          <>
+            <button onClick={() => setStep("pin")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-[17px] font-bold" style={{ color: C.green }}>
+              <ArrowLeft size={16} /> Back
+            </button>
+            <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>Join as a teacher</h1>
+            {tSent ? (
+              <div className="bg-white rounded-2xl p-5 text-center mt-4" data-testid="teacher-join-sent">
+                <p className="f-display text-[18px] font-semibold mb-1" style={{ color: C.green }}>Request sent ✓</p>
+                <p className="f-body text-[15px] text-gray-500">When HQ accepts, log in with the 4-digit number you chose.</p>
+              </div>
+            ) : (
+              <>
+                <p className="f-body text-[16px] text-gray-500 text-center mb-5">Your name and a 4-digit number of your own. HQ will accept it.</p>
+                <input value={tName} onChange={(e) => setTName(e.target.value)} placeholder="Name" aria-label="Name" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+                <input value={tPin} onChange={(e) => setTPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="4-digit number" aria-label="4-digit number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+                {tError && <p role="alert" className="f-body text-[14px] font-bold mb-2" style={{ color: "#C0392B" }}>{tError}</p>}
+                <button
+                  onClick={() => { const r = onTeacherApply({ name: tName, pin: tPin }); if (r && r.ok) { setTSent(true); setTError(""); } else setTError((r && r.error) || "Please check the name and number."); }}
+                  className="focus-ring tap w-full rounded-xl py-3 f-display text-[17px] font-semibold text-white"
+                  style={{ background: C.orange }}
+                  data-testid="teacher-join-send"
+                >Send request</button>
+              </>
             )}
           </>
         )}
@@ -9762,7 +9818,7 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
 }
 
 /** HQ: each teacher's own number, and the sign-ups to approve. */
-function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide, caps = {}, onSetCap = () => {}, programs = [] }) {
+function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide, caps = {}, onSetCap = () => {}, programs = [], apps = [], onAcceptApp = () => {}, onRejectApp = () => {} }) {
   const [filter, setFilter] = useState("approved");
   const [confirm, setConfirm] = useState(null);
   const [name, setName] = useState("");
@@ -9790,6 +9846,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     if (teachers.some((t) => t.active && t.pin === value && t.id !== exceptId)) return tr("다른 선생님이 쓰는 번호예요.");
     return "";
   };
+  const pinProblemFor = (value, exceptId) => (teachers.some((t) => t.active && t.pin === value && t.id !== exceptId) ? tr("다른 선생님이 쓰는 번호예요.") : value === hqPin ? tr("본사 번호와 같아요. 다른 번호를 써 주세요.") : "");
   const add = () => {
     if (!name.trim()) return setError(tr("이름을 써 주세요."));
     if (teachers.some((t) => t.name.trim().toLowerCase() === name.trim().toLowerCase())) return setError(tr("같은 이름의 선생님이 이미 있어요."));
@@ -9800,6 +9857,28 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
   };
   return (
     <div className="px-5 space-y-5">
+      {apps.length > 0 && (
+        <div data-testid="teacher-apps">
+          <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 가입 신청")}</p>
+          <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.")}</p>
+          <div className="space-y-2.5">
+            {apps.map((a) => {
+              const clash = pinProblemFor(a.pin, a.id);
+              return (
+                <div key={a.id} className="bg-white rounded-2xl p-4" data-testid="teacher-app-row">
+                  <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{a.name}</p>
+                  <p className="f-body text-[13px] text-gray-400 mb-2">{fmtDay(a.at)}</p>
+                  {clash && <p className="f-body text-[14px] font-bold mb-2" style={{ color: "#C0392B" }}>{clash}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => onRejectApp(a)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("거절")}</button>
+                    <button onClick={() => !clash && onAcceptApp(a)} disabled={!!clash} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-40" style={{ background: C.green }}>{tr("수락")}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div>
         <p className="f-display font-semibold text-[20px] mb-1" style={{ color: C.green }}>{tr("선생님 참여 신청")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.", [TEACHER_CAP])}</p>
@@ -10466,12 +10545,25 @@ export default function CarrotExplorer() {
 
   const teachers = teacherAccounts(suggestions);
   const joins = teacherJoins(suggestions);
+  const teacherApps = teacherApplications(suggestions, teachers);
   const legacyPin = currentGuidePin(suggestions);
   // a teacher whose account HQ turns off is signed out at the next refresh
   useEffect(() => {
     if (session && session.role === "guide" && session.teacherId && !teachers.some((t) => t.id === session.teacherId && t.active)) setSession(null);
   }, [JSON.stringify(teachers), session]);
   const nowIso = () => new Date().toISOString();
+  // a teacher asks for an account from the login screen (name + the number they want); HQ accepts in the People tab
+  const applyAsTeacher = ({ name, pin }) => {
+    const n = (name || "").trim();
+    if (!n) return { ok: false, error: "Please write your name." };
+    if (!/^\d{4}$/.test(pin || "")) return { ok: false, error: "Use 4 digits." };
+    if (pin === TEACHER_PIN || teachers.some((t) => t.active && t.pin === pin) || teacherApps.some((a) => a.pin === pin) || pin === legacyPin) return { ok: false, error: "That number is taken. Please pick another." };
+    if (teachers.some((t) => t.name.trim().toLowerCase() === n.toLowerCase()) || teacherApps.some((a) => a.name.toLowerCase() === n.toLowerCase())) return { ok: false, error: "This name is already registered or waiting." };
+    saveRow({ id: `ta-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind: "apply", id: `ta${Date.now().toString(36)}`, name: n, pin, at: nowIso() }) });
+    return { ok: true };
+  };
+  const acceptTeacherApp = (a) => saveRow({ id: `tc-${a.id}-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: a.id, name: a.name, pin: a.pin, at: nowIso() }) });
+  const rejectTeacherApp = (a) => saveRow({ id: `tar-${a.id}-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "reject", id: a.id, at: nowIso() }) });
   const addTeacher = ({ name, pin }) => saveRow({ id: `tc-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: `t${Date.now().toString(36)}`, name: name.trim(), pin, at: nowIso() }) });
   const setTeacherPin = (id, pin) => saveRow({ id: `tc-${id}-pin-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "pin", id, pin, at: nowIso() }) });
   const setTeacherActive = (id, active) => saveRow({ id: `tc-${id}-on-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "active", id, active, at: nowIso() }) });
@@ -10502,7 +10594,7 @@ export default function CarrotExplorer() {
     return (
       <div className="min-h-screen f-body" style={{ background: C.cream }}>
         <style>{FONTS}</style>
-        <LoginScreen students={students} teachers={teachers} legacyPin={legacyPin} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} onLookupPhone={lookupPhone} />
+        <LoginScreen students={students} teachers={teachers} teacherApps={teacherApps} onTeacherApply={applyAsTeacher} legacyPin={legacyPin} onSelfRegister={selfRegisterAndLogin} onLogin={loginAs} onLookupPin={lookupFamily} onLookupPhone={lookupPhone} />
       </div>
     );
   }
@@ -10563,6 +10655,9 @@ export default function CarrotExplorer() {
               joins={joins}
               legacyPin={legacyPin}
               onAddTeacher={addTeacher}
+              teacherApps={teacherApps}
+              onAcceptTeacherApp={acceptTeacherApp}
+              onRejectTeacherApp={rejectTeacherApp}
               onSetTeacherPin={setTeacherPin}
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}

@@ -1719,11 +1719,11 @@ function Badge({ b, size = "md" }) {
   );
 }
 
-function StampCard({ count, fillColor = C.orange, emptyColor = C.beige, fillBg = "#FFF1E2", size = 26 }) {
+function StampCard({ count, fillColor = C.orange, emptyColor = C.beige, fillBg = "#FFF1E2", size = 26, perRow = 0 }) {
   const filled = count % STAMP_CARD_SIZE === 0 && count > 0 ? STAMP_CARD_SIZE : count % STAMP_CARD_SIZE;
   // before the stamp: a pale grey carrot (the last place shows the badge waiting at the end); after: the carrot in colour, pressed a little crooked like a real stamp
   return (
-    <div className="flex items-center justify-between" role="img" aria-label={`${filled}/${STAMP_CARD_SIZE}`}>
+    <div className={perRow ? "grid gap-y-3 justify-items-center" : "flex items-center justify-between"} style={perRow ? { gridTemplateColumns: `repeat(${perRow}, minmax(0, 1fr))` } : undefined} role="img" aria-label={`${filled}/${STAMP_CARD_SIZE}`}>
       {Array.from({ length: STAMP_CARD_SIZE }).map((_, i) => {
         const on = i < filled;
         const last = i === STAMP_CARD_SIZE - 1;
@@ -2509,8 +2509,8 @@ function BadgeCollection({ adventures, studentId }) {
           return (
             <div className="bg-white rounded-2xl p-4 mb-5" data-testid="stamp-board">
               <p className="f-display font-semibold text-[18px] mb-3" style={{ color: C.green }}>도장판</p>
-              <StampCard count={n} />
-              <p className="f-body text-[15px] font-bold mt-3" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
+              <StampCard count={n} perRow={5} size={56} />
+              <p className="f-body text-[16px] font-bold mt-4" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
               <p className="f-body text-[13px] text-gray-400 mt-1">{`체험 완료 시 도장 1개 + ${POINT_RULES.trip > 0 ? POINT_RULES.trip.toLocaleString("en-US") + "P" : "포인트"} · 10개마다 뱃지`}</p>
             </div>
           );
@@ -7334,7 +7334,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-o"; // change with every delivery
+const APP_BUILD = "2026-10-08-p"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

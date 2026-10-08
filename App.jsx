@@ -54,7 +54,7 @@ const EN = {
 "이 번호로 부모님이 로그인해요. 형제자매는 같은 번호라 자동으로 함께 보여요.": "Parents log in with this number. Siblings share the same number and appear together.",
 "보호자 전화번호 (신청서에 적은 번호)": "Guardian phone number (as written on the application)",
 "보호자 전화번호": "Guardian phone number",
-"체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.": "Used only to match the trip application. The number is not stored; only the last 4 digits are kept. You can start once a teacher approves.",
+"체험 신청 내역과 맞는지 확인하고, 필요할 때 연락드리는 데만 써요. 전화번호는 당근나라 본사만 볼 수 있어요. 선생님이 확인하면 시작할 수 있어요.": "Used only to match your trip application and to contact you when needed. Only CarrotWorld HQ can see the number. You can start once HQ has checked it.",
 "전화번호를 끝까지 입력해 주세요.": "Please enter the full phone number.",
 "초기화": "Reset",
 "확인 중...": "Checking...",
@@ -664,6 +664,7 @@ const EN = {
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
 "선생님 가입 신청": "Teacher account requests",
+"전화번호 ": "Phone ",
 "선생님 이름": "Teacher",
 "수당 정산서": "Pay statement",
 "정산일": "Date",
@@ -3478,7 +3479,7 @@ const TEACHER_APPLY_TYPE = "샘가입신청"; // a teacher asks for an account (
 function teacherApplications(suggestions, accounts) {
   const rows = (suggestions || []).filter((sg) => sg.type === TEACHER_APPLY_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
   const apps = new Map();
-  rows.forEach((r) => { if (r.kind === "reject") apps.delete(r.id); else if (r.name && /^\d{4}$/.test(r.pin || "")) apps.set(r.id, { id: r.id, name: String(r.name).trim(), pin: r.pin, phoneLast4: r.phoneLast4 || "", phoneCode: r.phoneCode || "", at: r.at || "" }); });
+  rows.forEach((r) => { if (r.kind === "reject") apps.delete(r.id); else if (r.name && /^\d{4}$/.test(r.pin || "")) apps.set(r.id, { id: r.id, name: String(r.name).trim(), pin: r.pin, phone: r.phone || "", phoneLast4: r.phoneLast4 || "", phoneCode: r.phoneCode || "", at: r.at || "" }); });
   return [...apps.values()].filter((a) => !(accounts || []).some((t) => t.id === a.id)).sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 /** The accounts, worked out from the rows: "add" (name + number), "pin" (new number), "active" (on/off). */
@@ -3487,7 +3488,7 @@ function teacherAccounts(suggestions) {
   const map = new Map();
   rows.forEach((r) => {
     const cur = map.get(r.id) || { id: r.id, name: "", pin: "", active: true };
-    if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; cur.phoneLast4 = r.phoneLast4 || ""; cur.phoneCode = r.phoneCode || ""; }
+    if (r.kind === "add") { cur.name = r.name; cur.pin = r.pin; cur.active = true; cur.phoneLast4 = r.phoneLast4 || ""; cur.phoneCode = r.phoneCode || ""; cur.phone = r.phone || ""; }
     else if (r.kind === "pin") cur.pin = r.pin;
     else if (r.kind === "active") cur.active = !!r.active;
     map.set(r.id, cur);
@@ -3665,7 +3666,7 @@ function freeTeacherPin(accounts, hqPin) {
   }
   return "";
 }
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE || sg.type === PAY_TYPE; // not shown as parent opinions
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE || sg.type === PAY_TYPE || sg.type === PHONE_TYPE; // not shown as parent opinions
 /** The teachers' login number: the latest one HQ saved, else the default. */
 const currentGuidePin = (suggestions) => {
   const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "guidePin" && /^\d{4}$/.test(r.value)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -5228,7 +5229,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
             ) : (
               <div>
                 <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{tr("{0} · Level {1} · 로그인 번호 {2}", [student.name, student.level, student.familyPin])}</p>
-                {student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
+                {phoneOfFamily(student.familyPin) ? <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }} data-testid="family-phone">{phoneOfFamily(student.familyPin)}</p> : student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
               </div>
             )}
           </div>
@@ -5449,6 +5450,22 @@ const normalizePhone = (v) => {
   return d;
 };
 const phoneValid = (v) => /^0\d{9,10}$/.test(normalizePhone(v));
+/* Full phone numbers HQ can see next to the login numbers (new sign-ups only; older ones keep just the last 4 digits). */
+const PHONE_TYPE = "연락처";
+const formatPhone = (v) => {
+  const d = normalizePhone(v);
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  return d;
+};
+/** family login number -> phone number (latest entry wins) */
+function familyPhones(suggestions) {
+  const map = {};
+  (suggestions || []).filter((sg) => sg.type === PHONE_TYPE).map(readRow).filter((r) => r.familyPin && phoneValid(r.phone)).sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => { map[r.familyPin] = normalizePhone(r.phone); });
+  return map;
+}
+let FAMILY_PHONES = {}; // set on every render of the app, read by the HQ screens
+const phoneOfFamily = (pin) => (FAMILY_PHONES[pin] ? formatPhone(FAMILY_PHONES[pin]) : "");
 const PHONE_SALT = "carrotworld-explorer-join-v1";
 const PHONE_ITER = 120000;
 /** One-way code of a phone number (slow on purpose, so guessing numbers one by one is costly). */
@@ -5610,7 +5627,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
         setVerifyError(tr("이미 이 번호로 등록돼 있어요. 로그인 번호를 잊으셨다면 선생님께 문의해 주세요."));
         return;
       }
-      contact = { phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code };
+      contact = { phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code, phone: normalizePhone(phone) };
     }
     onRegister({ name: name.trim(), avatar, level, familyPin, ...(contact ? { contact } : {}) });
     reset();
@@ -5693,7 +5710,7 @@ function RegisterStudentPanel({ onRegister, mode = "teacher", students = [], onL
                 className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1.5"
                 style={{ background: C.cream, border: `1px solid ${verifyError || (phone && !phoneValid(phone)) ? "#E0A19A" : C.beige}` }}
               />
-              <p className="f-body text-[13px] text-gray-400">{tr("체험 신청 내역과 맞는지 확인하는 데만 써요. 전화번호는 저장하지 않고, 뒷자리 4자리만 남아요. 선생님이 확인하면 시작할 수 있어요.")}</p>
+              <p className="f-body text-[13px] text-gray-400">{tr("체험 신청 내역과 맞는지 확인하고, 필요할 때 연락드리는 데만 써요. 전화번호는 당근나라 본사만 볼 수 있어요. 선생님이 확인하면 시작할 수 있어요.")}</p>
               <div aria-live="polite" className="min-h-[16px] mt-1">
                 {verifyError ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{verifyError}</p> : phone && !phoneValid(phone) ? <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("전화번호를 끝까지 입력해 주세요.")}</p> : null}
               </div>
@@ -7394,7 +7411,7 @@ function ApprovalPanel({ students, onAccept, onReject }) {
               </div>
             ))}
           </div>
-          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{tr("신청 번호 뒷자리 ")}<b>{f.phoneLast4 || "—"}</b>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{phoneOfFamily(f.pin) ? <><span>{tr("전화번호 ")}</span><b data-testid="approve-phone">{phoneOfFamily(f.pin)}</b></> : <>{tr("신청 번호 뒷자리 ")}<b>{f.phoneLast4 || "—"}</b></>}
             {f.registeredAt && <span className="text-gray-400">{tr(" · {0} 신청", [timeAgoKo(f.registeredAt)])}</span>}
           </p>
           {f.sameNumber.length > 0 && (
@@ -7457,7 +7474,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-t"; // change with every delivery
+const APP_BUILD = "2026-10-08-v"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8359,7 +8376,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
               <button onClick={() => openFamily(f.pin)} aria-expanded={open === f.pin} className="focus-ring tap w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left">
                 <span className="min-w-0">
                   <span className="block f-display text-[17px] font-semibold" style={{ color: C.green }}>{f.names.join(", ")}</span>
-                  <span className="block f-body text-[13px] text-gray-400">{tr("로그인 번호 {0}", [f.pin])}</span>
+                  <span className="block f-body text-[13px] text-gray-400">{tr("로그인 번호 {0}", [f.pin])}{phoneOfFamily(f.pin) ? ` · ${phoneOfFamily(f.pin)}` : ""}</span>
                 </span>
                 <span className="f-display text-[18px] font-bold shrink-0" style={{ color: C.orange }}>{fmtBalance(f.balance)}</span>
               </button>
@@ -9278,7 +9295,7 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
                 <p className="f-body text-[16px] text-gray-500 text-center mb-5">Your name, phone number and a 4-digit login number of your own. HQ will accept it.</p>
                 <input value={tName} onChange={(e) => setTName(e.target.value)} placeholder="Name" aria-label="Name" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
                 <input value={tPhone} onChange={(e) => setTPhone(e.target.value)} inputMode="tel" placeholder="Phone number (010-0000-0000)" aria-label="Phone number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1" style={{ background: "white", border: `1px solid ${C.beige}` }} data-testid="teacher-join-phone" />
-                <p className="f-body text-[13px] text-gray-400 mb-3">HQ only sees the last 4 digits, to know it is you. The full number is not saved.</p>
+                <p className="f-body text-[13px] text-gray-400 mb-3">HQ sees this number, to know it is you and to reach you.</p>
                 <input value={tPin} onChange={(e) => setTPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="4-digit login number" aria-label="4-digit login number" className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3" style={{ background: "white", border: `1px solid ${C.beige}` }} />
                 {tError && <p role="alert" className="f-body text-[14px] font-bold mb-2" style={{ color: "#C0392B" }}>{tError}</p>}
                 <button
@@ -10256,7 +10273,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
                 <div key={a.id} className="bg-white rounded-2xl p-4" data-testid="teacher-app-row">
                   <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{a.name}</p>
                   <p className="f-body text-[13px] text-gray-400 mb-1">{fmtDay(a.at)}</p>
-                  <p className="f-body text-[15px] mb-2" style={{ color: C.charcoal }}>{tr("전화번호 뒷자리 ")}<b data-testid="teacher-app-last4">{a.phoneLast4 || "—"}</b></p>
+                  <p className="f-body text-[15px] mb-2" style={{ color: C.charcoal }}>{a.phone ? <><span>{tr("전화번호 ")}</span><b data-testid="teacher-app-phone">{formatPhone(a.phone)}</b></> : <>{tr("전화번호 뒷자리 ")}<b data-testid="teacher-app-last4">{a.phoneLast4 || "—"}</b></>}</p>
                   {a.phoneCode && (
                     <div className="mb-2">
                       <input value={checkText[a.id] || ""} onChange={async (e) => { const t = e.target.value; setCheckText((p) => ({ ...p, [a.id]: t })); if (phoneValid(t)) { const c = await phoneCode(t); setCheckVerdict((p) => ({ ...p, [a.id]: c === a.phoneCode ? "match" : "differ" })); } else setCheckVerdict((p) => ({ ...p, [a.id]: "" })); }} inputMode="tel" placeholder={tr("알고 있는 번호를 붙여넣어 확인")} aria-label={tr("번호 확인")} className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
@@ -10346,7 +10363,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="f-display text-[18px] font-semibold" style={{ color: t.active ? C.green : "#9C927D" }}>{t.name}{!t.active ? ` · ${tr("꺼짐")}` : ""}</p>
-                  <p className="f-body text-[14px] text-gray-500">{tr("번호")} <b className="tracking-[0.15em]" data-testid="teacher-pin">{t.pin}</b></p>
+                  <p className="f-body text-[14px] text-gray-500">{tr("번호")} <b className="tracking-[0.15em]" data-testid="teacher-pin">{t.pin}</b>{t.phone ? <span data-testid="teacher-phone"> · <b>{formatPhone(t.phone)}</b></span> : t.phoneLast4 ? <span data-testid="teacher-phone4"> · {tr("전화번호 뒷자리 ")}<b>{t.phoneLast4}</b></span> : null}</p>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => { setEditing(editing === t.id ? null : t.id); setNewPin(""); setEditError(""); }} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-2" style={{ background: C.beige, color: C.green }}>{tr("번호 바꾸기")}</button>
@@ -10546,6 +10563,7 @@ export default function CarrotExplorer() {
     if (!rec || rec.seen) return;
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
+  FAMILY_PHONES = familyPhones(suggestions);
   const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
   const savePaySetting = (row) => saveRow({ id: `set-pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ ...row, at: new Date().toISOString() }) });
   const setPayRate = (value) => savePaySetting({ key: "payRate", value });
@@ -10679,6 +10697,7 @@ export default function CarrotExplorer() {
       ...(contact ? { phoneLast4: contact.phoneLast4, phoneCode: contact.phoneCode } : {}),
       ...(waiting ? { status: "pending", registeredAt: new Date().toISOString() } : {}),
     };
+    if (contact && contact.phone && FAMILY_PHONES[familyPin] !== contact.phone) saveRow({ id: `ph-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: PHONE_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind: "set", familyPin, phone: contact.phone, at: new Date().toISOString() }) });
     setStudents((prev) => [...prev, student]);
     sync(api.createStudent(student));
     if (programId) enrollStudent(id, programId, level);
@@ -10965,10 +10984,10 @@ export default function CarrotExplorer() {
     if (teachers.some((t) => t.name.trim().toLowerCase() === n.toLowerCase()) || teacherApps.some((a) => a.name.toLowerCase() === n.toLowerCase())) return { ok: false, error: "This name is already registered or waiting." };
     const code = await phoneCode(phone); // only the last 4 digits and a one-way code are kept
     if (teachers.some((t) => t.phoneCode && t.phoneCode === code) || teacherApps.some((a) => a.phoneCode && a.phoneCode === code)) return { ok: false, error: "This phone number is already registered or waiting." };
-    saveRow({ id: `ta-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind: "apply", id: `ta${Date.now().toString(36)}`, name: n, pin, phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code, at: nowIso() }) });
+    saveRow({ id: `ta-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind: "apply", id: `ta${Date.now().toString(36)}`, name: n, pin, phoneLast4: normalizePhone(phone).slice(-4), phoneCode: code, phone: normalizePhone(phone), at: nowIso() }) });
     return { ok: true };
   };
-  const acceptTeacherApp = (a) => saveRow({ id: `tc-${a.id}-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: a.id, name: a.name, pin: a.pin, phoneLast4: a.phoneLast4 || "", phoneCode: a.phoneCode || "", at: nowIso() }) });
+  const acceptTeacherApp = (a) => saveRow({ id: `tc-${a.id}-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: a.id, name: a.name, pin: a.pin, phoneLast4: a.phoneLast4 || "", phoneCode: a.phoneCode || "", phone: a.phone || "", at: nowIso() }) });
   const rejectTeacherApp = (a) => saveRow({ id: `tar-${a.id}-${Date.now()}`, type: TEACHER_APPLY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "reject", id: a.id, at: nowIso() }) });
   const addTeacher = ({ name, pin }) => saveRow({ id: `tc-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "add", id: `t${Date.now().toString(36)}`, name: name.trim(), pin, at: nowIso() }) });
   const setTeacherPin = (id, pin) => saveRow({ id: `tc-${id}-pin-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "pin", id, pin, at: nowIso() }) });

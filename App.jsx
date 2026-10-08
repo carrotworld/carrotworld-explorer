@@ -4192,6 +4192,16 @@ function LevelGuideForParents({ showTitle = true }) {
             </div>
           ))}
         </div>
+        <p className="f-body text-[16px] font-bold mt-4 mb-1.5" style={{ color: C.orange }}>레벨별 학습 목표</p>
+        <p className={`${p} mb-2`} style={{ color: C.charcoal }}>같은 체험이라도 레벨에 따라 아이가 영어로 하는 활동이 달라져요.</p>
+        <div className="space-y-1.5" role="list" aria-label="CEFR learning goals">
+          {Object.entries(CEFR_GOALS).map(([lv, g]) => (
+            <div key={lv} role="listitem" className="flex items-baseline gap-3">
+              <span className="f-body text-[15px] font-bold w-14 shrink-0" style={{ color: C.green }}>{lv}</span>
+              <span className={p} style={{ color: C.charcoal }}><b>{g.verb}</b> · {g.ko}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className={card}>
@@ -5535,7 +5545,17 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 }
 
 const AVATAR_CHOICES = ["🐿️", "🦊", "🐥", "🐢", "🦉", "🐰", "🐨", "🐯"];
-const LEVEL_CHOICES = ["Pre-A1", "A1", "A2", "B1"];
+/** The learning goal of each CEFR level: what the child does with the English in the activity. */
+const CEFR_GOALS = {
+  "Pre-A1": { verb: "Recognize", ko: "단어를 알아듣고 따라 말해요" },
+  A1: { verb: "Identify", ko: "보이는 것의 이름을 말해요" },
+  A2: { verb: "Describe", ko: "본 것과 과정을 설명해요" },
+  B1: { verb: "Explain", ko: "원인과 결과를 설명해요" },
+  B2: { verb: "Analyze", ko: "비교하고 따져 봐요" },
+  C1: { verb: "Evaluate", ko: "근거를 들어 평가해요" },
+  C2: { verb: "Critically Examine", ko: "비판적으로 살펴보고 논증해요" },
+};
+const LEVEL_CHOICES = ["Pre-A1", "A1", "A2", "B1", "B2", "C1", "C2"];
 const ICON_CHOICES = [
   { key: "plane", label: "과학/비행", category: "science", emoji: "✈️" },
   { key: "nature", label: "자연", category: "nature", emoji: "🌿" },
@@ -6228,6 +6248,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             ))}
           </div>
           <p className="f-body text-[14px] text-gray-600">{tr("지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.", [levelTabs.active])}</p>
+          {CEFR_GOALS[levelTabs.active] && <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: C.orange }} data-testid="level-goal">{levelTabs.active} goal: {CEFR_GOALS[levelTabs.active].verb} <span className="font-normal text-gray-500">· {CEFR_GOALS[levelTabs.active].ko}</span></p>}
           <div className="flex gap-2 flex-wrap mt-2">
             {levelTabs.levels.filter((l) => l !== levelTabs.active).map((l) => (
               <button key={l} onClick={() => setCopyFrom(l)} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green }}>{tr("{0} 내용 복사해 오기", [l])}</button>
@@ -7620,7 +7641,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-c2"; // change with every delivery
+const APP_BUILD = "2026-10-09-e2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7680,7 +7701,7 @@ const ACTIVITIES = {
     { ko: "아이가 좋아하는 주제의 짧은 영어 그림책이나 영상을 하루 10분 함께 보세요.", en: "Share a short English picture book or video on a topic your child loves for 10 minutes a day." },
   ],
 };
-const levelBand = (level) => (level === "A2" ? "mid" : level === "B1" ? "high" : "low");
+const levelBand = (level) => (level === "A2" ? "mid" : ["B1", "B2", "C1", "C2"].includes(level) ? "high" : "low");
 const adviceReady = (adv) => !!(adv && adv.attended && (adv.feedback || adv.reviewScore || adv.insights));
 
 /** What the draft is based on. No name, no login number, no phone: safe to describe the child to an outside service. */
@@ -9850,8 +9871,8 @@ const buildManual = () => [
       { t: "term", label: { en: "Participation rank (automatic)", ko: "참여 단계 (자동)" }, en: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}+ trips` : `${r.min}-${r.to} trips`}`).join("\n") + "\nIt counts the trips you mark present.", ko: rankRanges().map((r) => `${r.emoji} ${r.label}: ${r.to === null ? `${r.min}회 이상` : `${r.min}~${r.to}회`}`).join("\n") + "\n출석 체크한 체험 횟수를 세요." },
       { t: "term", label: { en: "Badges (automatic)", ko: "뱃지 (자동)" }, en: badgeGuide().map((b) => `${b.emoji} ${b.enName}: ${b.en}`).join("\n"), ko: badgeGuide().map((b) => `${b.emoji} ${b.name}: ${b.ko}`).join("\n") },
       { t: "term", label: { en: "How a child moves up", ko: "단계가 올라가는 방식" }, en: "Rank and badges move by themselves from the records. The Speaking Level never changes by itself: the teacher decides it from the child's real speaking.", ko: "참여 단계와 뱃지는 기록에 따라 저절로 올라가요. 스피킹 레벨은 저절로 바뀌지 않아요. 선생님이 아이의 실제 말하기를 보고 정해요." },
-      { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, card, Student info, Edit: Level buttons (Pre-A1, A1, A2, B1) group children and pre-select teams. The CEFR box in the feedback report is free text (A1, B2 …) and parents read it.", ko: "학생관리 탭, 카드, 학생 정보, 수정의 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 골라요. 피드백 리포트의 CEFR 칸은 자유 입력(A1, B2 …)이고 학부모가 읽어요." },
-      { t: "tip", en: "The Level buttons stop at B1. For Thinker (B2) or Leader (C1-C2) type the level in the CEFR box.", ko: "레벨 버튼은 B1까지예요. Thinker(B2)나 Leader(C1~C2)는 CEFR 칸에 직접 써요." },
+      { t: "term", label: { en: "Where you record the level", ko: "레벨을 기록하는 곳" }, en: "Students tab, card, Student info, Edit: Level buttons (Pre-A1 to C2) group children and pre-select teams. The CEFR box in the feedback report is free text (A1, B2 …) and parents read it.", ko: "학생관리 탭, 카드, 학생 정보, 수정의 레벨 버튼(Pre-A1, A1, A2, B1)은 아이들을 묶고 팀을 미리 골라요. 피드백 리포트의 CEFR 칸은 자유 입력(A1, B2 …)이고 학부모가 읽어요." },
+      { t: "tip", en: "The Level buttons go from Pre-A1 to C2, so you can tick several for one program.", ko: "레벨 버튼은 Pre-A1부터 C2까지 있어요. 한 프로그램에 여러 개 고를 수 있어요." },
     ],
   },
 ];

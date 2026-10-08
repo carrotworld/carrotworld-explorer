@@ -1691,7 +1691,7 @@ function ScreenHeader({ title, subtitle, onBack, right }) {
 /** The top bar of the three home screens (parent, teacher, HQ): a solid green band with the brand, the role under it, and the controls on the right. */
 function RoleBar({ label, onLogout, lang, onLang, action }) {
   return (
-    <div className="px-5 py-3.5 flex items-center justify-between gap-3 min-h-[68px]" style={{ background: C.green }} data-testid="role-bar">
+    <div className="mx-5 mt-4 px-4 py-3.5 rounded-2xl flex items-center justify-between gap-3 min-h-[68px]" style={{ background: C.green }} data-testid="role-bar">
       <div className="min-w-0">
         <p className="f-headline text-[24px] leading-none text-white">CarrotWorld</p>
         <p className="f-body text-[12px] font-bold uppercase tracking-[0.14em] mt-1.5 truncate" style={{ color: "#9FD1B8" }}>{label}</p>
@@ -7719,7 +7719,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-k2"; // change with every delivery
+const APP_BUILD = "2026-10-09-l2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

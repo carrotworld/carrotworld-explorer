@@ -663,7 +663,12 @@ const EN = {
 "정원이 차서 대기 중": "Full: on the waiting list",
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
+"프로그램 {0}": "Programs {0}",
+"사람 {0}": "People {0}",
+"사람": "People",
+"설정": "Settings",
 "프로그램별 선생님 정원": "Teacher places per program",
+"주말 체험 기본 시간(오전 10:30~12:00, 오후 13:00~14:30)이 들어 있어요. 다르면 고치고, 한 타임만 있으면 하나를 삭제하세요.": "The usual weekend times (morning 10:30-12:00, afternoon 13:00-14:30) are filled in. Change them if this one differs; delete one if there is only one time.",
 "확정 {0}명": "{0} confirmed",
 "정원 줄이기": "Fewer places",
 "정원 늘리기": "More places",
@@ -3442,6 +3447,15 @@ function teacherJoins(suggestions) {
   });
   return list.reverse();
 }
+/** Places HQ has used before (name, address, meeting point, short intro): typing the same place name fills them in. The latest save of a name wins. */
+function savedPlaces(suggestions) {
+  const map = new Map();
+  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "place" && r.name).sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
+    map.set(String(r.name).trim().toLowerCase(), { name: String(r.name).trim(), venue: r.venue || "", meetingPoint: r.meetingPoint || "", intro: r.intro || "" });
+  });
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+const mapLink = (address) => `https://map.naver.com/p/search/${encodeURIComponent(address)}`;
 /** Names of the teachers HQ approved for a program (for the team form). */
 const confirmedTeacherNames = (joins, accounts, programId, slotId) => [...new Set(joins.filter((j) => j.programId === programId && j.status === "approved" && (slotId === undefined || !j.slotId || j.slotId === slotId)).map((j) => (accounts.find((t) => t.id === j.teacherId) || {}).name).filter(Boolean))];
 /** Suggests teams for the children who have none. Teams that still have room are filled first; then each level with children gets
@@ -6211,7 +6225,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
   const rows = [
     { icon: "📅", label: "일시", value: [program.date, info.time].filter(Boolean).join(" · ") },
     { icon: "🧭", label: "모이는 곳", value: [info.meetingPoint, info.meetingTime && `${info.meetingTime}까지 모여 주세요`].filter(Boolean).join("\n") },
-    { icon: "📍", label: "장소", value: place },
+    { icon: "📍", label: "장소", value: [program.locationKo || program.location, info.venue].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n") || place, href: info.venue ? mapLink(info.venue) : "" },
     { icon: "💰", label: "입장료", value: fee, tone: info.feeType === "parent" ? "pay" : "ok" },
     { icon: "📝", label: "안내", value: info.note },
   ].filter((r) => r.value);
@@ -6265,17 +6279,24 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
     </div>
   );
 }
-function InfoRow({ icon, label, value, tone }) {
+function InfoRow({ icon, label, value, tone, href }) {
   const pay = tone === "pay";
   return (
     <div className="rounded-2xl p-4" style={{ background: pay ? "#FFF1E2" : "white", border: pay ? `1px solid ${C.beige}` : "none" }}>
       <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.orange }}>{icon} {label}</p>
       <p className="f-body text-[17px] font-semibold whitespace-pre-line" style={{ color: C.charcoal }}>{value}</p>
+      {href && <a href={href} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block mt-1.5 f-body text-[14px] font-bold" style={{ color: C.orange }}>지도 열기 ›</a>}
     </div>
   );
 }
 
-function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef }) {
+/** The usual weekend times: HQ only edits them when a program is different. */
+const defaultSessions = () => [
+  { id: newId("s"), label: "오전", time: "10:30 ~ 12:00", meetingTime: "", meetingPoint: "", published: false },
+  { id: newId("s"), label: "오후", time: "13:00 ~ 14:30", meetingTime: "", meetingPoint: "", published: false },
+];
+
+function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef, places = [], onRememberPlace }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
   const [startDate, setStartDate] = useState(initial?.startDate || ""); // the real date: the screens switch by it
@@ -6290,7 +6311,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [levelSets, setLevelSets] = useState(() => levelSetsFrom(initial)); // one set per level once two or more levels are chosen
   const [activeLevel, setActiveLevel] = useState(null);
-  const [sessions, setSessions] = useState(() => (initial && Array.isArray(initial.sessions) ? initial.sessions.map((x) => ({ ...x })) : [])); // time slots of the same day
+  const [sessions, setSessions] = useState(() => (initial ? (Array.isArray(initial.sessions) ? initial.sessions.map((x) => ({ ...x })) : []) : defaultSessions())); // time slots of the same day; a new program starts with the usual weekend times
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
@@ -6376,12 +6397,13 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
       return;
     }
     const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    if (onRememberPlace && location.trim() && (noticeInfo.venue || "").trim()) onRememberPlace({ name: location.trim(), venue: noticeInfo.venue.trim(), meetingPoint: (noticeInfo.meetingPoint || "").trim(), intro: themeKo.trim() });
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
       startSnap.current = null; // the cleared form below becomes the new "nothing typed yet"
-      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setSessions([]); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
+      setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setSessions(defaultSessions()); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
 
@@ -6475,12 +6497,22 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         />
         <input
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLocation(v);
+            const hit = places.find((p) => p.name.toLowerCase() === v.trim().toLowerCase()); // a place used before: fill what is still empty
+            if (hit) {
+              setNoticeInfo((prev) => ({ ...prev, venue: prev.venue || hit.venue, meetingPoint: prev.meetingPoint || hit.meetingPoint }));
+              setThemeKo((prev) => prev || hit.intro);
+            }
+          }}
+          list="cw-places"
           placeholder={tr("장소")}
           aria-label={tr("장소")}
           className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
           style={{ background: C.cream, border: `1px solid ${C.beige}` }}
         />
+        {places.length > 0 && <datalist id="cw-places">{places.map((p) => <option key={p.name} value={p.name} />)}</datalist>}
       </div>
 
       <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("테마 아이콘 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
@@ -6532,7 +6564,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }}>
         <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("시간대")} <span className="font-normal text-gray-400">{tr("(같은 날 여러 타임이면)")}</span></p>
-        <p className="f-body text-[13px] text-gray-500 mb-2">{tr("시간대마다 신청한 아이, 팀, 선생님, 안내가 따로 나뉘어요. 한 타임만 있으면 비워 두세요.")}</p>
+        <p className="f-body text-[13px] text-gray-500 mb-2">{tr("주말 체험 기본 시간(오전 10:30~12:00, 오후 13:00~14:30)이 들어 있어요. 다르면 고치고, 한 타임만 있으면 하나를 삭제하세요.")}</p>
         <div className="space-y-2">
           {sessions.map((x, i) => {
             const upd = (p) => setSessions((prev) => prev.map((y, k) => (k === i ? { ...y, ...p } : y)));
@@ -7264,7 +7296,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-d"; // change with every delivery
+const APP_BUILD = "2026-10-08-g"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8334,7 +8366,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, places = [], onRememberPlace, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -8495,17 +8527,24 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
   const pendingCount = pendingFamilies(students).length;
   const pendingReviewCount = reviewRecords(suggestions).filter((r) => r.status === "pending").length;
-  const TABS = [
-    { key: "overview", label: tr("현황") },
-    ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
-    { key: "programs", label: tr("프로그램등록") },
-    { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
-    { key: "teachers", label: pendingJoinCount ? tr("선생님 {0}", [pendingJoinCount]) : tr("선생님") },
-    { key: "points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트") },
-    { key: "register", label: tr("현장등록") },
-    { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
-    { key: "stats", label: tr("통계") },
+  // five tabs on top; the ones that hold several screens show a small second row (the screens keep their own keys)
+  const GROUPS = [
+    { key: "g-overview", label: tr("현황"), subs: [{ key: "overview", label: tr("현황") }] },
+    { key: "g-program", label: needReport.length ? tr("프로그램 {0}", [needReport.length]) : tr("프로그램"), subs: [
+      { key: "programs", label: tr("프로그램등록") },
+      { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
+    ] },
+    { key: "g-people", label: (pendingCount + pendingJoinCount + unresolvedCount) ? tr("사람 {0}", [pendingCount + pendingJoinCount + unresolvedCount]) : tr("사람"), subs: [
+      ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
+      { key: "teachers", label: pendingJoinCount ? tr("선생님 {0}", [pendingJoinCount]) : tr("선생님") },
+      { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+      { key: "register", label: tr("현장등록") },
+    ] },
+    { key: "g-points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트"), subs: [{ key: "points", label: tr("포인트") }] },
+    { key: "g-settings", label: tr("설정"), subs: [{ key: "stats", label: tr("통계") }] },
   ];
+  const activeGroup = GROUPS.find((g) => g.subs.some((x) => x.key === tab)) || GROUPS[0];
+  const TABS = GROUPS.flatMap((g) => g.subs);
 
   return (
     <div className="pb-6">
@@ -8559,18 +8598,35 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         </div>
       )}
       <div className="px-5 mb-4">
-        <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5">
-          {TABS.map((t) => (
+        <div className="flex gap-1.5" role="tablist" aria-label="HQ">
+          {GROUPS.map((g) => (
             <button
-              key={t.key}
-              onClick={() => go(() => setTab(t.key))}
-              className="focus-ring tap flex-1 shrink-0 whitespace-nowrap px-2.5 text-[13px] f-body font-bold py-2 rounded-xl"
-              style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}
+              key={g.key}
+              role="tab"
+              aria-selected={activeGroup.key === g.key}
+              onClick={() => go(() => setTab(g.subs[0].key))}
+              className="focus-ring tap flex-1 min-w-0 whitespace-nowrap px-1 text-[14px] f-body font-bold py-2.5 rounded-xl"
+              style={{ background: activeGroup.key === g.key ? C.green : "white", color: activeGroup.key === g.key ? "white" : C.charcoal }}
             >
-              {t.label}
+              {g.label}
             </button>
           ))}
         </div>
+        {activeGroup.subs.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto mt-2" data-testid="sub-tabs">
+            {activeGroup.subs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => go(() => setTab(t.key))}
+                aria-pressed={tab === t.key}
+                className="focus-ring tap shrink-0 whitespace-nowrap px-3.5 text-[14px] f-body font-bold py-1.5 rounded-full"
+                style={{ background: tab === t.key ? C.beige : "transparent", color: tab === t.key ? C.green : "#8A8060", border: `1px solid ${C.beige}` }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {tab === "overview" && (
@@ -8768,13 +8824,15 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {tab === "programs" && (
         <div className="px-5 space-y-3">
-          <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} />
+          <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
           <p className="f-body text-[15px] font-bold uppercase tracking-wide text-gray-400 pt-2">{tr("등록된 프로그램")}</p>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
                 key={`${p.id}-${editorTick}`}
                 initial={p}
+                places={places}
+                onRememberPlace={onRememberPlace}
                 onDirtyChange={setDirtyEdit}
                 apiRef={editApi}
                 defaultShowInfo={infoFocusId === p.id}
@@ -9975,6 +10033,11 @@ export default function CarrotExplorer() {
     if (!rec || rec.seen) return;
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
+  const rememberPlace = (p) => {
+    const known = savedPlaces(suggestions).find((x) => x.name.toLowerCase() === p.name.toLowerCase());
+    if (known && known.venue === p.venue && known.meetingPoint === p.meetingPoint && known.intro === p.intro) return; // nothing new to remember
+    saveRow({ id: `set-place-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "place", ...p, at: new Date().toISOString() }) });
+  };
   const setTeacherCap = (programId, value) => saveRow({ id: `set-teacherCap-${programId}-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "teacherCap", programId, value, at: new Date().toISOString() }) });
   const savePointItems = (items) => saveRow({ id: `set-pointItems-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "pointItems", items, at: new Date().toISOString() }) });
   const addPointEntry = ({ familyPin, kind, delta, friend, note, target, title, name, itemId }) => {
@@ -10466,6 +10529,8 @@ export default function CarrotExplorer() {
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
               onSetTeacherCap={setTeacherCap}
+              places={savedPlaces(suggestions)}
+              onRememberPlace={rememberPlace}
               teacherCapMap={teacherCaps(suggestions)}
               onAddPointEntry={addPointEntry}
               onSavePointItems={savePointItems}

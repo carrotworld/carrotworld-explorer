@@ -664,6 +664,34 @@ const EN = {
 "정원 초과 대기": "Over quota, waiting",
 "대기 {0}": "Waiting {0}",
 "선생님 가입 신청": "Teacher account requests",
+"시급": "Hourly rate",
+"체험 시간에 시급을 곱해서 자동으로 계산해요. 캠프처럼 금액이 다르면 아래에서 직접 입력하세요.": "Worked out from the trip time x the hourly rate. For camps or anything different, type the amount below.",
+"지금 시급 {0}": "Current rate {0}",
+"정산할 수당이 없어요. 체험이 끝나면 여기에 쌓여요.": "Nothing to pay yet. Pay builds up here after a trip ends.",
+"프로그램별 금액": "Amount per program",
+"캠프나 특별 체험은 한 번 입력하면 그 프로그램의 모든 선생님에게 적용돼요. 비우면 시급으로 돌아가요.": "For camps and special trips: type it once and it applies to every teacher on that program. Leave it empty to go back to the hourly rate.",
+"프로그램 금액": "Program amount",
+"금액 입력": "Enter amount",
+"금액": "Amount",
+"직접 입력": "Typed by hand",
+"{0}시간": "{0} h",
+"금액 입력 필요": "Amount needed",
+"금액을 입력하지 않은 {0}건은 정산에서 빠져요.": "{0} without an amount are left out of this payout.",
+"정산 완료": "Mark as paid",
+"정산 내역": "Payouts",
+"{0}건": "{0}",
+"{0} 선생님께 {1}을 드렸나요?": "Did you pay {0} {1}?",
+"정산하면 이 선생님의 수당이 0원으로 돌아가고, 아래 정산 내역에 남아요.": "Their balance goes back to 0 and the payout stays in the list below.",
+"이 정산을 취소할까요?": "Undo this payout?",
+"정산 취소": "Undo payout",
+"잘못 눌렀을 때만 취소하세요. 그 금액이 다시 정산 대기로 돌아가요.": "Only if you tapped by mistake. The amount goes back to waiting.",
+"받을 수당": "Pay to receive",
+"본사에서 정산하면 0원으로 돌아가요.": "It goes back to 0 once HQ pays you.",
+"아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.": "Nothing yet. It shows here after a trip ends.",
+"금액 확인 중": "Amount being set",
+"금액을 확인 중인 {0}건은 본사가 금액을 정하면 합계에 들어가요.": "{0} are waiting for HQ to set the amount; they join the total then.",
+"받은 내역": "Paid before",
+"수당": "Pay",
 "전화번호 뒷자리 ": "Phone, last 4 digits ",
 "알고 있는 번호를 붙여넣어 확인": "Paste a number you know to check",
 "번호 확인": "Check number",
@@ -3494,6 +3522,55 @@ function teacherJoins(suggestions) {
   });
   return list.reverse();
 }
+/* ---------- Teacher pay: hours x rate, camps by hand, reset when HQ marks it paid ---------- */
+const PAY_TYPE = "수당정산"; // one row per payout (or its undo)
+const DEFAULT_PAY_RATE = 30000; // won per hour
+const won = (n) => `${Math.round(n || 0).toLocaleString("en-US")}원`;
+/** "10:30 ~ 12:00" -> 1.5 (0 when there is no clock time to read) */
+function parseHours(text) {
+  const m = /(\d{1,2}):(\d{2})\s*[~\-–]\s*(\d{1,2}):(\d{2})/.exec(String(text || ""));
+  if (!m) return 0;
+  const a = Number(m[1]) * 60 + Number(m[2]);
+  const b = Number(m[3]) * 60 + Number(m[4]);
+  return b > a ? (b - a) / 60 : 0;
+}
+/** HQ's hourly rate and the amounts typed by hand: per program (everyone on it) or per teacher and program. The latest entry wins; an empty value clears it. */
+function paySettings(suggestions) {
+  let rate = DEFAULT_PAY_RATE;
+  const amounts = {};
+  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "payRate" || r.key === "payAmount").sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
+    if (r.key === "payRate") { const n = Number(r.value); if (n > 0) rate = Math.round(n); }
+    else if (r.scope) { if (r.value === "" || r.value === null || r.value === undefined) delete amounts[r.scope]; else if (Number(r.value) >= 0) amounts[r.scope] = Math.round(Number(r.value)); }
+  });
+  return { rate, amounts };
+}
+/** Every payout HQ recorded, newest first (undone ones are marked). */
+function payPayouts(suggestions) {
+  const rows = (suggestions || []).filter((sg) => sg.type === PAY_TYPE).map(readRow).filter((r) => r.id).sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  const map = new Map();
+  rows.forEach((r) => { if (r.kind === "paid") map.set(r.id, { id: r.id, teacherId: r.teacherId, keys: Array.isArray(r.keys) ? r.keys : [], amount: Number(r.amount) || 0, at: r.at || "", voided: false }); else if (r.kind === "void" && map.has(r.id)) map.get(r.id).voided = true; });
+  return [...map.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+/** What each confirmed teacher earned on programs that are over, and whether it was paid already. */
+function teacherEarnings(suggestions, joins, now) {
+  const { rate, amounts } = paySettings(suggestions);
+  const paidBy = new Map();
+  payPayouts(suggestions).filter((p) => !p.voided).forEach((p) => p.keys.forEach((k) => paidBy.set(k, p)));
+  return (joins || []).filter((j) => j.status === "approved").map((j) => {
+    const p = getProgram(j.programId);
+    if (!p || !tripDayPassed(p, now)) return null;
+    const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
+    const hours = parseHours(infoForSession(infoFrom(p), slot).time);
+    let amount = 0;
+    let source = "none";
+    if (amounts[j.key] !== undefined) { amount = amounts[j.key]; source = "manual"; }
+    else if (amounts[j.programId] !== undefined) { amount = amounts[j.programId]; source = "program"; }
+    else if (hours > 0) { amount = Math.round(hours * rate); source = "hours"; }
+    const paid = paidBy.get(j.key) || null;
+    return { key: j.key, teacherId: j.teacherId, programId: j.programId, slotId: j.slotId || "", title: splitTitle(p.title)[0] || p.title, date: p.date || "", slotLabel: slot ? slot.label : "", day: lastDay(p) || "", hours, amount, source, needsAmount: source === "none", paid: !!paid, paidAt: paid ? paid.at : "" };
+  }).filter(Boolean).sort((a, b) => String(b.day).localeCompare(String(a.day)));
+}
+
 /** Places HQ has used before (name, address, meeting point, short intro): typing the same place name fills them in. The latest save of a name wins. */
 function savedPlaces(suggestions) {
   const map = new Map();
@@ -3559,7 +3636,7 @@ function freeTeacherPin(accounts, hqPin) {
   }
   return "";
 }
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE; // not shown as parent opinions
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE || sg.type === PAY_TYPE; // not shown as parent opinions
 /** The teachers' login number: the latest one HQ saved, else the default. */
 const currentGuidePin = (suggestions) => {
   const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "guidePin" && /^\d{4}$/.test(r.value)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -7351,7 +7428,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-r"; // change with every delivery
+const APP_BUILD = "2026-10-08-s"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8421,7 +8498,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -8597,6 +8674,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
       { key: "teachers", label: teacherTodo ? tr("선생님 {0}", [teacherTodo]) : tr("선생님") },
       { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
+      { key: "pay", label: tr("수당") },
       { key: "register", label: tr("현장등록") },
     ] },
     { key: "g-points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트"), subs: [{ key: "points", label: tr("포인트") }] },
@@ -8940,6 +9018,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       )}
 
       {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
+
+      {tab === "pay" && payData && <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />}
 
       {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
 
@@ -9664,7 +9744,7 @@ function JoinDialog({ title, onSend, onClose }) {
 }
 
 /** What the foreign teachers see: upcoming programs to sign up for, the class materials and the feedback. */
-function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
+function GuideApp({ teacher, payItems = [], payouts = [], students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("materials");
@@ -9710,6 +9790,7 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
     { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
     { key: "materials", label: tr("수업자료") },
     { key: "feedback", label: allFeedbackLeft ? tr("피드백 {0}", [allFeedbackLeft]) : tr("피드백") },
+    ...(teacherId ? [{ key: "pay", label: tr("수당") }] : []),
   ];
   const chipFor = (j) =>
     j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("정원이 차서 대기 중"), bg: "#FFF1E2", color: "#B25A0B" };
@@ -9726,6 +9807,8 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
           <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap f-body text-[16px] font-bold rounded-full px-5 py-2.5" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
         ))}
       </div>
+
+      {tab === "pay" && teacherId && <MyPay items={payItems} payouts={payouts} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -9828,6 +9911,188 @@ function GuideApp({ teacher, students, adventures, joins, lang, onLang, onLogout
 }
 
 /** HQ: each teacher's own number, and the sign-ups to approve. */
+/** HQ: what each teacher has earned since the last payout. "정산 완료" empties it; camps and special trips are typed by hand. */
+function PayPanel({ teachers, pay, onSetRate, onSetAmount, onPay, onVoid }) {
+  const [rateText, setRateText] = useState("");
+  const [edit, setEdit] = useState(null); // { scope, text }
+  const [confirm, setConfirm] = useState(null); // { teacher, items }
+  const [confirmVoid, setConfirmVoid] = useState(null);
+  const nameOf = (id) => ((teachers.find((t) => t.id === id) || {}).name) || "—";
+  const unpaid = pay.items.filter((i) => !i.paid);
+  const byTeacher = [...new Set(unpaid.map((i) => i.teacherId))].map((id) => ({ id, name: nameOf(id), items: unpaid.filter((i) => i.teacherId === id) })).sort((a, b) => a.name.localeCompare(b.name));
+  const programsToPrice = [...new Map(unpaid.map((i) => [i.programId, i])).values()];
+  const field = "focus-ring rounded-lg px-2.5 py-2 f-body text-[15px] outline-none";
+  const sourceNote = (i) => (i.source === "manual" ? tr("직접 입력") : i.source === "program" ? tr("프로그램 금액") : i.source === "hours" ? tr("{0}시간", [i.hours]) : tr("금액 입력 필요"));
+  const saveEdit = () => {
+    if (!edit) return;
+    const t = edit.text.replace(/[^\d]/g, "");
+    onSetAmount(edit.scope, t === "" ? "" : Number(t));
+    setEdit(null);
+  };
+  return (
+    <div className="px-5 space-y-5" data-testid="pay-panel">
+      <div className="bg-white rounded-2xl p-4">
+        <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("시급")}</p>
+        <p className="f-body text-[14px] text-gray-500 mb-2">{tr("체험 시간에 시급을 곱해서 자동으로 계산해요. 캠프처럼 금액이 다르면 아래에서 직접 입력하세요.")}</p>
+        <div className="flex items-center gap-2">
+          <input value={rateText} onChange={(e) => setRateText(e.target.value.replace(/[^\d]/g, ""))} inputMode="numeric" placeholder={String(pay.rate)} aria-label={tr("시급")} className={`${field} flex-1`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="pay-rate-input" />
+          <button onClick={() => { if (Number(rateText) > 0) { onSetRate(Number(rateText)); setRateText(""); } }} className="focus-ring tap f-body text-[15px] font-bold rounded-xl px-4 py-2 text-white" style={{ background: C.green }}>{tr("저장")}</button>
+        </div>
+        <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("지금 시급 {0}", [won(pay.rate)])}</p>
+      </div>
+
+      {byTeacher.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("정산할 수당이 없어요. 체험이 끝나면 여기에 쌓여요.")}</p></div>}
+
+      {programsToPrice.length > 0 && (
+        <div className="bg-white rounded-2xl p-4">
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("프로그램별 금액")}</p>
+          <p className="f-body text-[14px] text-gray-500 mb-2">{tr("캠프나 특별 체험은 한 번 입력하면 그 프로그램의 모든 선생님에게 적용돼요. 비우면 시급으로 돌아가요.")}</p>
+          <div className="space-y-2">
+            {programsToPrice.map((i) => {
+              const cur = pay.amounts[i.programId];
+              const editing = edit && edit.scope === i.programId;
+              return (
+                <div key={i.programId} className="flex items-center justify-between gap-2">
+                  <p className="f-body text-[15px] min-w-0 truncate" style={{ color: C.charcoal }}>{i.title}</p>
+                  {editing ? (
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <input autoFocus value={edit.text} onChange={(e) => setEdit({ scope: i.programId, text: e.target.value })} inputMode="numeric" aria-label={tr("프로그램 금액")} className={`${field} w-28`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                      <button onClick={saveEdit} className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2 text-white" style={{ background: C.green }}>{tr("저장")}</button>
+                    </span>
+                  ) : (
+                    <button onClick={() => setEdit({ scope: i.programId, text: cur === undefined ? "" : String(cur) })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-full px-3 py-1.5" style={{ background: C.cream, color: cur === undefined ? "#B25A0B" : C.green }}>{cur === undefined ? tr("금액 입력") : `${won(cur)} ✎`}</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {byTeacher.map((t) => {
+        const ready = t.items.filter((i) => !i.needsAmount);
+        const total = ready.reduce((n, i) => n + i.amount, 0);
+        const missing = t.items.length - ready.length;
+        return (
+          <div key={t.id} className="bg-white rounded-2xl p-4" data-testid="pay-teacher">
+            <div className="flex items-baseline justify-between gap-2 mb-2">
+              <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t.name}</p>
+              <p className="f-display text-[20px] font-bold" style={{ color: C.orange }} data-testid="pay-total">{won(total)}</p>
+            </div>
+            <div className="space-y-1.5 mb-3">
+              {t.items.map((i) => {
+                const editing = edit && edit.scope === i.key;
+                return (
+                  <div key={i.key} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="f-body text-[15px] truncate" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
+                      <p className="f-body text-[12px] text-gray-400">{[i.date, sourceNote(i)].filter(Boolean).join(" · ")}</p>
+                    </div>
+                    {editing ? (
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <input autoFocus value={edit.text} onChange={(e) => setEdit({ scope: i.key, text: e.target.value })} inputMode="numeric" aria-label={tr("금액")} className={`${field} w-24`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+                        <button onClick={saveEdit} className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2 text-white" style={{ background: C.green }}>{tr("저장")}</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setEdit({ scope: i.key, text: i.source === "manual" ? String(i.amount) : "" })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-full px-3 py-1.5" style={{ background: C.cream, color: i.needsAmount ? "#B25A0B" : C.charcoal }}>{i.needsAmount ? tr("금액 입력") : `${won(i.amount)} ✎`}</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {missing > 0 && <p className="f-body text-[13px] mb-2" style={{ color: "#B25A0B" }}>{tr("금액을 입력하지 않은 {0}건은 정산에서 빠져요.", [missing])}</p>}
+            <button onClick={() => ready.length && setConfirm({ teacher: t, items: ready, total })} disabled={ready.length === 0} className="focus-ring tap w-full rounded-xl py-3 f-display text-[16px] font-semibold text-white disabled:opacity-40" style={{ background: C.green }} data-testid="pay-done">{tr("정산 완료")}</button>
+          </div>
+        );
+      })}
+
+      {pay.payouts.filter((p) => !p.voided).length > 0 && (
+        <div>
+          <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>{tr("정산 내역")}</p>
+          <div className="bg-white rounded-2xl px-4">
+            {pay.payouts.filter((p) => !p.voided).slice(0, 20).map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-2 py-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                <div className="min-w-0">
+                  <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{nameOf(p.teacherId)}</p>
+                  <p className="f-body text-[13px] text-gray-400">{fmtDay(p.at)} · {tr("{0}건", [p.keys.length])}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className="f-display text-[16px] font-semibold" style={{ color: C.green }}>{won(p.amount)}</p>
+                  <button onClick={() => setConfirmVoid(p)} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: "#C0674A" }}>{tr("취소")}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title={tr("{0} 선생님께 {1}을 드렸나요?", [confirm.teacher.name, won(confirm.total)])}
+          actions={[
+            { label: tr("정산 완료"), tone: "primary", onClick: () => { onPay(confirm.teacher.id, confirm.items, confirm.total); setConfirm(null); } },
+            { label: tr("돌아가기"), tone: "plain", onClick: () => setConfirm(null) },
+          ]}
+        >{tr("정산하면 이 선생님의 수당이 0원으로 돌아가고, 아래 정산 내역에 남아요.")}</ConfirmDialog>
+      )}
+      {confirmVoid && (
+        <ConfirmDialog
+          title={tr("이 정산을 취소할까요?")}
+          actions={[
+            { label: tr("정산 취소"), tone: "danger", onClick: () => { onVoid(confirmVoid.id); setConfirmVoid(null); } },
+            { label: tr("돌아가기"), tone: "plain", onClick: () => setConfirmVoid(null) },
+          ]}
+        >{tr("잘못 눌렀을 때만 취소하세요. 그 금액이 다시 정산 대기로 돌아가요.")}</ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+/** Teacher: my own earnings since the last payout, and what was paid before. */
+function MyPay({ items, payouts }) {
+  const open = items.filter((i) => !i.paid);
+  const ready = open.filter((i) => !i.needsAmount);
+  const total = ready.reduce((n, i) => n + i.amount, 0);
+  const pending = open.length - ready.length;
+  return (
+    <div className="px-5 pb-8 space-y-4" data-testid="my-pay">
+      <div className="rounded-2xl p-5" style={{ background: C.green }}>
+        <p className="f-body text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>{tr("받을 수당")}</p>
+        <p className="f-display text-[36px] font-bold text-white leading-tight mt-1" data-testid="my-pay-total">{won(total)}</p>
+        <p className="f-body text-[14px] mt-1" style={{ color: "#C9E6D6" }}>{tr("본사에서 정산하면 0원으로 돌아가요.")}</p>
+      </div>
+      {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}
+      {open.length > 0 && (
+        <div className="bg-white rounded-2xl px-4">
+          {open.map((i) => (
+            <div key={i.key} className="flex items-center justify-between gap-2 py-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+              <div className="min-w-0">
+                <p className="f-body text-[15px] font-bold truncate" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
+                <p className="f-body text-[13px] text-gray-400">{[i.date, i.source === "hours" ? tr("{0}시간", [i.hours]) : ""].filter(Boolean).join(" · ")}</p>
+              </div>
+              <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: i.needsAmount ? "#B25A0B" : C.green }}>{i.needsAmount ? tr("금액 확인 중") : won(i.amount)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {pending > 0 && <p className="f-body text-[13px] text-gray-500">{tr("금액을 확인 중인 {0}건은 본사가 금액을 정하면 합계에 들어가요.", [pending])}</p>}
+      {payouts.length > 0 && (
+        <div>
+          <p className="f-display font-semibold text-[17px] mb-1.5" style={{ color: C.green }}>{tr("받은 내역")}</p>
+          <div className="bg-white rounded-2xl px-4">
+            {payouts.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-3 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+                <p className="f-body text-[14px] text-gray-500">{fmtDay(p.at)} · {tr("{0}건", [p.keys.length])}</p>
+                <p className="f-display text-[16px] font-semibold" style={{ color: C.charcoal }}>{won(p.amount)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide, caps = {}, onSetCap = () => {}, programs = [], apps = [], onAcceptApp = () => {}, onRejectApp = () => {} }) {
   const [filter, setFilter] = useState("approved");
   const [confirm, setConfirm] = useState(null);
@@ -10170,6 +10435,12 @@ export default function CarrotExplorer() {
     if (!rec || rec.seen) return;
     saveRow({ id: `xseen-${submissionId}`, type: REVIEW_SEEN_TYPE, familyPin: rec.familyPin, resolved: false, message: JSON.stringify({ submissionId }) });
   };
+  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
+  const savePaySetting = (row) => saveRow({ id: `set-pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ ...row, at: new Date().toISOString() }) });
+  const setPayRate = (value) => savePaySetting({ key: "payRate", value });
+  const setPayAmount = (scope, value) => savePaySetting({ key: "payAmount", scope, value });
+  const payTeacher = (teacherId, items, amount) => saveRow({ id: `pay-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "paid", id: `p${Date.now().toString(36)}`, teacherId, keys: items.map((i) => i.key), amount, at: new Date().toISOString() }) });
+  const voidPayout = (id) => saveRow({ id: `payv-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "void", id, at: new Date().toISOString() }) });
   const rememberPlace = (p) => {
     const known = savedPlaces(suggestions).find((x) => x.name.toLowerCase() === p.name.toLowerCase());
     if (known && known.venue === p.venue && known.meetingPoint === p.meetingPoint && known.intro === p.intro) return; // nothing new to remember
@@ -10636,7 +10907,7 @@ export default function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           {showManual && <TeacherManual lang={teacherLang} role="guide" onClose={() => setShowManual(false)} />}
           <div className="flex-1 overflow-y-auto">
-            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
+            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
           </div>
         </div>
       </div>
@@ -10685,6 +10956,11 @@ export default function CarrotExplorer() {
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
               onSetTeacherCap={setTeacherCap}
+              payData={payData}
+              onSetPayRate={setPayRate}
+              onSetPayAmount={setPayAmount}
+              onPayTeacher={payTeacher}
+              onVoidPayout={voidPayout}
               places={savedPlaces(suggestions)}
               onRememberPlace={rememberPlace}
               teacherCapMap={teacherCaps(suggestions)}

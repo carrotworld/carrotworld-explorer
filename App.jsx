@@ -1883,7 +1883,13 @@ function TagChip({ label, selected, onClick }) {
 }
 
 /** A report counts as sent unless the teacher is still drafting it (older reports have no flag and stay sent). */
-const feedbackSent = (a) => !!(a && a.feedback && a.feedback.submitted !== false);
+/** Teacher finished the feedback (submitted). */
+const feedbackDone = (a) => !!(a && a.feedback && a.feedback.submitted !== false);
+/** Waiting for HQ to read and approve it (teacher submitted, parents cannot see it yet). Older reports have no flag and count as approved. */
+const feedbackPending = (a) => feedbackDone(a) && a.feedback.approved === false;
+/** Parents can see it: submitted and approved by HQ. */
+const feedbackSent = (a) => feedbackDone(a) && a.feedback.approved !== false;
+const FEEDBACK_DAYS = 3;
 
 function RatingRow({ label, value, options, onChange }) {
   return (
@@ -3647,13 +3653,14 @@ function payPayouts(suggestions) {
   return [...map.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 /** What each confirmed teacher earned on programs that are over, and whether it was paid already. */
-function teacherEarnings(suggestions, joins, now) {
+function teacherEarnings(suggestions, joins, now, adventures = []) {
   const { rate, amounts } = paySettings(suggestions);
   const paidBy = new Map();
   payPayouts(suggestions).filter((p) => !p.voided).forEach((p) => p.keys.forEach((k) => paidBy.set(k, p)));
   return (joins || []).filter((j) => j.status === "approved").map((j) => {
     const p = getProgram(j.programId);
     if (!p || !tripDayPassed(p, now)) return null;
+    if (adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled && !feedbackDone(a))) return null; // counted once the feedback is submitted
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
     let amount = 0;
@@ -5120,9 +5127,16 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 
   const fb = adv.feedback || { guideName: defaultGuideName || "", cefrLevel: program.level, overview: "", guideNotes: "", language: {}, personality: {}, submitted: false };
   const patchFeedback = (partial) => onUpdate({ feedback: { ...fb, ...partial } });
-  const sent = feedbackSent(adv);
-  const submitFeedback = () => { onUpdate({ feedback: { ...fb, submitted: true } }); setFeedbackOpen(false); };
-  const editFeedback = () => { onUpdate({ feedback: { ...fb, submitted: false } }); setFeedbackOpen(true); };
+  const done = feedbackDone(adv);
+  const pendingHq = feedbackPending(adv);
+  const live = feedbackSent(adv);
+  const sent = limited ? done : live; // locks the form: the teacher after submitting; HQ only once parents can see it
+  const [returning, setReturning] = useState(false);
+  const [retNote, setRetNote] = useState("");
+  const submitFeedback = () => { onUpdate({ feedback: { ...fb, submitted: true, approved: limited ? false : true, hqNote: "" } }); setFeedbackOpen(false); };
+  const approveFeedback = () => { onUpdate({ feedback: { ...fb, submitted: true, approved: true, approvedAt: new Date().toISOString() } }); setFeedbackOpen(false); };
+  const returnFeedback = () => { onUpdate({ feedback: { ...fb, submitted: false, approved: false, hqNote: retNote.trim() } }); setReturning(false); setRetNote(""); };
+  const editFeedback = () => { onUpdate({ feedback: { ...fb, approved: false } }); setFeedbackOpen(true); };
   const patchLanguage = (key, value) => patchFeedback({ language: { ...fb.language, [key]: value } });
   const patchPersonality = (key, value) => patchFeedback({ personality: { ...fb.personality, [key]: value } });
 
@@ -5374,7 +5388,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
           <div className="pt-1 border-t" style={{ borderColor: C.beige }}>
             <button onClick={() => setFeedbackOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between pt-3">
               <span className="f-body text-[15px] font-bold uppercase tracking-wide" style={{ color: C.green }}>
-                Full Feedback Report {sent && "✓"}
+                Full Feedback Report {done && "✓"}
               </span>
               <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${feedbackOpen ? "rotate-90" : ""}`} />
             </button>
@@ -5455,15 +5469,40 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
               </fieldset>
             )}
             {feedbackOpen && (
-              <div className="mt-4 flex gap-2">
-                {sent ? (
-                  <button onClick={editFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.cream, color: C.charcoal, border: `1px solid ${C.beige}` }}>수정 (Edit)</button>
+              <div className="mt-4">
+                {limited ? (
+                  done ? (
+                    <p className="f-body text-[15px] font-bold text-center py-3 rounded-xl" style={{ background: "#EAF7EF", color: "#1F7A44" }}>{live ? "✓ Sent to parents" : "✓ Submitted · HQ is reviewing"}</p>
+                  ) : (
+                    <button onClick={submitFeedback} className="focus-ring tap w-full f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.orange, color: "#fff" }}>Submit</button>
+                  )
+                ) : pendingHq ? (
+                  returning ? (
+                    <div className="space-y-2">
+                      <textarea value={retNote} onChange={(e) => setRetNote(e.target.value)} rows={2} placeholder={tr("샘에게 남길 한 줄 메모 (예: 아이 성격 부분을 더 구체적으로)")} aria-label={tr("돌려보내기 메모")} className="focus-ring w-full f-body text-[15px] rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }} />
+                      <div className="flex gap-2">
+                        <button onClick={() => setReturning(false)} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.cream, color: C.charcoal, border: `1px solid ${C.beige}` }}>{tr("취소")}</button>
+                        <button onClick={returnFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl text-white" style={{ background: C.orange }}>{tr("돌려보내기")}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={() => setReturning(true)} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.cream, color: C.charcoal, border: `1px solid ${C.beige}` }}>{tr("샘에게 돌려보내기")}</button>
+                      <button onClick={approveFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl text-white" style={{ background: C.green }} data-testid="approve-feedback">{tr("승인 및 발송")}</button>
+                    </div>
+                  )
+                ) : live ? (
+                  <button onClick={editFeedback} className="focus-ring tap w-full f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.cream, color: C.charcoal, border: `1px solid ${C.beige}` }}>{tr("수정 (다시 검토 후 발송)")}</button>
                 ) : (
-                  <button onClick={submitFeedback} className="focus-ring tap flex-1 f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.orange, color: "#fff" }}>Submit</button>
+                  <button onClick={submitFeedback} className="focus-ring tap w-full f-body text-[16px] font-bold py-3 rounded-xl" style={{ background: C.orange, color: "#fff" }}>{tr("바로 발송")}</button>
                 )}
               </div>
             )}
-            {feedbackOpen && !sent && <p className="f-body text-[13px] text-gray-400 mt-1.5">Parents see the report after you press Submit.</p>}
+            {limited && fb.hqNote && !done && <p className="f-body text-[14px] font-bold rounded-xl p-3 mt-3" style={{ background: "#FFF1E2", color: "#B25A0B" }}>HQ note: {fb.hqNote}</p>}
+            {feedbackOpen && limited && !done && (
+              <p className="f-body text-[13px] mt-2 leading-snug" style={{ color: "#B25A0B" }}>Feedback MUST be submitted within {FEEDBACK_DAYS} days after the trip. Late submissions will receive a warning. Parents see it after HQ review.</p>
+            )}
+            {pendingHq && !limited && <p className="f-body text-[13px] text-gray-500 mt-2">{tr("샘이 제출했어요. 내용을 읽고 필요하면 고친 뒤 승인해 주세요. 승인하면 부모님께 보여요.")}</p>}
           </div>
 
           {FEATURES.parentAdvice && <AdviceBox student={student} program={program} adv={adv} onSave={(advice) => onUpdate({ advice })} />}
@@ -7151,7 +7190,7 @@ function summarizeRows(rows) {
     { key: "prep", label: tr("예습(단어) 완료"), value: rows.filter((a) => a.beforeCompleted).length },
     { key: "attended", label: tr("현장 출석"), value: rows.filter((a) => a.attended).length },
     { key: "after", label: tr("복습 완료"), value: rows.filter((a) => a.afterCompleted).length },
-    { key: "report", label: tr("선생님 리포트 작성"), value: rows.filter((a) => feedbackSent(a)).length },
+    { key: "report", label: tr("선생님 리포트 작성"), value: rows.filter((a) => feedbackDone(a)).length },
   ];
   return {
     total: rows.length,
@@ -7581,7 +7620,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-08-b2"; // change with every delivery
+const APP_BUILD = "2026-10-08-c2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -7815,7 +7854,7 @@ function programStatus(program, adventures) {
   const sessionUnset = slots.length ? mine.filter((a) => !sessionOf(program, a)).length : 0;
   const withKids = sessionInfo.filter((x) => x.count > 0);
   const infoSent = slots.length ? withKids.length > 0 && withKids.every((x) => x.published) : isNoticeOut(program, null);
-  const reportsLeft = attended.filter((a) => !feedbackSent(a)).length;
+  const reportsLeft = attended.filter((a) => !feedbackDone(a)).length;
   // The stage follows what has really happened: nobody applied -> setting up; children preparing -> prep; notice shared -> notice sent;
   // "Live today" on -> trip live; the trip happened but feedback is missing -> feedback due; all feedback written -> complete.
   // (Opening the review does not mean the trip is over, so it no longer changes the stage.)
@@ -8701,10 +8740,23 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const pendingInquiries = suggestions.filter((x) => !x.resolved && x.type === "신청 문의");
   const pendingOther = suggestions.filter((x) => !x.resolved && x.type !== "신청 문의" && !isSystemRow(x));
   const needReport = adventures
-    .filter((a) => a.attended && !feedbackSent(a))
+    .filter((a) => a.attended && !feedbackDone(a))
     .map((a) => ({ a, student: students.find((st) => st.id === a.studentId), program: getProgram(a.programId) }))
     .filter((r) => r.student && r.program);
+  const needReview = adventures.filter((a) => feedbackPending(a));
   const teacherNotices = [];
+  if (needReview.length) {
+    const first = needReview[0];
+    teacherNotices.push({
+      key: "feedback-review",
+      icon: "📝",
+      title: tr("피드백 검토 {0}건", [needReview.length]),
+      text: tr("읽고 승인하면 부모님께 보내져요"),
+      onClick: () => { setProgramId(first.programId); setTab("manage"); },
+      doneLabel: tr("모두 승인"),
+      onDone: () => needReview.forEach((a) => updateAdventure(a.studentId, a.programId, { feedback: { ...a.feedback, approved: true, approvedAt: new Date().toISOString() } })),
+    });
+  }
   const waitingFamilies = pendingFamilies(students).length;
   if (waitingFamilies) {
     teacherNotices.push({
@@ -8822,7 +8874,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     { key: "g-overview", label: tr("현황"), subs: [{ key: "overview", label: tr("현황") }] },
     { key: "g-program", label: needReport.length ? tr("프로그램 {0}", [needReport.length]) : tr("프로그램"), subs: [
       { key: "programs", label: tr("프로그램등록") },
-      { key: "manage", label: needReport.length ? tr("학생관리 {0}", [needReport.length]) : tr("학생관리") },
+      { key: "manage", label: (needReport.length + needReview.length) ? tr("학생관리 {0}", [needReport.length + needReview.length]) : tr("학생관리") },
     ] },
     { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount]) : tr("사람"), subs: [
       ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
@@ -8876,7 +8928,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
                 </button>
                 {n.onDone && (
-                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>{tr("✓ 확인함")}</button>
+                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>{n.doneLabel || tr("✓ 확인함")}</button>
                 )}
               </div>
             ))}
@@ -9938,8 +9990,8 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const mine = name ? roster.filter((x) => ((teamOf(program, x.a) || {}).teacher || "").trim().toLowerCase() === name.trim().toLowerCase()) : [];
   const filtering = mineOnly && mine.length > 0;
   const list = (filtering ? mine : roster).slice().sort((x, y) => Number(!!y.a.attended) - Number(!!x.a.attended));
-  const feedbackLeft = list.filter((x) => x.a.attended && !feedbackSent(x.a)).length;
-  const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackSent(x.a)).length : 0;
+  const feedbackLeft = list.filter((x) => x.a.attended && !feedbackDone(x.a)).length;
+  const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackDone(x.a)).length : 0;
   const TABS = [
     { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
     { key: "materials", label: tr("수업자료") },
@@ -11079,7 +11131,7 @@ export default function CarrotExplorer() {
 
   const teachers = teacherAccounts(suggestions);
   const joins = teacherJoins(suggestions);
-  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins), payouts: payPayouts(suggestions) };
+  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins, undefined, adventures), payouts: payPayouts(suggestions) };
   const teacherApps = teacherApplications(suggestions, teachers);
   const legacyPin = currentGuidePin(suggestions);
   // a teacher whose account HQ turns off is signed out at the next refresh

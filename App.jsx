@@ -4802,17 +4802,35 @@ function ProgramObjectives({ programs }) {
               {p.themeKo && <p className="f-body text-[14px] text-gray-500 mt-0.5">{p.themeKo}</p>}
             </div>
           </div>
-          <div className="mt-3 space-y-2">
-            {objectiveSets(p).map((o) => {
-              const g = o.level && CEFR_GOALS[o.level];
-              return (
-                <div key={o.level || "all"} className="rounded-xl px-3 py-2" style={{ background: "#EEF6F0" }}>
-                  <p className="f-body text-[13px] font-bold" style={{ color: C.green }}>{o.level ? `${o.level}${g ? " · " + g.verb : ""}` : "목표"}</p>
-                  {o.ko && <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{o.ko}</p>}
-                  {o.en && <p className="f-body text-[13px] text-gray-500">{o.en}</p>}
-                </div>
-              );
-            })}
+          <div className="mt-3 rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }} data-testid="objective-table">
+            {(() => {
+              const sets = objectiveSets(p);
+              const live = materialLevels(p);
+              const single = sets.length === 1 && sets[0].level === null ? sets[0] : null;
+              return LEVEL_CHOICES.map((l, i) => {
+                const on = single ? true : live.includes(l);
+                const o = single || sets.find((x) => x.level === l);
+                const g = CEFR_GOALS[l];
+                return (
+                  <div key={l} data-testid={`obj-row-${l}`} data-active={on ? "1" : "0"} className="grid grid-cols-[84px_1fr] gap-x-3 px-3 py-2.5" style={{ background: on ? "#EEF6F0" : "#F3F3F1", borderTop: i ? `1px solid ${C.beige}` : "none", opacity: on ? 1 : 0.7 }}>
+                    <div>
+                      <p className="f-body text-[14px] font-bold" style={{ color: on ? C.green : "#A8A8A2" }}>{l}</p>
+                      <p className="f-body text-[12px] leading-tight" style={{ color: on ? C.charcoal : "#B5B5AF" }}>{g.verb}</p>
+                    </div>
+                    <div className="min-w-0">
+                      {on ? (
+                        o && (o.ko || o.en) ? (
+                          <>
+                            {o.ko && <p className="f-body text-[14px]" style={{ color: C.charcoal }}>{o.ko}</p>}
+                            {o.en && <p className="f-body text-[12px] text-gray-500 mt-0.5">{o.en}</p>}
+                          </>
+                        ) : <p className="f-body text-[13px] text-gray-400">목표 준비 중</p>
+                      ) : <p className="f-body text-[13px]" style={{ color: "#B5B5AF" }}>이번 체험에는 해당 없어요</p>}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       ))}
@@ -7774,7 +7792,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-m2"; // change with every delivery
+const APP_BUILD = "2026-10-09-n2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

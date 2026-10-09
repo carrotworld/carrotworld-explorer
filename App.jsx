@@ -1700,17 +1700,24 @@ function ScreenHeader({ title, subtitle, onBack, right }) {
 
 /** The top bar of the three home screens (parent, teacher, HQ): a solid green band with the brand, the role under it, and the controls on the right. */
 function RoleBar({ label, onLogout, lang, onLang, action }) {
+  const extras = !!(onLang || action);
   return (
-    <div className="mx-5 mt-4 px-4 py-3.5 rounded-2xl flex items-center justify-between gap-3 min-h-[68px]" style={{ background: C.green }} data-testid="role-bar">
-      <div className="min-w-0">
-        <p className="f-headline text-[24px] leading-none text-white">CarrotWorld</p>
-        <p className="f-body text-[12px] font-bold uppercase tracking-[0.14em] mt-1.5 truncate" style={{ color: "#9FD1B8" }}>{label}</p>
+    <div className="mx-5 mt-4 px-4 py-3.5 rounded-2xl min-h-[68px]" style={{ background: C.green }} data-testid="role-bar">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="f-headline text-[24px] leading-none text-white whitespace-nowrap">CarrotWorld</p>
+          <p className="f-body text-[12px] font-bold uppercase tracking-[0.14em] mt-1.5 truncate" style={{ color: "#9FD1B8" }}>{label}</p>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+                    <button onClick={onLogout} className="focus-ring tap f-body text-[13px] font-bold whitespace-nowrap" style={{ color: "#C9E6D6" }}>Switch user</button>
+        </div>
       </div>
-      <div className="flex items-center gap-2.5 shrink-0">
-        {onLang && <LangToggle lang={lang} onChange={onLang} />}
-        {action}
-        <button onClick={onLogout} className="focus-ring tap f-body text-[13px] font-bold whitespace-nowrap" style={{ color: "#C9E6D6" }}>Switch user</button>
-      </div>
+      {extras && (
+        <div className="flex items-center gap-2.5 mt-3" data-testid="role-bar-tools">
+          {onLang && <LangToggle lang={lang} onChange={onLang} />}
+          {action}
+        </div>
+      )}
     </div>
   );
 }
@@ -4788,24 +4795,13 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
   );
 }
 
-function ProgramObjectives({ programs }) {
-  if (!programs.length) return null;
+/** All seven CEFR levels of one program in a single table: the levels it runs are green with their goal, the others stay grey. Read by parents, teachers and HQ. */
+function ObjectiveTable({ program }) {
   return (
-    <section data-testid="program-objectives" className="space-y-3">
-      <SectionBar>프로그램별 학습 목표</SectionBar>
-      {programs.map((p) => (
-        <div key={p.id} className="bg-white rounded-2xl px-4 py-3.5" style={{ border: `1px solid ${C.beige}` }}>
-          <div className="flex gap-3">
-            <TitleBar program={p} />
-            <div className="min-w-0">
-              <p className="f-headline text-[18px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
-              {p.themeKo && <p className="f-body text-[14px] text-gray-500 mt-0.5">{p.themeKo}</p>}
-            </div>
-          </div>
-          <div className="mt-3 rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }} data-testid="objective-table">
+    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }} data-testid="objective-table">
             {(() => {
-              const sets = objectiveSets(p);
-              const live = materialLevels(p);
+              const sets = objectiveSets(program);
+              const live = materialLevels(program);
               const single = sets.length === 1 && sets[0].level === null ? sets[0] : null;
               return LEVEL_CHOICES.map((l, i) => {
                 const on = single ? true : live.includes(l);
@@ -4832,6 +4828,24 @@ function ProgramObjectives({ programs }) {
               });
             })()}
           </div>
+  );
+}
+
+function ProgramObjectives({ programs }) {
+  if (!programs.length) return null;
+  return (
+    <section data-testid="program-objectives" className="space-y-3">
+      <SectionBar>프로그램별 학습 목표</SectionBar>
+      {programs.map((p) => (
+        <div key={p.id} className="bg-white rounded-2xl px-4 py-3.5" style={{ border: `1px solid ${C.beige}` }}>
+          <div className="flex gap-3">
+            <TitleBar program={p} />
+            <div className="min-w-0">
+              <p className="f-headline text-[18px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+              {p.themeKo && <p className="f-body text-[14px] text-gray-500 mt-0.5">{p.themeKo}</p>}
+            </div>
+          </div>
+          <div className="mt-3"><ObjectiveTable program={p} /></div>
         </div>
       ))}
     </section>
@@ -6787,13 +6801,12 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
               </div>
             </div>
           )}
-          {objectiveSets(program).map((o) => (
-            <div key={`obj-${o.level || "all"}`} className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: `1px solid ${C.beige}` }} data-testid="objective-card">
-              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>🎯 학습 목표{o.level ? ` · ${o.level}${CEFR_GOALS[o.level] ? ` ${CEFR_GOALS[o.level].verb}` : ""}` : ""}</p>
-              {o.ko && <p className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>{o.ko}</p>}
-              {o.en && <p className="f-body text-[15px] text-gray-500 mt-0.5">{o.en}</p>}
+          {objectiveSets(program).length > 0 && (
+            <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: `1px solid ${C.beige}` }} data-testid="objective-card">
+              <p className="f-body text-[14px] font-bold mb-2" style={{ color: "#1F7A44" }}>🎯 레벨별 학습 목표</p>
+              <ObjectiveTable program={program} />
             </div>
-          ))}
+          )}
           {focusSets(program).map((fs) => (
             <div key={fs.level || "all"} className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
               <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트{fs.level ? ` · ${fs.level}` : ""}</p>
@@ -7868,7 +7881,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-o2"; // change with every delivery
+const APP_BUILD = "2026-10-09-q2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10300,6 +10313,12 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
 
           {tab === "materials" && (
             <div className="px-5 pb-8">
+              {objectiveSets(program).length > 0 && (
+                <div className="bg-white rounded-2xl p-4 mb-3" style={{ border: `1px solid ${C.beige}` }} data-testid="teacher-objectives">
+                  <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표")}</p>
+                  <ObjectiveTable program={program} />
+                </div>
+              )}
               <p className="f-body text-[14px] text-gray-500 mb-2">{tr("단어, 미션, 집중 포인트, 퀴즈를 써요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
               <RegisterProgramPanel
                 key={`${program.id}-${formKey}`}

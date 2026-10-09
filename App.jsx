@@ -1177,7 +1177,8 @@ const programFor = (program, student, adv) => programForLevel(program, levelFor(
 /** The focus points of every level; one entry when they are all the same. */
 /** The learning objective written for each level of a program (the goal verb of the level stays fixed; HQ or the teacher writes the topic part). */
 function objectiveSets(program) {
-  const one = (o) => (o && ((o.ko || "").trim() || (o.en || "").trim()) ? { ko: (o.ko || "").trim(), en: (o.en || "").trim() } : null);
+  const clean = (t) => String(t || "").trim().replace(/^(KR|KO|EN)\s*[:：]\s*/i, "").trim();
+  const one = (o) => (o && (clean(o.ko) || clean(o.en)) ? { ko: clean(o.ko), en: clean(o.en) } : null);
   const lv = materialLevels(program);
   if (!lv.length) { const o = one(program && program.objective); return o ? [{ level: null, ...o }] : []; }
   return lv.map((l) => ({ level: l, ...(one(program.levelMaterials[l].objective) || {}) })).filter((x) => x.ko || x.en);
@@ -4736,9 +4737,12 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
           {["live", "prep", "info", "check"].includes(primary.act.key) && (() => {
             const ob = childObjective(primary.program, child, primary.a);
             return ob ? (
-              <p data-testid="child-objective" className="f-body text-[14px] mt-2 rounded-xl px-3 py-2" style={{ background: "#EEF6F0", color: C.green }}>
-                🎯 <b>이번 체험 목표</b>{ob.level ? ` · ${ob.level}${ob.verb ? " " + ob.verb : ""}` : ""} — {ob.ko || ob.en}
-              </p>
+              <div data-testid="child-objective" className="mt-2 rounded-xl px-3 py-2" style={{ background: "#EEF6F0", color: C.green }}>
+                <p className="f-body text-[14px]">
+                  🎯 <b>이번 체험 목표</b>{ob.level ? ` · ${ob.level}${ob.verb ? " " + ob.verb : ""}` : ""} — {ob.ko || ob.en}
+                </p>
+                <button data-testid="objective-open" onClick={() => run({ act: "info", programId: primary.program.id })} className="focus-ring tap f-body text-[13px] font-bold underline mt-1">레벨별 목표 표 보기 ›</button>
+              </div>
             ) : null;
           })()}
           {primary.act.cta && primary.act.cta.act !== "browse" && cta(primary, primary.act.cta) && (
@@ -6372,8 +6376,8 @@ function parseObjectiveTable(text) {
     const verb = (CEFR_GOALS[lv].verb || "").toLowerCase();
     const isVerbBit = (c) => c.length < 24 && !/[\uAC00-\uD7A3]/.test(c) && verb.replace(/\s+/g, "").includes(c.toLowerCase().replace(/\s+/g, ""));
     const rest = cs.filter((c, i) => !(i < 2 && isVerbBit(c)));
-    const ko = rest.filter((c) => /[\uAC00-\uD7A3]/.test(c)).join(" ").trim();
-    const en = rest.filter((c) => !/[\uAC00-\uD7A3]/.test(c)).join(" ").trim();
+    const ko = rest.filter((c) => /[\uAC00-\uD7A3]/.test(c)).join(" ").trim().replace(/^(KR|KO)\s*[:：]\s*/i, "");
+    const en = rest.filter((c) => !/[\uAC00-\uD7A3]/.test(c)).join(" ").trim().replace(/^EN\s*[:：]\s*/i, "");
     if (ko || en) out[lv] = { ko, en };
   });
   return out;
@@ -7886,7 +7890,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-r2"; // change with every delivery
+const APP_BUILD = "2026-10-09-s2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

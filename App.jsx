@@ -6330,6 +6330,66 @@ function QuizEditor({ items, onChange }) {
 
 const FOCUS_IDEAS = ["전시를 천천히, 자세히 보기", "워크북을 끝까지 꼼꼼히 하기", "영어로 한 문장씩 말해 보기", "궁금한 것 3가지 질문하기"];
 
+/** Reads a pasted learning-objective table (CEFR | goal | KR | EN) copied from a chat, sheet or web page. Returns { level: {ko,en} }. */
+function parseObjectiveTable(text) {
+  const norm = (c) => {
+    const t = c.trim().toLowerCase().replace(/\s+/g, "");
+    if (t === "pre-a" || t === "prea" || t === "pre-a1" || t === "prea1") return "Pre-A1";
+    return LEVEL_CHOICES.find((l) => l.toLowerCase() === t) || null;
+  };
+  const cells = [];
+  String(text || "").split(/\r?\n/).forEach((line) => {
+    if (/^\s*\|?\s*:?-{2,}/.test(line)) return;
+    line.split(/\t|\|/).map((c) => c.trim().replace(/^"|"$/g, "").trim()).filter(Boolean).forEach((c) => cells.push(c));
+  });
+  const rows = {};
+  let cur = null;
+  cells.forEach((c) => {
+    const lv = norm(c);
+    if (lv) { cur = lv; rows[lv] = rows[lv] || []; } else if (cur) rows[cur].push(c);
+  });
+  const out = {};
+  Object.entries(rows).forEach(([lv, cs]) => {
+    const verb = (CEFR_GOALS[lv].verb || "").toLowerCase();
+    const isVerbBit = (c) => c.length < 24 && !/[\uAC00-\uD7A3]/.test(c) && verb.replace(/\s+/g, "").includes(c.toLowerCase().replace(/\s+/g, ""));
+    const rest = cs.filter((c, i) => !(i < 2 && isVerbBit(c)));
+    const ko = rest.filter((c) => /[\uAC00-\uD7A3]/.test(c)).join(" ").trim();
+    const en = rest.filter((c) => !/[\uAC00-\uD7A3]/.test(c)).join(" ").trim();
+    if (ko || en) out[lv] = { ko, en };
+  });
+  return out;
+}
+
+function ObjectivePaste({ onApply }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [msg, setMsg] = useState("");
+  const apply = () => {
+    const parsed = parseObjectiveTable(text);
+    const keys = Object.keys(parsed);
+    if (!keys.length) { setMsg(tr("표를 못 읽었어요. CEFR 레벨(Pre-A, A1…)이 있는 표를 그대로 붙여 주세요.")); return; }
+    const done = onApply(parsed);
+    setMsg(tr("{0}개 레벨 목표를 채웠어요: {1}", [done.length, done.join(", ")]));
+    setText("");
+  };
+  return (
+    <div className="mb-3 rounded-2xl bg-white" style={{ border: `1px solid ${C.beige}` }} data-testid="objective-paste">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="focus-ring tap w-full flex items-center justify-between px-4 py-3 text-left">
+        <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🎯 학습 목표 표 한 번에 붙여넣기")}</span>
+        <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <p className="f-body text-[13px] text-gray-500 mb-2">{tr("ChatGPT 등의 표를 복사해서 그대로 붙여 넣으면 레벨별 한글·영어 목표가 한꺼번에 채워져요. 진행하지 않는 레벨은 준비 자료로 저장돼요.")}</p>
+          <textarea data-testid="objective-paste-input" value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={"CEFR\tLearning Goal\t학습 목표 (KR)\tLearning Objective (EN)\nPre-A\tRecognize & Respond\t…"} className="w-full rounded-xl px-3 py-2 f-body text-[14px] outline-none" style={{ border: `1px solid ${C.beige}` }} />
+          <button data-testid="objective-paste-apply" onClick={apply} disabled={!text.trim()} className="focus-ring tap w-full mt-2 f-body text-[15px] font-bold rounded-xl py-3 text-white disabled:opacity-40" style={{ background: C.green }}>{tr("표로 채우기")}</button>
+          {msg && <p className="f-body text-[13px] mt-2" style={{ color: C.green }}>{msg}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MaterialsEditor({ value, onChange, levelTabs }) {
   const set = (p) => onChange({ ...value, ...p });
   const [copyFrom, setCopyFrom] = useState(null);
@@ -6847,6 +6907,21 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
     else setPrepSets((prev) => ({ ...prev, [activeTab]: rest }));
     if (reviewOpen !== materials.reviewOpen) setMaterials((m) => ({ ...m, reviewOpen }));
   };
+  const applyObjectives = (map) => {
+    const done = [];
+    Object.entries(map).forEach(([l, o]) => {
+      const objective = { ko: o.ko || "", en: o.en || "" };
+      if (sortedLv.includes(l)) {
+        if (tabbed) setLevelSets((prev) => ({ ...prev, [l]: { ...(prev[l] || materials), objective } }));
+        else setMaterials((m) => ({ ...m, objective }));
+        done.push(l);
+      } else if (hqTabs) {
+        setPrepSets((prev) => ({ ...prev, [l]: { ...(prev[l] || (({ reviewOpen, ...r }) => r)(defaultMaterials())), objective } }));
+        done.push(l);
+      }
+    });
+    return done;
+  };
   const copyLevel = (from) => {
     const src = setOf(from) || materials;
     if (isLive && !tabbed) setMaterials((m) => ({ ...cloneMaterials(src), reviewOpen: m.reviewOpen }));
@@ -7115,6 +7190,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
       )}
+      {(showMaterials || materialsOnly) && showTabs && <ObjectivePaste onApply={applyObjectives} />}
       {(showMaterials || materialsOnly) && (
         <MaterialsEditor
           value={levelValue}
@@ -7792,7 +7868,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-n2"; // change with every delivery
+const APP_BUILD = "2026-10-09-o2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

@@ -4797,37 +4797,42 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
 
 /** All seven CEFR levels of one program in a single table: the levels it runs are green with their goal, the others stay grey. Read by parents, teachers and HQ. */
 function ObjectiveTable({ program }) {
+  // Which levels run = the recruiting levels HQ chose; changing them changes this table by itself.
+  const run = new Set([...programLevels(program), ...materialLevels(program)]);
+  const sets = objectiveSets(program);
+  const shared = sets.find((x) => x.level === null) || null;
+  const prep = (program && program.prepMaterials) || {};
+  const text = (l) => {
+    const own = sets.find((x) => x.level === l) || (run.has(l) ? shared : null);
+    if (own && (own.ko || own.en)) return { ko: own.ko, en: own.en, written: true };
+    const pr = prep[l] && prep[l].objective;
+    if (pr && ((pr.ko || "").trim() || (pr.en || "").trim())) return { ko: (pr.ko || "").trim(), en: (pr.en || "").trim(), written: true };
+    return { ko: CEFR_GOALS[l].ko, en: "", written: false };
+  };
   return (
-    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }} data-testid="objective-table">
-            {(() => {
-              const sets = objectiveSets(program);
-              const live = materialLevels(program);
-              const single = sets.length === 1 && sets[0].level === null ? sets[0] : null;
-              return LEVEL_CHOICES.map((l, i) => {
-                const on = single ? true : live.includes(l);
-                const o = single || sets.find((x) => x.level === l);
-                const g = CEFR_GOALS[l];
-                return (
-                  <div key={l} data-testid={`obj-row-${l}`} data-active={on ? "1" : "0"} className="grid grid-cols-[84px_1fr] gap-x-3 px-3 py-2.5" style={{ background: on ? "#EEF6F0" : "#F3F3F1", borderTop: i ? `1px solid ${C.beige}` : "none", opacity: on ? 1 : 0.7 }}>
-                    <div>
-                      <p className="f-body text-[14px] font-bold" style={{ color: on ? C.green : "#A8A8A2" }}>{l}</p>
-                      <p className="f-body text-[12px] leading-tight" style={{ color: on ? C.charcoal : "#B5B5AF" }}>{g.verb}</p>
-                    </div>
-                    <div className="min-w-0">
-                      {on ? (
-                        o && (o.ko || o.en) ? (
-                          <>
-                            {o.ko && <p className="f-body text-[14px]" style={{ color: C.charcoal }}>{o.ko}</p>}
-                            {o.en && <p className="f-body text-[12px] text-gray-500 mt-0.5">{o.en}</p>}
-                          </>
-                        ) : <p className="f-body text-[13px] text-gray-400">목표 준비 중</p>
-                      ) : <p className="f-body text-[13px]" style={{ color: "#B5B5AF" }}>이번 체험에는 해당 없어요</p>}
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-          </div>
+    <div data-testid="objective-table">
+      <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }}>
+        {LEVEL_CHOICES.map((l, i) => {
+          const on = run.has(l);
+          const t = text(l);
+          const g = CEFR_GOALS[l];
+          return (
+            <div key={l} data-testid={`obj-row-${l}`} data-active={on ? "1" : "0"} className="grid grid-cols-[84px_1fr] gap-x-3 px-3 py-2.5" style={{ background: on ? "#EEF6F0" : "#F1F1EE", borderTop: i ? `1px solid ${on ? C.beige : "#E6E6E2"}` : "none" }}>
+              <div>
+                <p className="f-body text-[14px] font-bold" style={{ color: on ? C.green : "#9A9A94" }}>{l}</p>
+                <p className="f-body text-[12px] leading-tight" style={{ color: on ? C.charcoal : "#A9A9A3" }}>{g.verb}</p>
+              </div>
+              <div className="min-w-0">
+                {t.ko && <p className="f-body text-[14px]" style={{ color: on ? C.charcoal : "#8E8E88" }}>{t.ko}</p>}
+                {t.en && <p className="f-body text-[12px] mt-0.5" style={{ color: on ? "#6B7280" : "#A3A39D" }}>{t.en}</p>}
+                {on && !t.written && <p className="f-body text-[12px] text-gray-400 mt-0.5">목표 준비 중</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="f-body text-[13px] mt-2" style={{ color: "#8E8E88" }}>회색으로 표시된 레벨은 이번 회차에 진행되지 않습니다.</p>
+    </div>
   );
 }
 
@@ -4960,7 +4965,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <ProgramObjectives programs={(() => {
             const mine = new Set(adventures.filter((a) => myChildren.some((c) => c.id === a.studentId)).map((a) => a.programId));
             const up = new Set(upcomingPrograms(adventures).map((p) => p.id));
-            return PROGRAMS.filter((p) => (mine.has(p.id) || up.has(p.id)) && objectiveSets(p).length);
+            return PROGRAMS.filter((p) => (mine.has(p.id) || up.has(p.id)));
           })()} />
           <LevelGuideForParents showTitle />
         </div>
@@ -6801,7 +6806,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
               </div>
             </div>
           )}
-          {objectiveSets(program).length > 0 && (
+          {(
             <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: `1px solid ${C.beige}` }} data-testid="objective-card">
               <p className="f-body text-[14px] font-bold mb-2" style={{ color: "#1F7A44" }}>🎯 레벨별 학습 목표</p>
               <ObjectiveTable program={program} />
@@ -7881,7 +7886,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-q2"; // change with every delivery
+const APP_BUILD = "2026-10-09-r2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10313,7 +10318,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
 
           {tab === "materials" && (
             <div className="px-5 pb-8">
-              {objectiveSets(program).length > 0 && (
+              {(
                 <div className="bg-white rounded-2xl p-4 mb-3" style={{ border: `1px solid ${C.beige}` }} data-testid="teacher-objectives">
                   <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표")}</p>
                   <ObjectiveTable program={program} />
@@ -11202,7 +11207,7 @@ export default function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -11226,6 +11231,8 @@ export default function CarrotExplorer() {
       icons,
       coverPhoto: coverPhoto || null,
       levelMaterials: levelMaterials || null,
+      prepMaterials: prepMaterials || {},
+      objective: objective || null,
       sessions: sessions || [],
       vocabulary: vocabulary || dm.vocabulary,
       bigQuestion: bigQuestion || dm.bigQuestion,
@@ -11242,7 +11249,7 @@ export default function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -11264,6 +11271,8 @@ export default function CarrotExplorer() {
     if (startDate !== undefined) patch.startDate = startDate || "";
     if (endDate !== undefined) patch.endDate = endDate || "";
     if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;
+    if (prepMaterials !== undefined) patch.prepMaterials = prepMaterials || {};
+    if (objective !== undefined) patch.objective = objective || null;
     let slotFixes = [];
     if (sessions !== undefined) {
       // a slot that was taken away: its teams go with it, and its children are put back to "no slot / no team"

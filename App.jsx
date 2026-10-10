@@ -206,7 +206,7 @@ const EN = {
 "{0}문제": "{0} questions",
 "펼치기 ▾": "Expand ▾",
 "체험 자료 입력": "Trip materials",
-"단어 · 질문 · 퀴즈 · 미션": "Words · questions · quiz · missions",
+"단어 · 질문 · 퀴즈": "Words · questions · quiz",
 "오늘 진행 (체험 시작 가능)": "Live today (children can start)",
 "프로그램 등록": "Register program",
 "프로그램 삭제": "Delete program",
@@ -214,7 +214,7 @@ const EN = {
 "학생 기록도 함께 삭제돼요.": "Student records will be deleted too.",
 "삭제하기 전에 백업 파일이 자동으로 내려받아져요.": "A backup file is downloaded automatically before deleting.",
 "프로그램을 삭제할까요?": "Delete this program?",
-"단어·미션·질문은 기본 내용으로 채워져요.": "Words, missions and questions are filled with defaults.",
+"단어·질문은 기본 내용으로 채워져요.": "Words and questions are filled with defaults.",
 "가입 수락 상태": "Sign-up approval status",
 "신청 번호 확인 코드": "Application phone check code",
 "신청 번호 뒷자리": "Application phone ends in",
@@ -2816,6 +2816,11 @@ function FieldTripMode({ program, adv, onFinish }) {
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
         <p className="f-display font-semibold" style={{ color: C.green }}>This adventure isn't unlocked yet</p>
         <p className="f-body text-[17px] text-gray-500 mt-1">Come back on {program.date} to start exploring!</p>
+        <div className="text-left mt-6">
+          <FoldBar title="Field Trip Rules" summary="Read them with your parent">
+            <div className="space-y-3 mb-2"><div className="bg-white rounded-2xl p-4"><SafetyRuleList rules={commonSafetyRules(SAFETY_ROWS)} extra={extraSafetyRules(SAFETY_ROWS, program.id)} /></div><ThreeWarningsCard /></div>
+          </FoldBar>
+        </div>
       </div>
     );
   }
@@ -2897,7 +2902,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
       <div className="px-5 pb-10 text-center pt-10">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
         <p className="f-display font-semibold" style={{ color: C.green }}>Finish exploring first</p>
-        <p className="f-body text-[17px] text-gray-500 mt-1">Complete every mission to unlock this part.</p>
+        <p className="f-body text-[17px] text-gray-500 mt-1">Your teacher checks you in on the trip day. Then this part opens.</p>
       </div>
     );
   }
@@ -3122,7 +3127,7 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
 
   const chapters = {
     before: { title: "GET READY", desc: "Learn some words and think about today's big question." },
-    trip: { title: "EXPLORE", desc: "Complete missions during your Carrotworld experience." },
+    trip: { title: "EXPLORE", desc: "Read the trip rules together before and during your Carrotworld experience." },
     after: { title: "REMEMBER", desc: "Look back, share your favorite moment, and tell us what you learned." },
   };
 
@@ -4231,7 +4236,7 @@ const markGuideSeen = () => {
 };
 const GUIDE_STEPS = [
   { icon: "📚", title: "체험 전 · 예습", text: "단어 카드를 눌러 듣고 따라 말한 뒤 칸을 체크해요. 하루 몇 분이면 돼요." },
-  { icon: "🎒", title: "체험 날 · 현장", text: "선생님이 열어 준 미션을 하나씩 해요. 출석은 선생님이 체크해요." },
+  { icon: "🎒", title: "체험 날 · 현장", text: "현장 안전수칙을 지키며 체험해요. 출석은 선생님이 체크해요." },
   { icon: "🌟", title: "체험 후 · 복습", text: "퀴즈를 풀고 점수(%)를 확인해요. 선생님 리포트를 보고 설문을 남겨 주세요." },
 ];
 const APP_ADDRESS = "explorer.carrotworld.kr";
@@ -4731,6 +4736,8 @@ function parentAction(program, adv) {
   const surveyOpen = !!adv.attended && !adv.parentSurvey;
   const survey = { label: POINT_RULES.survey > 0 ? `설문 남기기 (+${POINT_RULES.survey}P)` : "설문 남기기", act: "survey" };
   const info = { label: "체험 안내 보기", act: "info", programId: program.id, sessionId: slot ? slot.id : null };
+  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.programId === program.id && r.studentIds.includes(adv.studentId));
+  const safety = { label: "안전수칙 확인하고 동의하기", act: "info", programId: program.id, sessionId: slot ? slot.id : null, safety: true };
   const R = (score, key, status, cta, links = []) => ({ score, key, status, cta, links });
   if (adv.absent && !adv.attended) return R(8, "absent", "이번 체험에는 참여하지 못했어요.", { label: "다음 예정 체험 보기", act: "browse" });
   if (adv.attended) {
@@ -4740,12 +4747,13 @@ function parentAction(program, adv) {
     if (isReviewOpen(program) && !adv.afterCompleted) return R(1, "review", "체험이 끝났어요. 배운 내용을 복습해 보세요.", { label: "복습하기", act: "start" }, surveyOpen ? [survey] : []);
     return R(3, "waiting", adv.afterCompleted ? "복습을 마쳤어요. 선생님이 리포트를 준비하고 있어요." : "체험이 끝났어요. 복습은 곧 열려요.", surveyOpen ? survey : null);
   }
-  if (isLive(program)) return R(0, "live", "오늘이 체험 날이에요!", { label: "체험 시작하기", act: "start" }, noticeOut ? [info] : []);
+  if (isLive(program)) return R(0, "live", "오늘이 체험 날이에요!", { label: "체험 시작하기", act: "start" }, [...(agreed ? [] : [safety]), ...(noticeOut ? [info] : [])]);
   if (tripDayPassed(program)) return R(6, "check", "출석을 확인하고 있어요.", null);
   const prepAgain = adv.beforeCompleted ? [{ label: "예습 다시하기", act: "start" }] : [];
-  if (!adv.beforeCompleted) return R(4, "prep", noticeOut ? "안내가 도착했어요. 예습도 해 주세요." : "단어 카드로 예습해요.", { label: "예습 시작하기", act: "start" }, noticeOut ? [info] : []);
+  if (!adv.beforeCompleted) return R(4, "prep", noticeOut ? "안내가 도착했어요. 예습도 해 주세요." : "단어 카드로 예습해요.", { label: "예습 시작하기", act: "start" }, [...(agreed ? [] : [safety]), ...(noticeOut ? [info] : [])]);
+  if (!agreed) return R(5, "info", "예습을 마쳤어요. 다음은 안전수칙 확인이에요.", safety, [...(noticeOut ? [info] : []), ...prepAgain]);
   if (noticeOut) return R(5, "info", "예습을 마쳤어요. 체험 안내를 확인해 주세요.", info, prepAgain);
-  return R(6, "wait", "예습을 마쳤어요. 체험 안내를 곧 보내 드려요.", null, prepAgain);
+  return R(6, "wait", "예습과 안전수칙 동의를 마쳤어요. 체험 안내를 곧 보내 드려요.", null, prepAgain);
 }
 
 /** One child on the parents' home: who they are, the one experience that matters now with its one main button, and the rest tucked away. */
@@ -4761,7 +4769,7 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
   const others = mine.filter((x) => x !== primary);
   const run = (act) => {
     if (act.act === "start") onStart(child.id);
-    else if (act.act === "info") onInfo(act.programId, act.sessionId);
+    else if (act.act === "info") onInfo(act.programId, act.sessionId, !!act.safety);
     else if (act.act === "report") onReport(child.id);
     else if (act.act === "survey") onSurvey(child.id, act.programId || (primary && primary.program.id));
     else if (act.act === "browse") onBrowse();
@@ -4905,6 +4913,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const myKids = students.filter((st) => st.familyPin === familyPin);
   const [infoId, setInfoId] = useState(null);
   const [infoSessionId, setInfoSessionId] = useState(null);
+  const [infoSafety, setInfoSafety] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
   const closeGuide = () => {
     markGuideSeen();
@@ -4955,6 +4964,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
             .map((x) => `${x.c.name} · ${teamForParent(teamOf(getProgram(infoId), x.a))}`)}
           kids={myChildren.filter((c) => adventures.some((a) => a.studentId === c.id && a.programId === infoId && !a.canceled))}
           familyPin={familyPin}
+          openSafety={infoSafety}
           onClose={() => setInfoId(null)}
         />
       )}
@@ -4997,7 +5007,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 adventures={adventures}
                 hasUpcoming={upcomingPrograms(adventures).some((p) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id))}
                 onStart={onStartAdventure}
-                onInfo={(programId, sessionId) => { setInfoId(programId); setInfoSessionId(sessionId || null); }}
+                onInfo={(programId, sessionId, safety) => { setInfoId(programId); setInfoSessionId(sessionId || null); setInfoSafety(!!safety); }}
                 onReport={onViewReport}
                 onSurvey={onOpenSurvey}
                 onBrowse={goBrowse}
@@ -5395,6 +5405,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
         <span className="text-[27px]">{student.avatar}</span>
         <div className="flex-1 min-w-0">
           <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{student.name}</p>
+          {!adv.attended && !adv.absent && (() => { const ok = !!agreementOf(SAFETY_ROWS, student.familyPin, program.id, student.id); return <p className="f-body text-[12px] font-bold" style={{ color: ok ? "#1F7A44" : "#B25A0B" }} data-testid="agree-chip">{ok ? "Safety agreement signed" : "Safety agreement pending"}</p>; })()}
         </div>
         {limited ? (
           <span className="text-[14px] f-body font-bold px-3 py-1.5 rounded-full flex items-center gap-1" style={{ background: adv.attended ? "#DCF3E4" : C.beige, color: adv.attended ? "#1F7A44" : "#8A8060" }}>
@@ -6799,14 +6810,16 @@ function SafetyAgreement({ programId, kids, familyPin, rows }) {
 }
 
 /** What parents (and the child, read-only) see on the trip notice. */
-function SafetySection({ programId, kids = [], familyPin, readOnly, defaultOpen }) {
+function SafetySection({ programId, kids = [], familyPin, readOnly, defaultOpen, autoScroll }) {
+  const boxRef = useRef(null);
+  useEffect(() => { if (autoScroll && boxRef.current) boxRef.current.scrollIntoView({ block: "start" }); }, [autoScroll]);
   const rows = SAFETY_ROWS;
   const rules = commonSafetyRules(rows);
   const extra = extraSafetyRules(rows, programId);
   const signed = kids.length > 0 && kids.every((k) => agreementOf(rows, familyPin, programId, k.id));
   const summary = readOnly ? "CarrotWorld Field Trip Rules" : kids.length === 0 ? "체험 전에 함께 읽어 주세요" : signed ? "동의 완료" : "동의가 필요해요";
   return (
-    <div data-testid="safety-section">
+    <div data-testid="safety-section" ref={boxRef}>
       <FoldBar title="현장 안전수칙 · Field Trip Rules" summary={summary} defaultOpen={defaultOpen !== undefined ? defaultOpen : false}>
         <div className="space-y-2.5 mb-2.5">
           <div className="bg-white rounded-2xl p-4"><SafetyRuleList rules={rules} extra={extra} /></div>
@@ -6823,7 +6836,7 @@ function WarningTracker({ student, programId, who }) {
   const rows = SAFETY_ROWS;
   const list = safetyWarnings(rows).filter((w) => w.studentId === student.id && w.programId === programId);
   const { n, stopped } = warningState(list);
-  const rules = commonSafetyRules(rows);
+  const rules = [...commonSafetyRules(rows), ...extraSafetyRules(rows, programId)];
   const [open, setOpen] = useState(false);
   const [ruleIdx, setRuleIdx] = useState("");
   const [note, setNote] = useState("");
@@ -7166,7 +7179,7 @@ function InfoEditor({ program, value, onChange, sessions = [], onSessionChange }
 }
 
 /** What parents see: one clear page, only the rows that were filled in. */
-function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true, kids = [], familyPin = "", onClose }) {
+function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true, kids = [], familyPin = "", openSafety = false, onClose }) {
   const slot = sessionsOf(program).find((x) => x.id === sessionId) || null;
   const info = infoForSession(infoFrom(program), slot);
   const place = info.venue || program.locationKo || program.location;
@@ -7235,7 +7248,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
           {rows.slice(3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
-          <SafetySection programId={program.id} kids={kids} familyPin={familyPin} />
+          <SafetySection programId={program.id} kids={kids} familyPin={familyPin} defaultOpen={openSafety} autoScroll={openSafety} />
         </div>
         <p className="f-body text-[14px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
@@ -7675,7 +7688,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
       >
         <span className="text-left min-w-0">
           <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("체험 자료 입력")}</span>
-          <span className="block f-body text-[13px] text-gray-500">{tr("단어 · 질문 · 퀴즈 · 미션")}</span>
+          <span className="block f-body text-[13px] text-gray-500">{tr("단어 · 질문 · 퀴즈")}</span>
         </span>
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMaterials ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
@@ -7728,7 +7741,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         >{tr("{0} 정말 삭제할까요?", [deleteNote || tr("학생 기록도 함께 삭제돼요.")])}{deleteNote && <span className="block mt-1 text-gray-500">{tr("삭제하기 전에 백업 파일이 자동으로 내려받아져요.")}</span>}
         </ConfirmDialog>
       )}
-      {!isEdit && <p className="f-body text-[13px] text-gray-400 mt-2">{tr("단어·미션·질문은 기본 내용으로 채워져요.")}</p>}
+      {!isEdit && <p className="f-body text-[13px] text-gray-400 mt-2">{tr("단어·질문은 기본 내용으로 채워져요.")}</p>}
     </div>
   );
 }
@@ -8387,7 +8400,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z14"; // change with every delivery
+const APP_BUILD = "2026-10-10-z16"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10440,7 +10453,7 @@ const buildManual = () => [
       { t: "step", en: "Several times in one day: add Time slots (name, trip time, meeting time and place). Each slot has its own children, teams, teachers and notice.", ko: "같은 날 여러 타임이면 시간대를 추가해요(이름, 체험 시간, 집합 시간과 장소). 시간대마다 아이, 팀, 선생님, 안내가 따로예요." },
       { t: "step", en: "Words: add one by one, or paste one per line (word - meaning - emoji).", ko: "단어: 하나씩 넣거나 한 줄에 하나씩 붙여넣어요(단어 - 뜻 - 이모지)." },
       { t: "step", en: "Review quiz: Make a word quiz automatically is on. With 3 or more words that have a meaning it makes up to 8 questions. You can add your own.", ko: "복습 퀴즈: '단어 퀴즈 자동 만들기'가 켜져 있어요. 뜻이 있는 단어가 3개 이상이면 최대 8문제를 만들어요. 직접 쓴 문제도 넣을 수 있어요." },
-      { t: "tip", en: "Children use their own level's materials. They can look at other levels (words and missions only).", ko: "아이는 자기 레벨 자료를 써요. 다른 레벨은 단어와 미션만 볼 수 있어요." },
+      { t: "tip", en: "Children use their own level's materials. They can look at other levels (words only).", ko: "아이는 자기 레벨 자료를 써요. 다른 레벨은 단어만 볼 수 있어요." },
       { t: "p", en: "Edit: tap the program under Registered programs. Delete asks first and downloads a backup.", ko: "고치기: 등록된 프로그램을 눌러요. 삭제는 먼저 물어보고 백업을 내려받아요." },
       { t: "tip", en: "Unsaved text is kept. Reopen the program and tap Continue writing.", ko: "저장하지 않은 글은 남아 있어요. 프로그램을 다시 열고 '이어서 쓰기'를 눌러요." },
     ],
@@ -10478,7 +10491,7 @@ const buildManual = () => [
     items: [
       { t: "step", en: "The program goes live by itself on the trip date (on both days of a 1 night 2 days trip). Live today is only a manual switch for exceptions.", ko: "체험 날짜가 되면 프로그램이 저절로 시작돼요(1박 2일은 이틀 모두). 오늘 진행 스위치는 예외일 때만 직접 써요." },
       { t: "step", en: "Students tab: tap ✕ on a child who was absent. Then tap Confirm attendance: all the others are marked present at once, and each earns the trip points.", ko: "학생관리 탭에서 결석한 아이는 ✕를 눌러요. 그다음 출석 확정을 누르면 나머지 아이가 한꺼번에 출석 처리되고 체험 완료 포인트가 쌓여요." },
-      { t: "step", en: "Open a card to tick missions, strengths and a note. Typing saves by itself.", ko: "카드를 열어 미션, 잘한 점, 메모를 적어요. 글은 저절로 저장돼요." },
+      { t: "step", en: "Open a card to record warnings, strengths and a note. Typing saves by itself.", ko: "카드를 열어 경고 기록, 잘한 점, 메모를 적어요. 글은 저절로 저장돼요." },
       { t: "step", en: "After the last day the program wraps up by itself. If attendance is not confirmed yet, you get a reminder.", ko: "마지막 날이 지나면 저절로 마무리돼요. 출석을 아직 확정하지 않았으면 알림이 떠요." },
       { t: "p", en: "Cancel: card, Cancel trip. Nothing is deleted and Restore brings it back. A child who attended cannot be cancelled: remove the present mark first.", ko: "취소: 카드에서 체험 취소를 눌러요. 지워지지 않고 되돌리기로 복구해요. 출석한 아이는 출석 체크를 먼저 해제해야 해요." },
     ],
@@ -10579,7 +10592,7 @@ const buildManual = () => [
       { t: "step", en: "Materials tab, tap the program.", ko: "수업자료 탭에서 프로그램을 눌러요." },
       { t: "step", en: "Words: add each word with its English meaning, or paste one per line: king - a man who rules a country.", ko: "단어: 단어마다 영어 뜻을 적거나, 한 줄에 하나씩 붙여넣어요: king - a man who rules a country" },
       { t: "step", en: "Several levels: write each level on its own tab. Copy from A1 copies a level.", ko: "레벨이 여러 개면 레벨마다 탭에 써요. 'A1 내용 복사해 오기'로 복사해요." },
-      { t: "step", en: "Missions, focus points, big question: what the children do and think about.", ko: "미션, 집중 포인트, 큰 질문: 아이들이 할 일과 생각해 볼 것을 써요." },
+      { t: "step", en: "Objective, words, review quiz and teacher question. Safety rules are common and already filled in.", ko: "학습 목표, 단어, 복습 퀴즈, 선생님 질문을 써요. 안전수칙은 공통이라 이미 들어 있어요." },
       { t: "step", en: "Review quiz: keep Make a word quiz automatically on. With 3 or more words that have a meaning it makes the questions (Show the questions to read them). You can add your own.", ko: "복습 퀴즈: '단어 퀴즈 자동 만들기'를 켜 두세요. 뜻이 있는 단어가 3개 이상이면 문제를 만들어요('문제 보기'로 읽어 봐요). 직접 쓴 문제도 넣을 수 있어요." },
       { t: "step", en: "Tap Save. The children see the changes right away.", ko: "저장을 눌러요. 아이들 화면에 바로 반영돼요." },
       { t: "tip", en: "Save before you leave. Unsaved text is lost.", ko: "나가기 전에 저장하세요. 저장하지 않은 글은 사라져요." },
@@ -10590,7 +10603,7 @@ const buildManual = () => [
     title: { en: "Feedback", ko: "피드백 쓰기" },
     items: [
       { t: "step", en: "Feedback tab, tap the program. The tab number is how many children still need feedback.", ko: "피드백 탭에서 프로그램을 눌러요. 탭의 숫자는 피드백이 남은 아이 수예요." },
-      { t: "step", en: "Open a child's card: tick the missions, choose the strengths, write a note.", ko: "아이 카드를 열어요: 미션을 체크하고, 잘한 점을 고르고, 메모를 써요." },
+      { t: "step", en: "Open a child's card: record warnings if needed (3 warnings stop the activity), choose the strengths, write a note.", ko: "아이 카드를 열어요: 필요하면 경고를 기록하고(3회면 활동 중단), 잘한 점을 고르고, 메모를 써요." },
       { t: "step", en: "Full feedback report: your name, CEFR level, overview, notes, 5 language ratings (1 to 5) and 3 personality ratings. Parents read it.", ko: "전체 피드백 리포트: 내 이름, CEFR 레벨, 소개, 메모, 언어 평가 5가지(1~5점), 성향 평가 3가지. 학부모가 읽어요." },
       { t: "tip", en: "Typing saves by itself. Your name is filled in.", ko: "글은 저절로 저장돼요. 내 이름은 미리 채워져 있어요." },
       { t: "warn", en: "Parents read it. Be kind and specific, and do not compare children.", ko: "학부모가 읽어요. 친절하고 구체적으로 쓰고, 아이들끼리 비교하지 마세요." },

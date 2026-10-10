@@ -2332,6 +2332,24 @@ function NavPointsIcon({ size = 20, color = "currentColor" }) {
   );
 }
 
+/** Bottom tabs that stay on screen for every role (parent, teacher, HQ); a spacer keeps content clear of them. */
+const PARENT_TABS = [["home", "홈"], ["points", "포인트"], ["badges", "뱃지"], ["help", "안내"]];
+const parentUi = { tab: "home" };
+function FixedTabs({ items, active, onSelect, label = "메뉴" }) {
+  return (
+    <>
+      <div style={{ height: 76 }} aria-hidden="true" />
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-white" style={{ borderTop: `1px solid ${C.beige}`, paddingBottom: "env(safe-area-inset-bottom, 0px)" }} aria-label={label} data-testid="fixed-tabs">
+        <div className="max-w-md mx-auto grid px-2 pt-1.5 pb-2.5 gap-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+          {items.map(([k, text]) => (
+            <button key={k} onClick={() => onSelect(k)} aria-current={active === k} className="focus-ring tap min-w-0 truncate whitespace-nowrap f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ color: active === k ? C.green : "#9C927D", background: active === k ? C.beige : "transparent", minHeight: 44 }} data-testid={`tab-${k}`}>{text}</button>
+          ))}
+        </div>
+      </nav>
+    </>
+  );
+}
+
 function BottomNavigation({ items, active, onSelect }) {
   return (
     <div className="sticky bottom-0 bg-white flex items-center justify-around pt-2.5 px-2 border-t" style={{ borderColor: C.beige, paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom, 0px))" }}>
@@ -2904,7 +2922,7 @@ function ScoreCard({ score, className = "" }) {
   );
 }
 
-function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsights }) {
+function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsights, onHome, onSurvey }) {
   const quiz = program.remember || [];
   const hasBigQ = !!program.bigQuestion && (program.bigQuestionOptions || []).length >= 2;
   const [step, setStep] = useState(quiz.length || hasBigQ ? "quiz" : "favorite");
@@ -2953,6 +2971,13 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
           <p className="f-display text-[18px] font-bold mb-1" style={{ color: C.orange }}>One thing I discovered</p>
           <p className="f-body text-[17px]" style={{ color: C.charcoal }}>Today I discovered that {r.discovery}.</p>
         </div>
+        {(onHome || onSurvey) && (
+          <div className="space-y-2.5 mt-4" data-testid="after-next">
+            {onSurvey && adv.attended && !adv.parentSurvey && <PrimaryButton onClick={onSurvey}>Parent survey · 보호자 설문 작성하기</PrimaryButton>}
+            {adv.parentSurvey && <p className="f-body text-[15px] font-bold text-center" style={{ color: "#1F7A44" }}>✓ Survey done · 설문 완료</p>}
+            {onHome && <button onClick={onHome} data-testid="after-home" className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-2xl py-3.5" style={{ background: adv.parentSurvey || !adv.attended ? C.green : C.beige, color: adv.parentSurvey || !adv.attended ? "white" : C.green }}>Back to home · 홈으로</button>}
+          </div>
+        )}
       </div>
     );
   }
@@ -3125,6 +3150,17 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
               </div>
             </div>
           )}
+          {(onHome || onSurvey) && (
+            <div className="relative space-y-2.5 pb-8" data-testid="after-next">
+              {onSurvey && adv.attended && !adv.parentSurvey && (
+                <PrimaryButton onClick={onSurvey}>Parent survey · 보호자 설문 작성하기</PrimaryButton>
+              )}
+              {adv.parentSurvey && <p className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ Survey done · 설문 완료</p>}
+              {onHome && (
+                <button onClick={onHome} data-testid="after-home" className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-2xl py-3.5" style={{ background: adv.parentSurvey || !adv.attended ? C.green : C.beige, color: adv.parentSurvey || !adv.attended ? "white" : C.green }}>Back to home · 홈으로</button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -3134,7 +3170,7 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 /* ================================================================== */
 /*  ADVENTURE DETAIL (chapters: Get Ready / Explore / Remember)         */
 /* ================================================================== */
-function AdventureDetail({ program: fullProgram, adv, adventures, studentId, studentLevel, startSection, update, onBack }) {
+function AdventureDetail({ program: fullProgram, adv, adventures, studentId, studentLevel, startSection, update, onBack, onSurvey }) {
   // a program can have a set of materials for each level: the child gets their own level's set and may peek at the others
   const levelsAvail = materialLevels(fullProgram);
   const myLevel = levelsAvail.length ? levelFor(fullProgram, { level: studentLevel }, adv) : null;
@@ -3241,6 +3277,8 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
           program={program}
           adv={adv}
           badgesJustEarned={[]}
+          onHome={onBack}
+          onSurvey={onSurvey}
           onSaveInsights={(insights) => update({ insights })}
           onComplete={(reflection, extra) => {
             const updated = update({ afterCompleted: true, reflection, ...(extra || {}) });
@@ -4995,7 +5033,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
-  const [ptab, setPtab] = useState("home");
+  const [ptab, setPtabState] = useState(parentUi.tab);
+  const setPtab = (k) => { parentUi.tab = k; setPtabState(k); };
   const [activeChildId, setActiveChildId] = useState(null);
   const myKids = students.filter((st) => st.familyPin === familyPin);
   const [infoId, setInfoId] = useState(null);
@@ -5126,13 +5165,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <LevelGuideForParents showTitle />
         </div>
       )}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-white" style={{ borderTop: `1px solid ${C.beige}` }} aria-label="메뉴">
-        <div className="max-w-md mx-auto grid grid-cols-4 px-2 pt-1.5 pb-2.5">
-          {[["home", "홈"], ["points", "포인트"], ["badges", "뱃지"], ["help", "안내"]].map(([k, label]) => (
-            <button key={k} onClick={() => { setPtab(k); window.scrollTo({ top: 0 }); }} aria-current={ptab === k} className="focus-ring tap f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ color: ptab === k ? C.green : "#9C927D", background: ptab === k ? C.beige : "transparent" }} data-testid={`ptab-${k}`}>{label}</button>
-          ))}
-        </div>
-      </nav>
+      <FixedTabs items={PARENT_TABS} active={ptab} onSelect={(k) => { setPtab(k); window.scrollTo({ top: 0 }); }} />
     </div>
   );
 }
@@ -8499,7 +8532,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-11-z22"; // change with every delivery
+const APP_BUILD = "2026-10-11-z24"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9822,20 +9855,6 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       })()}
 
       <div className="px-5 mb-4">
-        <div className="flex gap-1.5" role="tablist" aria-label="HQ">
-          {GROUPS.map((g) => (
-            <button
-              key={g.key}
-              role="tab"
-              aria-selected={activeGroup.key === g.key}
-              onClick={() => go(() => setTab(g.subs[0].key))}
-              className="focus-ring tap flex-1 min-w-0 whitespace-nowrap px-1 text-[14px] f-body font-bold py-2.5 rounded-xl"
-              style={{ background: activeGroup.key === g.key ? C.green : "white", color: activeGroup.key === g.key ? "white" : C.charcoal }}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
         {activeGroup.subs.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto mt-2" data-testid="sub-tabs">
             {activeGroup.subs.map((t) => (
@@ -10203,6 +10222,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           })}
         </div>
       )}
+      <FixedTabs items={GROUPS.map((g) => [g.key, g.label])} active={activeGroup.key} onSelect={(k) => { const g = GROUPS.find((x) => x.key === k); go(() => { setTab(g.subs[0].key); window.scrollTo({ top: 0 }); }); }} label="HQ" />
     </div>
   );
 }
@@ -10956,11 +10976,6 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
     <div className="flex-1">
       {header}
       <div className="pt-4" />
-      <div className="px-5 mb-3 grid grid-cols-4 gap-1.5" role="tablist" aria-label="Teacher tabs">
-        {TABS.map((t) => (
-          <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className="focus-ring tap min-w-0 truncate whitespace-nowrap px-1 f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ background: tab === t.key ? C.green : "white", color: tab === t.key ? "white" : C.charcoal }}>{t.label}</button>
-        ))}
-      </div>
 
       {tab === "pay" && teacherId && <MyPay items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
@@ -11100,6 +11115,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
           )}
         </>
       )}
+      <FixedTabs items={TABS.map((t) => [t.key, t.label])} active={tab} onSelect={(k) => { setTab(k); window.scrollTo({ top: 0 }); }} label="Teacher tabs" />
     </div>
   );
 }
@@ -12207,6 +12223,7 @@ function CarrotExplorer() {
   }
 
   const logout = () => {
+    parentUi.tab = "home";
     setSession(null);
     setParentScreen({ type: "list" });
     setSelectedProgramId(null);
@@ -12350,6 +12367,7 @@ function CarrotExplorer() {
               </div>
             )}
           </div>
+          <FixedTabs items={PARENT_TABS} active={parentUi.tab} onSelect={(k) => { parentUi.tab = k; setSelectedProgramId(null); setStartSection(null); setParentScreen({ type: "list" }); window.scrollTo({ top: 0 }); }} />
         </div>
       </div>
     );
@@ -12363,6 +12381,7 @@ function CarrotExplorer() {
           <div className="flex-1 overflow-y-auto">
             <ParentDashboard adventures={liveAdventures} studentId={parentScreen.studentId} initialProgramId={parentScreen.programId || null} onBack={() => setParentScreen({ type: "list" })} />
           </div>
+          <FixedTabs items={PARENT_TABS} active={parentUi.tab} onSelect={(k) => { parentUi.tab = k; setSelectedProgramId(null); setStartSection(null); setParentScreen({ type: "list" }); window.scrollTo({ top: 0 }); }} />
         </div>
       </div>
     );
@@ -12403,6 +12422,7 @@ function CarrotExplorer() {
                 studentLevel={(students.find((x) => x.id === studentId) || {}).level}
                 update={(patch) => updateAdventure(studentId, selectedProgramId, patch)}
                 startSection={startSection}
+                onSurvey={() => { const pid = selectedProgramId; setStartSection(null); setSelectedProgramId(null); setParentScreen({ type: "survey", studentId, programId: pid }); }}
                 onBack={() => { if (startSection) { setStartSection(null); setSelectedProgramId(null); setParentScreen({ type: "list" }); } else setSelectedProgramId(null); }}
               />
             ) : (
@@ -12416,7 +12436,9 @@ function CarrotExplorer() {
           </div>
         </div>
 
-        {!selectedProgram && (
+        {startSection ? (
+          <FixedTabs items={PARENT_TABS} active={parentUi.tab} onSelect={(k) => { parentUi.tab = k; setSelectedProgramId(null); setStartSection(null); setParentScreen({ type: "list" }); window.scrollTo({ top: 0 }); }} />
+        ) : (
           <BottomNavigation
             items={[
               { key: "home", label: "홈", icon: NavHomeIcon },
@@ -12424,8 +12446,8 @@ function CarrotExplorer() {
               { key: "badges", label: "뱃지", icon: NavBadgeIcon },
               { key: "points", label: "포인트", icon: NavPointsIcon },
             ]}
-            active={studentTab}
-            onSelect={setStudentTab}
+            active={selectedProgram ? "adventures" : studentTab}
+            onSelect={(k) => { setSelectedProgramId(null); setStudentTab(k); }}
           />
         )}
       </div>

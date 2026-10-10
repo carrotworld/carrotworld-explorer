@@ -4238,6 +4238,7 @@ if (typeof window !== "undefined" && window.addEventListener) {
     e.preventDefault();
     deferredInstall = e;
   });
+  if (window.__bip) deferredInstall = window.__bip; // caught by the small script in index.html before this file loaded
 }
 
 /** At the end of the parents' help page: what the levels, steps and badges mean, and how a child moves up. */
@@ -4341,27 +4342,47 @@ function LevelSheet({ onClose }) {
 function InstallButton() {
   const [open, setOpen] = useState(false);
   const [gone, setGone] = useState(false);
+  const [diag, setDiag] = useState("");
   let installed = false;
   try { installed = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; } catch (e) { /* ignore */ }
   if (installed || gone) return null;
+  /** The browser offers no install window: find out why (missing icon files, no service worker) and say it in plain words. */
+  const check = async () => {
+    const out = [];
+    try {
+      const r = await fetch("/manifest.webmanifest", { cache: "no-store" });
+      if (!r.ok) out.push("manifest 파일을 찾지 못했어요");
+      else {
+        const m = await r.json();
+        for (const ic of m.icons || []) {
+          try { const x = await fetch(ic.src, { cache: "no-store" }); if (!x.ok) out.push(`아이콘 없음: ${ic.src}`); } catch (e) { out.push(`아이콘 없음: ${ic.src}`); }
+        }
+      }
+    } catch (e) { out.push("manifest 파일을 읽지 못했어요"); }
+    try { const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration()); if (!reg) out.push("서비스워커가 등록되지 않았어요(index.html의 스크립트 확인)"); } catch (e) { out.push("서비스워커를 확인하지 못했어요"); }
+    setDiag(out.length ? out.join(" · ") : "설치 조건은 갖춰졌어요. 이미 설치했거나 브라우저가 잠시 막은 상태일 수 있어요. 아래 방법으로 추가해 주세요.");
+  };
   const go = async () => {
+    if (!deferredInstall && window.__bip) deferredInstall = window.__bip;
     if (deferredInstall) {
       try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e) { /* declined */ }
-      deferredInstall = null; setGone(true); return;
+      deferredInstall = null; window.__bip = null; setGone(true); return;
     }
-    setOpen((v) => !v);
+    setOpen(true);
+    check();
   };
   return (
     <div data-testid="install-card">
       <button onClick={go} aria-expanded={open} data-testid="install-btn" className="focus-ring tap w-full rounded-2xl px-4 py-3.5 flex items-center justify-between text-white" style={{ background: C.orange }}>
         <span className="f-display text-[17px] font-semibold">📲 홈 화면에 추가</span>
-        <span className="f-body text-[14px]">{open ? "▴" : "앱처럼 바로 열어요"}</span>
+        <span className="f-body text-[14px]">{open ? "" : "앱처럼 바로 열어요"}</span>
       </button>
       {open && (
-        <div className="rounded-2xl p-4 mt-2" style={{ background: C.beige }}>
-          <p className="f-body text-[15px] text-gray-700">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
+        <div className="rounded-2xl p-4 mt-2" style={{ background: C.beige }} data-testid="install-help">
+          <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>이 브라우저에서는 바로 추가 창이 안 떠요. 이렇게 해 주세요.</p>
+          <p className="f-body text-[15px] text-gray-700 mt-1.5">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
           <p className="f-body text-[15px] text-gray-700 mt-1">아이폰: 공유 버튼 → 홈 화면에 추가</p>
-          <p className="f-body text-[13px] text-gray-500 mt-2">주소 {APP_ADDRESS}</p>
+          {diag && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }} data-testid="install-diag">{diag}</p>}
         </div>
       )}
     </div>
@@ -8059,7 +8080,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z3"; // change with every delivery
+const APP_BUILD = "2026-10-10-z4"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

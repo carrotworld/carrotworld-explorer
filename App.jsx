@@ -7685,7 +7685,7 @@ function StatsPanel({ adventures, students, suggestions }) {
   return (
     <div className="px-5 space-y-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
-        {[{ id: "all", label: tr("전체") }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji} ${p.title.split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
+        {[{ id: "all", label: tr("전체") }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji || ""} ${String(p.title || p.id || "").split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
           <button
             key={o.id}
             onClick={() => setSel(o.id)}
@@ -7998,7 +7998,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-x2"; // change with every delivery
+const APP_BUILD = "2026-10-10-x3"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10950,7 +10950,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
   );
 }
 
-export default function CarrotExplorer() {
+function CarrotExplorer() {
   const [booting, setBooting] = useState(true);
   // teachers can read the app in English or Korean (remembered on this phone); parents and children always see Korean
   const [teacherLang, setTeacherLangState] = useState(() => {
@@ -11810,3 +11810,30 @@ export default function CarrotExplorer() {
   );
 }
 
+/** If any screen fails to draw, show a readable message with a reload button instead of a blank page. */
+class ScreenGuard extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err) { try { console.error(err); } catch (e) { /* ignore */ } }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div style={{ background: "#FFF8EC", minHeight: "100vh", padding: "48px 24px", fontFamily: "sans-serif", color: "#1B4D3A" }} data-testid="screen-guard">
+        <div style={{ maxWidth: 420, margin: "0 auto" }}>
+          <p style={{ fontSize: 20, fontWeight: 700 }}>화면을 불러오지 못했어요</p>
+          <p style={{ fontSize: 15, marginTop: 8, color: "#5B5B55" }}>새로고침하면 대부분 해결돼요. 계속되면 아래 글을 캡처해서 알려 주세요.</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, background: "#F47B20", color: "white", border: 0, borderRadius: 12, padding: "12px 20px", fontSize: 16, fontWeight: 700 }}>새로고침</button>
+          <pre style={{ marginTop: 20, fontSize: 12, whiteSpace: "pre-wrap", color: "#8E8E88" }}>{`build ${typeof APP_BUILD !== "undefined" ? APP_BUILD : ""}\n${String((this.state.err && (this.state.err.stack || this.state.err.message)) || this.state.err).slice(0, 600)}`}</pre>
+        </div>
+      </div>
+    );
+  }
+}
+
+export default function CarrotExplorerApp() {
+  return (
+    <ScreenGuard>
+      <CarrotExplorer />
+    </ScreenGuard>
+  );
+}

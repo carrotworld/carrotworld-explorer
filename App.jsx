@@ -28,6 +28,8 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"② 출석은 '오늘 진행'을 켜면 나타나요.": "② Attendance appears once 'Today' is on.",
+"체험 당일 빠른 처리 — ① 오늘 진행 켜기 → ② 출석 확정 → ③ 복습 열기": "Trip day: ① Start today → ② Confirm attendance → ③ Open review",
 "수당 정산": "Pay settlement",
 "부모님 등록 없이 온 학생": "Students without a parent sign-up",
 "현장 학생 등록": "On-site student sign-up",
@@ -8497,7 +8499,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z21"; // change with every delivery
+const APP_BUILD = "2026-10-11-z22"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8845,7 +8847,7 @@ function nextStep(program, st) {
 }
 
 /** Teacher home: every program at a glance, so nobody has to open each one to know where things stand. */
-function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRefresh }) {
+function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRefresh, onSetToday, onSetReview, onSaveAttendance }) {
   const [busy, setBusy] = useState(false);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -8930,6 +8932,27 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
               {st.sessionInfo.length > 0 && chip(tr("시간대"), st.sessionInfo.map((x) => tr("{0} {1}명", [x.label, x.count])).join(" · ") + (st.sessionUnset > 0 ? ` · ${tr("미정 {0}명", [st.sessionUnset])}` : ""), st.sessionUnset > 0 ? "warn" : "")}
               {st.teamCount > 0 && chip(tr("팀"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
             </div>
+            {st.enrolled > 0 && onSetToday && (
+              <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }} data-testid="quick-actions">
+                <p className="f-body text-[13px] text-gray-500 mb-2">{tr("체험 당일 빠른 처리 — ① 오늘 진행 켜기 → ② 출석 확정 → ③ 복습 열기")}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { n: "①", on: isLive(p), label: tr("오늘 진행"), onL: tr("진행 중"), click: () => onSetToday(p.id, !isLive(p)) },
+                    { n: "③", on: isReviewOpen(p), label: tr("복습"), onL: tr("열림"), click: () => onSetReview(p.id, !isReviewOpen(p)) },
+                  ].map((sw) => (
+                    <button key={sw.label} onClick={sw.click} aria-pressed={sw.on} className="focus-ring tap flex items-center gap-2 rounded-xl px-3 py-2.5 text-left" style={{ background: sw.on ? "#DCF3E4" : C.cream, border: `1px solid ${sw.on ? "#9FD6B2" : C.beige}` }}>
+                      {sw.on ? <CheckCircle2 size={18} color="#1F7A44" /> : <Circle size={18} color="#D8CEB8" />}
+                      <span className="min-w-0">
+                        <span className="block f-body text-[15px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.n} {sw.label}</span>
+                        <span className="block f-body text-[13px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onL : tr("꺼짐")}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {!isLive(p) && !tripDayPassed(p) && st.attended === 0 && <p className="f-body text-[13px] text-gray-400 mt-2">{tr("② 출석은 '오늘 진행'을 켜면 나타나요.")}</p>}
+                <AttendanceStrip program={p} roster={adventures.filter((a) => a.programId === p.id).map((adv) => ({ student: students.find((x) => x.id === adv.studentId), adv })).filter((r) => r.student)} onSave={(studentId, patch) => onSaveAttendance(studentId, p.id, patch)} />
+              </div>
+            )}
             {next.go ? (
               <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-2.5 flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-left" style={{ background: "#FFF1E2" }}>
                 <span className="f-body text-[14px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
@@ -9869,6 +9892,9 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           students={students}
           lastSyncAt={lastSyncAt || Date.now()}
           onRefresh={onRefresh ? () => onRefresh(null) : undefined}
+          onSetToday={onSetProgramToday}
+          onSetReview={onSetProgramReview}
+          onSaveAttendance={(studentId, pid, patch) => updateAdventure(studentId, pid, patch)}
           onGo={(where, p) =>
             go(() => {
               if (where === "manage") { setProgramId(p.id); setTab("manage"); }

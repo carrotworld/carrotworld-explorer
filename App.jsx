@@ -3217,8 +3217,8 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
 /*  PARENT VIEW                                                         */
 /* ================================================================== */
 /** After the trip: what the child learned, put together from the program's materials and the child's own activity (nothing for HQ to write). */
-function StudyRecap({ a, program }) {
-  const [open, setOpen] = useState(false);
+function StudyRecap({ a, program, defaultOpen = false }) {
+  const [open, setOpen] = useState(!!defaultOpen);
   const view = programForLevel(program, a.materialLevel);
   const words = view.vocabulary || [];
   const checks = a.insights?.wordChecks || {};
@@ -3284,7 +3284,7 @@ function StudyRecap({ a, program }) {
   );
 }
 
-function ParentAdventureReport({ a, program }) {
+function ParentAdventureReport({ a, program, openRecap = false }) {
   const view = programForLevel(program, a.materialLevel);
   return (
     <div className="bg-white rounded-2xl overflow-hidden">
@@ -3319,7 +3319,7 @@ function ParentAdventureReport({ a, program }) {
 
         <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
         <div className="space-y-1.5 mb-3">
-          <HighlightLine ok={missionsAllDone(a)} text={`미션 ${missionsDoneCount(a)}/${a.missionsCompleted.length}개 완료`} />
+          {a.missionsCompleted.length > 0 && <HighlightLine ok={missionsAllDone(a)} text={`미션 ${missionsDoneCount(a)}/${a.missionsCompleted.length}개 완료`} />}
           <HighlightLine ok={!!a.reflection} text="복습과 소감 작성 완료" />
           <HighlightLine ok={a.attended} text="모둠 활동 참여" />
         </div>
@@ -3346,7 +3346,7 @@ function ParentAdventureReport({ a, program }) {
         )}
 
         <PhotosRow photos={[...(a.photos || []).map((p) => p.url), a.reflection?.photo].filter(Boolean)} />
-        <StudyRecap a={a} program={program} />
+        <StudyRecap a={a} program={program} defaultOpen={openRecap} />
       </div>
     </div>
   );
@@ -4765,12 +4765,15 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
       </div>
 
       <div className="grid grid-cols-3 gap-2.5" data-testid="learning-status">
-        {[["참여 체험", `${count}회`], ["예습 완료", `${mineAll.filter((a) => a.beforeCompleted).length}개`], ["받은 리포트", `${mineAll.filter((a) => feedbackSent(a)).length}개`]].map(([k, v]) => (
-          <div key={k} className="bg-white rounded-xl px-2 py-2.5 text-center">
-            <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{k}</p>
+        {[["참여 체험", `${count}회`, null], ["예습 완료", `${mineAll.filter((a) => a.beforeCompleted).length}개`, null], ["받은 리포트", `${mineAll.filter((a) => feedbackSent(a)).length}개`, () => onReport(child.id)]].map(([k, v, go]) => {
+          const inner = (<>
+            <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{k}{go ? " ›" : ""}</p>
             <p className="f-display text-[19px] font-bold leading-tight" style={{ color: C.green }}>{v}</p>
-          </div>
-        ))}
+          </>);
+          return go
+            ? <button key={k} onClick={go} data-testid="reports-tile" className="focus-ring tap bg-white rounded-xl px-2 py-2.5 text-center" style={{ border: `1px solid ${C.beige}` }}>{inner}</button>
+            : <div key={k} className="bg-white rounded-xl px-2 py-2.5 text-center">{inner}</div>;
+        })}
       </div>
 
       {others.length > 0 && (
@@ -5030,22 +5033,54 @@ function ParentAdviceCard({ a, program }) {
 }
 
 function ParentDashboard({ adventures, studentId, onBack }) {
+  const [sel, setSel] = useState(null); // programId of the report being read
+  useBack(() => { if (sel) { setSel(null); window.scrollTo({ top: 0 }); return true; } return false; });
   const mine = adventures.filter((a) => a.studentId === studentId);
-  const withProgram = mine.map((a) => ({ a, program: getProgram(a.programId) }));
-  const completed = withProgram.filter(({ a }) => getStatus(a) === "completed");
-  const inProgress = withProgram.filter(({ a }) => getStatus(a) !== "completed");
+  const withProgram = mine.map((a) => ({ a, program: getProgram(a.programId) })).filter((x) => x.program);
+  const reports = withProgram.filter(({ a }) => feedbackSent(a) || getStatus(a) === "completed");
+  const inProgress = withProgram.filter(({ a }) => !(feedbackSent(a) || getStatus(a) === "completed"));
   const count = attendedCount(adventures, studentId);
   const { rank } = rankFor(count);
+  const picked = sel ? withProgram.find((x) => x.program.id === sel) : null;
+
+  if (picked) {
+    return (
+      <div className="pb-6" data-testid="report-detail">
+        <ScreenHeader title="학습 리포트" subtitle={splitTitle(picked.program.title)[0] || picked.program.title} onBack={() => { setSel(null); window.scrollTo({ top: 0 }); }} />
+        <div className="px-5 space-y-3">
+          <ParentAdventureReport a={picked.a} program={picked.program} openRecap />
+          {FEATURES.parentAdvice && picked.a.advice?.sent && <ParentAdviceCard a={picked.a} program={picked.program} />}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-6">
-      <ScreenHeader title="우리 아이의 체험" subtitle={`${rank.emoji} ${rank.label} · ${count}회 참여`} onBack={onBack} />
+    <div className="pb-6" data-testid="report-list">
+      <ScreenHeader title="학습 리포트" subtitle={`${tr("체험 참여 등급")} ${rank.label} · ${count}회 참여`} onBack={onBack} />
       <div className="px-5 space-y-3">
+        {reports.length === 0 && <p className="f-body text-[15px] text-gray-500 bg-white rounded-2xl p-4">아직 받은 리포트가 없어요. 체험이 끝나고 선생님이 리포트를 보내면 여기에 모여요.</p>}
+        {reports.map(({ a, program }) => {
+          const score = reviewScoreOf(a);
+          const sent = feedbackSent(a);
+          return (
+            <button key={program.id} onClick={() => { setSel(program.id); window.scrollTo({ top: 0 }); }} data-testid="report-item" className="focus-ring tap w-full text-left bg-white rounded-2xl p-4 flex items-stretch gap-3">
+              <TitleBar program={program} />
+              <div className="flex-1 min-w-0 py-0.5">
+                <ProgramTitle program={program} />
+                <p className="f-body text-[14px] text-gray-400 mt-0.5">{program.date} · {program.locationKo}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <span className="f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: sent ? "#EAF7EF" : C.beige, color: sent ? "#1F7A44" : "#9C927D" }}>{sent ? "선생님 리포트 도착" : "선생님 리포트 준비 중"}</span>
+                  {score && <span className="f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF1E2", color: C.orange }}>복습 퀴즈 {score.percent}%</span>}
+                </div>
+              </div>
+              <span className="self-center f-body text-[18px]" style={{ color: "#9C927D" }}>›</span>
+            </button>
+          );
+        })}
         {withProgram
-          .filter(({ a, program }) => FEATURES.parentAdvice && program && a.advice?.sent)
-          .sort((x, y) => Date.parse(y.a.advice.sent.sentAt) - Date.parse(x.a.advice.sent.sentAt))
+          .filter(({ a, program }) => FEATURES.parentAdvice && a.advice?.sent && reports.every((r) => r.program.id !== program.id))
           .map(({ a, program }) => <ParentAdviceCard key={`advice-${program.id}`} a={a} program={program} />)}
-        {completed.map(({ a, program }) => <ParentAdventureReport key={program.id} a={a} program={program} />)}
 
         {inProgress.length > 0 && (
           <>
@@ -6933,6 +6968,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const [showMaterials, setShowMaterials] = useState(!!defaultShowMaterials);
   const [noticeInfo, setNoticeInfo] = useState(() => infoFrom(initial));
   const [showInfo, setShowInfo] = useState(!!defaultShowInfo);
+  const [showMore, setShowMore] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const draftKey = `cw-draft-program-${initial ? initial.id : "new"}`;
@@ -7169,6 +7205,47 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         {places.length > 0 && <datalist id="cw-places">{places.map((p) => <option key={p.name} value={p.name} />)}</datalist>}
       </div>
 
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("레벨 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
+      <div className="flex gap-2 mb-3">
+        {LEVEL_CHOICES.map((l) => (
+          <button
+            key={l}
+            onClick={() => toggleLevel(l)}
+            aria-pressed={levels.includes(l)}
+            className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
+            style={{ background: levels.includes(l) ? C.green : C.cream, color: levels.includes(l) ? "white" : C.charcoal, border: `1px solid ${levels.includes(l) ? C.green : C.beige}` }}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+
+
+      <textarea
+        value={themeKo}
+        onChange={(e) => setThemeKo(e.target.value)}
+        placeholder={tr("체험 소개 (부모님용, 한 문장)")}
+        rows={2}
+        aria-label={tr("체험 소개")}
+        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
+        style={{ background: C.cream, border: `1px solid ${C.beige}` }}
+      />
+
+      <button
+        onClick={() => setShowMore((v) => !v)}
+        aria-expanded={showMore}
+        data-testid="more-settings"
+        className="focus-ring tap w-full flex items-center justify-between rounded-xl px-3 py-2.5 mb-3"
+        style={{ background: C.beige }}
+      >
+        <span className="text-left min-w-0">
+          <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("추가 설정")}</span>
+          <span className="block f-body text-[13px] text-gray-500">{tr("테마 아이콘 · 장소 사진 · 시간대")}</span>
+        </span>
+        <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMore ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
+      </button>
+      {showMore && (
+        <>
       <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("테마 아이콘 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
       <div className="flex gap-2 flex-wrap mb-3">
         {ICON_CHOICES.map((opt) => (
@@ -7191,31 +7268,6 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
       </div>
       <p className="f-body text-[13px] text-gray-400 mb-3">{tr("부모님과 아이 화면에 이렇게 큰 제목으로 나와요. \":\" 뒤의 영어는 작게 아래에 보여요.")}</p>
 
-      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("레벨 ")}<span className="font-normal text-gray-400">{tr("(여러 개 선택 가능)")}</span></p>
-      <div className="flex gap-2 mb-3">
-        {LEVEL_CHOICES.map((l) => (
-          <button
-            key={l}
-            onClick={() => toggleLevel(l)}
-            aria-pressed={levels.includes(l)}
-            className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
-            style={{ background: levels.includes(l) ? C.green : C.cream, color: levels.includes(l) ? "white" : C.charcoal, border: `1px solid ${levels.includes(l) ? C.green : C.beige}` }}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-
-      <textarea
-        value={themeKo}
-        onChange={(e) => setThemeKo(e.target.value)}
-        placeholder={tr("체험 소개 (부모님용, 한 문장)")}
-        rows={2}
-        aria-label={tr("체험 소개")}
-        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
-        style={{ background: C.cream, border: `1px solid ${C.beige}` }}
-      />
-
       <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }} data-testid="cover-photo-editor">
         <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("장소 사진")} <span className="font-normal text-gray-400">{tr("(홈 화면에 한 장)")}</span></p>
         {coverPhoto && <img src={coverPhoto} alt="" className="w-full h-28 object-cover rounded-lg mt-2" />}
@@ -7234,6 +7286,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         {photoMsg && <p className="f-body text-[13px] mt-1.5" style={{ color: "#B25A0B" }}>{photoMsg}</p>}
         <p className="f-body text-[12px] text-gray-400 mt-1.5">{tr("사진은 작게 줄여서 저장돼요. 저장해야 반영돼요.")}</p>
       </div>
+
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }}>
         <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("시간대")} <span className="font-normal text-gray-400">{tr("(같은 날 여러 타임이면)")}</span></p>
@@ -7261,6 +7314,8 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         <button onClick={() => setSessions((prev) => [...prev, { id: newId("s"), label: "", time: "", meetingTime: "", meetingPoint: "", published: false }])} className="focus-ring tap mt-2 f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: C.beige, color: C.green }}>{tr("+ 시간대 추가")}</button>
         {sessions.length > 0 && <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("집합 시간과 모이는 곳은 비워 두면 아래 체험 전 안내의 값을 써요.")}</p>}
       </div>
+        </>
+      )}
 
       <button
         onClick={() => setShowInfo((v) => !v)}
@@ -7998,7 +8053,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-y4"; // change with every delivery
+const APP_BUILD = "2026-10-10-z1"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

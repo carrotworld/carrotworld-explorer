@@ -4360,7 +4360,7 @@ function InstallButton() {
       }
     } catch (e) { out.push("manifest 파일을 읽지 못했어요"); }
     try { const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration()); if (!reg) out.push("서비스워커가 등록되지 않았어요(index.html의 스크립트 확인)"); } catch (e) { out.push("서비스워커를 확인하지 못했어요"); }
-    setDiag(out.length ? out.join(" · ") : "설치 조건은 갖춰졌어요. 이미 설치했거나 브라우저가 잠시 막은 상태일 수 있어요. 아래 방법으로 추가해 주세요.");
+    setDiag(out.length ? out.join(" · ") : "앱 설치 조건은 모두 갖춰졌어요. 이 브라우저가 추가 창을 지원하지 않는 거라, 위 방법으로 추가하거나 크롬으로 열어 주세요.");
   };
   const go = async () => {
     if (!deferredInstall && window.__bip) deferredInstall = window.__bip;
@@ -4380,7 +4380,8 @@ function InstallButton() {
       {open && (
         <div className="rounded-2xl p-4 mt-2" style={{ background: C.beige }} data-testid="install-help">
           <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>이 브라우저에서는 바로 추가 창이 안 떠요. 이렇게 해 주세요.</p>
-          <p className="f-body text-[15px] text-gray-700 mt-1.5">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
+          {/whale/i.test((typeof navigator !== "undefined" && navigator.userAgent) || "") && <p className="f-body text-[15px] font-bold mt-1.5" style={{ color: C.green }}>네이버 웨일: 아래 메뉴(≡) → 홈 화면에 추가 (또는 바로가기 추가)</p>}
+          <p className="f-body text-[15px] text-gray-700 mt-1.5">크롬·삼성 인터넷: 브라우저 메뉴(점 3개 또는 ≡) → 홈 화면에 추가</p>
           <p className="f-body text-[15px] text-gray-700 mt-1">아이폰: 공유 버튼 → 홈 화면에 추가</p>
           {diag && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }} data-testid="install-diag">{diag}</p>}
         </div>
@@ -8080,7 +8081,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z4"; // change with every delivery
+const APP_BUILD = "2026-10-10-z5"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

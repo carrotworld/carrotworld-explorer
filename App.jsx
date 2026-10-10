@@ -2610,33 +2610,53 @@ function Journey({ adventures, studentId, points = 0 }) {
 /*  STUDENT: BADGE COLLECTION                                           */
 /* ================================================================== */
 function BadgeCollection({ adventures, studentId }) {
+  const [showLadder, setShowLadder] = useState(false);
   const badges = computeBadges(adventures, studentId);
   const earned = badges.filter((b) => b.earned);
   const locked = badges.filter((b) => !b.earned);
+  const n = attendedCount(adventures, studentId);
+  const { rank, nextRank } = rankFor(n);
+  const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
   return (
     <div className="pb-6">
-      <ScreenHeader title="My Badges" />
+      <ScreenHeader title="내 뱃지" />
       <div className="px-5">
-        {(() => {
-          const n = attendedCount(adventures, studentId);
-          const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
-          return (
-            <div className="bg-white rounded-2xl p-4 mb-5" data-testid="stamp-board">
-              <p className="f-display font-bold text-[20px] mb-3" style={{ color: C.green }}>도장판</p>
-              <StampCard count={n} perRow={5} size={56} />
-              <p className="f-body text-[16px] font-bold mt-4" style={{ color: C.orange }}>도장 {n}개 · 다음 뱃지까지 {left}개</p>
-              <p className="f-body text-[13px] text-gray-400 mt-1">{`체험 완료 시 도장 1개 + ${POINT_RULES.trip > 0 ? POINT_RULES.trip.toLocaleString("en-US") + "P" : "포인트"} · 10개마다 뱃지`}</p>
+        <div className="rounded-2xl p-5 mb-5" style={{ background: C.green }} data-testid="stamp-board">
+          <div className="flex items-center gap-3.5 mb-4">
+            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0" style={{ border: `2px dashed ${C.orange}` }}>
+              <RankIcon label={rank.label} size={24} color={C.orange} />
             </div>
-          );
-        })()}
-        <SectionBar>Earned ({earned.length})</SectionBar>
-        <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
-          {earned.map((b) => <Badge key={b.id} b={b} />)}
+            <div className="min-w-0">
+              <p className="f-display text-[21px] font-bold text-white leading-tight">{rank.label}</p>
+              <p className="f-body text-[14px]" style={{ color: "#C9E6D6" }}>체험 {n}회{nextRank ? ` · ${nextRank.label}까지 ${nextRank.min - n}회` : " · 최고 단계"}</p>
+            </div>
+          </div>
+          <StampCard count={n} fillColor={C.orange} emptyColor="#3F7358" />
+          <p className="f-body text-[13px] mt-3" style={{ color: "#9FD1B8" }}>도장 {n}개 · 다음 뱃지까지 {left}개 · 체험을 마치면 도장 1개{POINT_RULES.trip > 0 ? ` + ${POINT_RULES.trip.toLocaleString("en-US")}P` : ""}</p>
         </div>
-        <SectionBar>Next badges</SectionBar>
-        <div className="grid grid-cols-3 gap-y-5 justify-items-center">
+
+        <SectionBar>받은 뱃지 ({earned.length})</SectionBar>
+        {earned.length === 0 ? (
+          <p className="f-body text-[14px] text-gray-400 mb-6 px-1">첫 체험을 마치면 여기에 모여요.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
+            {earned.map((b) => <Badge key={b.id} b={b} />)}
+          </div>
+        )}
+        <SectionBar>다음 뱃지</SectionBar>
+        <div className="grid grid-cols-3 gap-y-5 justify-items-center mb-6">
           {locked.map((b) => <Badge key={b.id} b={b} />)}
         </div>
+
+        <button onClick={() => setShowLadder((v) => !v)} aria-expanded={showLadder} className="focus-ring tap w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3.5 f-body text-[15px] font-bold" style={{ color: C.green }} data-testid="ladder-toggle">
+          <span>등급 단계 보기</span>
+          <span>{showLadder ? "▴" : "▾"}</span>
+        </button>
+        {showLadder && (
+          <div className="bg-white rounded-2xl p-4 mt-2.5">
+            <LevelLadder count={n} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -4702,7 +4722,7 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
   const upcomingNow = primary && ["live", "prep", "info", "check"].includes(primary.act.key);
   const prog = primary ? childProgress(primary.program, primary.a) : null;
   const photo = primary && primary.program.coverPhoto;
-  const links = primary ? [...primary.act.links.map((l) => ({ ...l, programId: l.programId || primary.program.id })), ...(primary.act.links.some((l) => l.act === "info") || (primary.act.cta && primary.act.cta.act === "info") ? [] : [{ label: "체험 상세", act: "info", programId: primary.program.id }])] : [];
+  const links = primary ? [...primary.act.links.map((l) => ({ ...l, programId: l.programId || primary.program.id }))] : [];
   return (
     <>
       <div className="bg-white rounded-2xl p-4" data-testid="child-card">
@@ -4716,19 +4736,15 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
               </div>
               {photo && <img src={photo} alt="" data-testid="child-photo" className="shrink-0 w-[76px] h-[76px] rounded-xl object-cover" />}
             </div>
-            <div className="mt-3.5" data-testid="child-progress">
-              <div className="grid grid-cols-5 gap-1">
-                {prog.steps.map((x) => {
-                  const on = prog.current && prog.current.key === x.key;
-                  return <span key={x.key} className="h-1.5 rounded-full" style={{ background: x.done ? C.green : on ? C.orange : C.beige }} />;
-                })}
-              </div>
-              <div className="grid grid-cols-5 gap-1 mt-1.5">
-                {prog.steps.map((x) => {
-                  const on = prog.current && prog.current.key === x.key;
-                  return <span key={x.key} className="f-body text-[12px] text-center" style={{ color: x.done ? "#1F7A44" : on ? "#B25A0B" : "#B9AE99", fontWeight: on ? 700 : 500 }}>{x.label}</span>;
-                })}
-              </div>
+            <div className="mt-3.5 flex items-center gap-1.5 flex-wrap" data-testid="child-progress">
+              {(() => {
+                const items = prog.steps.filter((x) => x.key !== "notice");
+                const cur = items.find((x) => !x.done) || null;
+                return items.map((x) => (
+                  <span key={x.key} className="f-body text-[12px] rounded-full px-2.5 py-1" style={{ background: x.done ? "#EAF7EF" : cur && cur.key === x.key ? "#FFF1E2" : C.cream, color: x.done ? "#1F7A44" : cur && cur.key === x.key ? "#B25A0B" : "#B9AE99", fontWeight: cur && cur.key === x.key ? 700 : 500 }}>{x.done ? "✓ " : ""}{x.label}</span>
+                ));
+              })()}
+              <button data-testid="info-link" onClick={() => run({ act: "info", programId: primary.program.id, sessionId: (sessionOf(primary.program, primary.a) || {}).id || null })} className="focus-ring tap ml-auto f-body text-[13px] font-bold rounded-full px-3 py-1" style={{ border: `1px solid ${C.green}`, color: C.green }}>체험 안내 ›</button>
             </div>
             {cta(primary.act.cta) ? (
               <button data-testid="primary-action" onClick={() => run(primary.act.cta)} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-3.5 text-white" style={{ background: C.orange }}>
@@ -4737,11 +4753,11 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
             ) : (
               <p className="f-body text-[14px] mt-3" style={{ color: C.charcoal }}>{primary.act.status}</p>
             )}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5">
+            {links.length > 0 && <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5">
               {links.map((l) => (
                 <button key={l.label} onClick={() => run(l)} className="focus-ring tap f-body text-[13px] font-bold" style={{ color: C.green }}>{l.label} ›</button>
               ))}
-            </div>
+            </div>}
           </>
         ) : (
           <p className="f-body text-[15px] text-gray-500">아직 신청한 체험이 없어요.</p>
@@ -4760,7 +4776,7 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
       {others.length > 0 && (
         <div className="bg-white rounded-2xl px-4 py-3">
           <button onClick={() => setShowOthers((v) => !v)} aria-expanded={showOthers} className="focus-ring tap w-full flex items-center justify-between f-body text-[14px] font-bold" style={{ color: C.green }}>
-            <span>다른 체험 {others.length}개{others.some((x) => x.act.cta && x.act.key !== "done") ? " · 할 일 있어요" : ""}</span>
+            <span>{others.every((x) => getStatus(x.a) === "completed") ? "지난 체험" : "다른 신청 체험"} {others.length}개{others.some((x) => x.act.cta && x.act.key !== "done") ? " · 할 일 있어요" : ""}</span>
             <span>{showOthers ? "▴" : "▾"}</span>
           </button>
           {showOthers && (
@@ -4898,6 +4914,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         <ProgramInfoSheet
           program={getProgram(infoId)}
           sessionId={infoSessionId}
+          noticeOut={(() => { const ip = getProgram(infoId); const sl = sessionsOf(ip); const one = sl.find((x) => x.id === infoSessionId) || null; return sl.length ? !!(one && isNoticeOut(ip, one)) : isNoticeOut(ip, null); })()}
           teamRows={myChildren
             .map((c) => ({ c, a: adventures.find((x) => x.studentId === c.id && x.programId === infoId) }))
             .filter((x) => x.a && teamOf(getProgram(infoId), x.a))
@@ -4932,9 +4949,10 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                     ))}
                   </div>
                 )}
-                <div className="flex items-baseline justify-between gap-3 px-1">
-                  <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{myChildren.length > 1 ? "" : `${c.avatar} `}{myChildren.length > 1 ? "" : c.name}</p>
-                  <p className="f-body text-[13px] text-gray-500 whitespace-nowrap">Level {c.level} · {rank.label}{nextRank ? ` · 다음 단계까지 ${nextRank.min - n}회` : ""}</p>
+                {myChildren.length === 1 && <p className="f-display text-[19px] font-semibold px-1" style={{ color: C.green }}>{c.avatar} {c.name}</p>}
+                <div className="flex items-center justify-between gap-4 px-1 mt-1 mb-1">
+                  <p className="f-body text-[13px] text-gray-500">Level {c.level} · {rank.label}</p>
+                  {nextRank && <p className="f-body text-[13px] text-gray-500 whitespace-nowrap">다음 단계까지 {nextRank.min - n}회</p>}
                 </div>
               </div>
               <ChildHomeCard
@@ -6781,7 +6799,7 @@ function InfoEditor({ program, value, onChange, sessions = [], onSessionChange }
 }
 
 /** What parents see: one clear page, only the rows that were filled in. */
-function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
+function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true, onClose }) {
   const slot = sessionsOf(program).find((x) => x.id === sessionId) || null;
   const info = infoForSession(infoFrom(program), slot);
   const place = info.venue || program.locationKo || program.location;
@@ -6793,7 +6811,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
     { icon: "📍", label: "장소", value: [program.locationKo || program.location, info.venue].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n") || place, href: info.venue ? mapLink(info.venue) : "" },
     { icon: "💰", label: "입장료", value: fee, tone: info.feeType === "parent" ? "pay" : "ok" },
     { icon: "📝", label: "안내", value: info.note },
-  ].filter((r) => r.value);
+  ].filter((r) => r.value && (noticeOut || r.label === "일시"));
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: C.cream }} role="dialog" aria-modal="true" aria-label="체험 안내">
       <div className="max-w-md mx-auto px-5 pt-6 pb-10">
@@ -6804,10 +6822,16 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
         <div className="mb-5"><ProgramHeadline program={program} size={34} /></div>
         {slot && <p className="f-display text-[20px] font-semibold mb-3 -mt-2" style={{ color: C.orange }}>🕘 {sessionName(slot)}</p>}
         <div className="space-y-2.5">
+          {!noticeOut && (
+            <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="notice-pending">
+              <p className="f-body text-[15px] font-bold" style={{ color: C.orange }}>집합 장소 · 준비물 · 주차 안내</p>
+              <p className="f-body text-[15px] mt-1" style={{ color: C.charcoal }}>체험 전에 안내가 도착하면 이곳에 나타나요.</p>
+            </div>
+          )}
           {rows.slice(0, 3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
-          {teamRows.length > 0 && (
+          {noticeOut && teamRows.length > 0 && (
             <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
               <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>🧑‍🏫 우리 아이 팀과 선생님</p>
               {teamRows.map((r, i) => (
@@ -6815,7 +6839,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, onClose }) {
               ))}
             </div>
           )}
-          {bring.length > 0 && (
+          {noticeOut && bring.length > 0 && (
             <div className="bg-white rounded-2xl p-4">
               <p className="f-body text-[14px] font-bold mb-2" style={{ color: C.orange }}>🎒 준비물</p>
               <div className="flex flex-wrap gap-1.5">
@@ -7974,7 +7998,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-v3"; // change with every delivery
+const APP_BUILD = "2026-10-10-x2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11760,9 +11784,8 @@ export default function CarrotExplorer() {
               />
             ) : (
               <>
-                {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} name={student.name} points={pointsBalance(pointEntries(student.familyPin, students, liveAdventures, suggestions))} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
+                {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} name={student.name} points={pointsBalance(pointEntries(student.familyPin, students, liveAdventures, suggestions))} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("badges")} />}
                 {studentTab === "adventures" && <AdventuresList adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} />}
-                {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} points={pointsBalance(pointEntries((students.find((x) => x.id === studentId) || {}).familyPin, students, liveAdventures, suggestions))} />}
                 {studentTab === "badges" && <BadgeCollection adventures={liveAdventures} studentId={studentId} />}
                 {studentTab === "points" && (() => { const me = students.find((x) => x.id === studentId) || {}; return <PointsSheet embedded familyPin={me.familyPin} students={students} adventures={liveAdventures} suggestions={suggestions} />; })()}
               </>
@@ -11775,7 +11798,6 @@ export default function CarrotExplorer() {
             items={[
               { key: "home", label: "홈", icon: NavHomeIcon },
               { key: "adventures", label: "체험", icon: NavCompassIcon },
-              { key: "journey", label: "성장 기록", icon: NavJourneyIcon },
               { key: "badges", label: "뱃지", icon: NavBadgeIcon },
               { key: "points", label: "포인트", icon: NavPointsIcon },
             ]}

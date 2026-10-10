@@ -8075,7 +8075,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z7"; // change with every delivery
+const APP_BUILD = "2026-10-10-z8"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11104,26 +11104,39 @@ function CarrotExplorer() {
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .fetchState()
-      .then((data) => {
-        if (cancelled) return;
-        if (data.programs && data.programs.length) {
-          PROGRAMS.length = 0;
-          PROGRAMS.push(...data.programs);
-          setProgramsVersion((v) => v + 1);
-        }
-        if (data.students && data.students.length) setStudents(data.students);
-        if (data.adventures) setAdventures(data.adventures);
-        if (data.suggestions) setSuggestions(data.suggestions);
-      })
-      .catch((err) => {
-        // No server yet (e.g. local dev without the D1 binding) — keep the
-        // built-in demo data so the app still works standalone.
-        console.warn("[init] could not load server state, using built-in demo data:", err.message || err);
-      });
+    let timer = null;
+    let tries = 0;
+    const load = () => {
+      api
+        .fetchState()
+        .then((data) => {
+          if (cancelled) return;
+          if (data.programs && data.programs.length) {
+            PROGRAMS.length = 0;
+            PROGRAMS.push(...data.programs);
+            setProgramsVersion((v) => v + 1);
+          }
+          if (data.students && data.students.length) setStudents(data.students);
+          if (data.adventures) setAdventures(data.adventures);
+          if (data.suggestions) setSuggestions(data.suggestions);
+          setLoadState(false);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          // No server answer (weak signal, server error, or local dev without the D1 binding): the built-in demo data stays on screen,
+          // so say so out loud (nothing is lost on the server) and keep trying by itself.
+          console.warn("[init] could not load server state, using built-in demo data:", err.message || err);
+          setLoadState(true);
+          tries += 1;
+          if (tries <= 6) timer = setTimeout(load, Math.min(30000, 3000 * tries));
+        });
+    };
+    LOAD_STATE.retry = () => { tries = 0; load(); };
+    load();
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
+      LOAD_STATE.retry = null;
     };
   }, []);
 
@@ -11925,9 +11938,32 @@ class ScreenGuard extends React.Component {
   }
 }
 
+/** The first load from the server failed: a banner says so (the screen shows built-in sample data until it works). */
+const LOAD_STATE = { failed: false, retry: null };
+function setLoadState(failed) {
+  LOAD_STATE.failed = failed;
+  try { window.dispatchEvent(new Event("cw-load")); } catch (e) { /* ignore */ }
+}
+function LoadBanner() {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const f = () => tick((v) => v + 1);
+    window.addEventListener("cw-load", f);
+    return () => window.removeEventListener("cw-load", f);
+  }, []);
+  if (!LOAD_STATE.failed) return null;
+  return (
+    <div role="alert" data-testid="load-failed" className="fixed top-0 inset-x-0 z-50 px-4 py-2.5 flex items-center gap-3" style={{ background: "#B25A0B", color: "white" }}>
+      <p className="f-body text-[14px] font-bold flex-1 min-w-0">서버에서 자료를 불러오지 못했어요. 지금은 임시 화면이라 자료가 비어 보일 수 있어요. 저장된 자료는 그대로예요.</p>
+      <button onClick={() => { if (LOAD_STATE.retry) LOAD_STATE.retry(); }} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-xl px-3 py-1.5" style={{ background: "white", color: "#B25A0B" }}>다시 불러오기</button>
+    </div>
+  );
+}
+
 export default function CarrotExplorerApp() {
   return (
     <ScreenGuard>
+      <LoadBanner />
       <CarrotExplorer />
     </ScreenGuard>
   );

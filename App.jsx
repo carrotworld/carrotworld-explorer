@@ -5029,7 +5029,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         <div className="px-5 pt-2 space-y-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
-          <InstallButton />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -8076,7 +8075,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z6"; // change with every delivery
+const APP_BUILD = "2026-10-10-z7"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

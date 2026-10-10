@@ -98,7 +98,7 @@ const EN = {
 "체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.": "After the trip, make true/false or multiple-choice questions from what you taught. The child's score (%) appears after they answer.",
 "단어-그림 맞추기 문제 자동 추가": "Add a word-picture matching question automatically",
 "서로 다른 이모지를 가진 단어가 3개 이상일 때 만들어져요.": "Created when there are 3 or more words with different emoji.",
-"③ 복습 · 큰 질문": "③ Review · Big question",
+"④ 복습 · 큰 질문": "④ Review · Big question",
 "복습 퀴즈 다음에 아이가 하나를 골라요.": "The child picks one after the review quiz.",
 "질문 (예: How can an airplane fly?)": "Question (e.g. How can an airplane fly?)",
 "복습 열기": "Open review",
@@ -162,6 +162,16 @@ const EN = {
 "체험 전 안내": "Pre-trip info",
 "시간 · 모이는 곳 · 준비물 · 입장료": "Time · meeting place · what to bring · fee",
 "접기 ▴": "Hide ▴",
+"대기 {0}건": "{0} waiting",
+"확정 {0} · 대기 {1}": "{0} confirmed · {1} waiting",
+"선생님 {0}명": "{0} teachers",
+"항목 {0}개": "{0} items",
+"가족 {0}곳": "{0} families",
+"아직 없어요": "Nothing yet",
+"단어 {0}개": "{0} words",
+"미션 {0}개 · 집중 포인트 {1}개": "{0} missions · {1} focus points",
+"단어 퀴즈 자동 + ": "Auto word quiz + ",
+"{0}문제": "{0} questions",
 "펼치기 ▾": "Expand ▾",
 "체험 자료 입력": "Trip materials",
 "단어 · 질문 · 퀴즈 · 미션": "Words · questions · quiz · missions",
@@ -1725,6 +1735,23 @@ function SectionBar({ children, className = "" }) {
   return (
     <div className={`rounded-xl px-4 py-2.5 mb-2.5 flex items-center ${className}`} style={{ background: C.beige, borderLeft: `5px solid ${C.orange}` }}>
       <p className="f-display text-[19px] font-bold leading-tight" style={{ color: C.green }}>{children}</p>
+    </div>
+  );
+}
+
+/** A panel section that folds: the title bar shows what is inside in one short line. Sections with something to do start open. */
+function FoldBar({ title, summary, defaultOpen, children }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="fold-bar" className="focus-ring tap w-full rounded-xl px-4 py-2.5 mb-2.5 flex items-center justify-between gap-3 text-left" style={{ background: C.beige, borderLeft: `5px solid ${open ? C.orange : "#D8CEB8"}` }}>
+        <span className="min-w-0">
+          <span className="block f-display text-[18px] font-bold leading-tight" style={{ color: C.green }}>{title}</span>
+          {!open && summary && <span className="block f-body text-[13px] text-gray-500 mt-0.5 truncate">{summary}</span>}
+        </span>
+        <span className="shrink-0 f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && children}
     </div>
   );
 }
@@ -6503,6 +6530,28 @@ function ObjectivePaste({ onApply }) {
   );
 }
 
+/** A section of the materials editor that folds: one line with what is inside; empty sections start open. */
+function Fold({ heading, hint, summary, defaultOpen, children }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mat-fold" className="focus-ring tap w-full flex items-center justify-between gap-2 text-left rounded-xl px-3 py-2.5" style={{ background: open ? C.beige : "white", border: `1px solid ${C.beige}` }}>
+        <span className="min-w-0">
+          <span className="block f-display text-[17px] font-bold" style={{ color: C.green }}>{heading}</span>
+          {!open && <span className="block f-body text-[13px] text-gray-500 truncate">{summary}</span>}
+        </span>
+        <span className="shrink-0 f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="pt-2.5">
+          {hint && <p className="f-body text-[13px] text-gray-400 mb-2">{hint}</p>}
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MaterialsEditor({ value, onChange, levelTabs }) {
   const set = (p) => onChange({ ...value, ...p });
   const [copyFrom, setCopyFrom] = useState(null);
@@ -6533,7 +6582,6 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
           ) : (
             <p className="f-body text-[14px] text-gray-600">{tr("지금 {0} 레벨 자료를 쓰고 있어요. 아이는 자기 레벨 자료가 열리고, 다른 레벨은 탭하면 미리 볼 수 있어요.", [levelTabs.active])}</p>
           )}
-          {levelTabs.live && <p className="f-body text-[13px] text-gray-400 mt-1">{tr("진행 레벨로 고른 레벨(실선)만 학부모와 샘에게 보여요. 점선은 본사만 보는 준비 공간이에요.")}</p>}
           {CEFR_GOALS[levelTabs.active] && <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: C.orange }} data-testid="level-goal">{levelTabs.active} goal: {CEFR_GOALS[levelTabs.active].verb} <span className="font-normal text-gray-500">· {CEFR_GOALS[levelTabs.active].ko}</span></p>}
           <div className="flex gap-2 flex-wrap mt-2">
             {(levelTabs.copyable || levelTabs.levels.filter((l) => l !== levelTabs.active)).map((l) => (
@@ -6555,22 +6603,19 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
       )}
       <p className="f-body text-[14px] text-gray-500">{tr("아이 화면에 ")}<b>{tr("영어")}</b>{tr("로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.")}</p>
 
-      <div>
-        <EditorHeading hint={tr("이 체험에서 이 레벨 아이가 영어로 할 일을 한 줄로 써 주세요. 학부모 안내와 정리에 나와요.")}>{tr("🎯 학습 목표")}{levelTabs && CEFR_GOALS[levelTabs.active] ? ` · ${levelTabs.active} ${CEFR_GOALS[levelTabs.active].verb}` : ""}</EditorHeading>
+      <Fold heading={<>{tr("🎯 학습 목표")}{levelTabs && CEFR_GOALS[levelTabs.active] ? ` · ${levelTabs.active} ${CEFR_GOALS[levelTabs.active].verb}` : ""}</>} hint={tr("이 체험에서 이 레벨 아이가 영어로 할 일을 한 줄로 써 주세요. 학부모 안내와 정리에 나와요.")} summary={(() => { const o = value.objective || {}; return o.ko || o.en || tr("아직 없어요"); })()} defaultOpen={!((value.objective || {}).ko || (value.objective || {}).en)}>
         <div className="space-y-1.5">
           <MiniInput value={(value.objective || {}).ko || ""} onChange={(ko) => set({ objective: { ...(value.objective || {}), ko } })} placeholder={tr("학습 목표 (예: 농작물과 농기구의 이름을 말한다)")} label={tr("학습 목표")} />
           <MiniInput value={(value.objective || {}).en || ""} onChange={(en) => set({ objective: { ...(value.objective || {}), en } })} placeholder="Learning objective (e.g. Identify and name common crops and farming tools.)" label="Learning objective" />
         </div>
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이 체험에서 진행하는 레벨 탭에만 써요. 진행하지 않는 레벨은 목표가 나오지 않아요.")}</p>
-      </div>
+      </Fold>
 
-      <div>
-        <EditorHeading hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")}>{tr("① 예습 · 단어 카드")}</EditorHeading>
+      <Fold heading={<>{tr("① 예습 · 단어 카드")}</>} hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length])} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
-      </div>
+      </Fold>
 
-      <div>
-        <EditorHeading hint={tr("현장에서 아이가 찾아보는 미션이에요.")}>{tr("② 체험 · 현장 미션")}</EditorHeading>
+      <Fold heading={<>{tr("② 체험 · 현장 미션")}</>} hint={tr("현장에서 아이가 찾아보는 미션이에요.")} summary={tr("미션 {0}개 · 집중 포인트 {1}개", [value.missions.filter((m) => (m.text || "").trim()).length, focus.filter((f) => (f || "").trim()).length])} defaultOpen={value.missions.filter((m) => (m.text || "").trim()).length + focus.filter((f) => (f || "").trim()).length === 0}>
         <div className="space-y-2 mb-2">
           {value.missions.map((m, i) => (
             <div key={m.id || i} className="flex items-center gap-2">
@@ -6611,10 +6656,9 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             ))}
           </div>
         </div>
-      </div>
+      </Fold>
 
-      <div>
-        <EditorHeading hint={tr("체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.")}>{tr("③ 복습 · 퀴즈")}</EditorHeading>
+      <Fold heading={<>{tr("③ 복습 · 퀴즈")}</>} hint={tr("체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.")} summary={(value.autoWords ? tr("단어 퀴즈 자동 + ") : "") + tr("{0}문제", [(value.remember || []).length])} defaultOpen={(value.remember || []).length === 0 && !value.autoWords}>
         <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
         <button onClick={() => set({ autoWords: !value.autoWords })} aria-pressed={!!value.autoWords} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
           {value.autoWords ? <CheckCircle2 size={20} color={C.orange} className="shrink-0" /> : <Circle size={20} color="#D8CEB8" className="shrink-0" />}
@@ -6646,10 +6690,9 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             </div>
           );
         })()}
-      </div>
+      </Fold>
 
-      <div>
-        <EditorHeading hint={tr("복습 퀴즈 다음에 아이가 하나를 골라요.")}>{tr("③ 복습 · 큰 질문")}</EditorHeading>
+      <Fold heading={<>{tr("④ 복습 · 큰 질문")}</>} hint={tr("복습 퀴즈 다음에 아이가 하나를 골라요.")} summary={value.bigQuestion || tr("아직 없어요")} defaultOpen={!value.bigQuestion}>
         <div className="space-y-1.5">
           <MiniInput value={value.bigQuestion} onChange={(bigQuestion) => set({ bigQuestion })} placeholder={tr("질문 (예: How can an airplane fly?)")} />
           {bqOpts.map((o, i) => (
@@ -6661,7 +6704,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             />
           ))}
         </div>
-      </div>
+      </Fold>
 
       <button onClick={() => set({ reviewOpen: !value.reviewOpen })} aria-pressed={value.reviewOpen} className="focus-ring tap flex items-start gap-2 text-left rounded-xl p-3 w-full" style={{ background: value.reviewOpen ? "#DCF3E4" : "white", border: `1px solid ${value.reviewOpen ? "#9FD6B2" : C.beige}` }}>
         {value.reviewOpen ? <CheckCircle2 size={20} color="#1F7A44" /> : <Circle size={20} color="#D8CEB8" />}
@@ -7675,13 +7718,20 @@ function programDetail(program, rows) {
   return { words, questions, missions, bigQ: Object.entries(bigQ).sort((x, y) => y[1] - x[1]), insightN: withInsights.length };
 }
 
-function StatCard({ title, hint, children }) {
+function StatCard({ title, hint, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-2xl p-4">
-      <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{title}</p>
-      {hint && <p className="f-body text-[14px] text-gray-400 mt-0.5 mb-3">{hint}</p>}
-      {!hint && <div className="mb-3" />}
-      {children}
+    <div className="bg-white rounded-2xl">
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="stat-card" className="focus-ring tap w-full flex items-center justify-between gap-3 text-left p-4">
+        <span className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{title}</span>
+        <span className="shrink-0 f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 -mt-1">
+          {hint && <p className="f-body text-[14px] text-gray-400 mb-3">{hint}</p>}
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -8075,7 +8125,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z8"; // change with every delivery
+const APP_BUILD = "2026-10-10-z10"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8882,8 +8932,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   const openFamily = (pin) => { setOpen(open === pin ? null : pin); setFriend(""); setPaid(false); setAmount(""); setMemo(""); setAdjAmount(""); setAdjReason(""); setError(""); };
   return (
     <div className="px-5 space-y-4">
-      <div>
-        <SectionBar>{tr("외부 후기 확인")}</SectionBar>
+      <FoldBar title={tr("외부 후기 확인")} summary={tr("확인 대기 {0}", [count("pending")])} defaultOpen={count("pending") > 0}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("부모님이 올린 후기 링크를 열어 보고 승인하면 {0}P가 자동으로 적립돼요. 한 체험당 한 번, 같은 링크는 한 번만 인정돼요.", [POINT_RULES.review])}</p>
         <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Review filter">
           {chip("pending", tr("확인 대기 {0}", [count("pending")]))}
@@ -8921,10 +8970,9 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
             );
           })}
         </div>
-      </div>
+      </FoldBar>
 
-      <div>
-        <SectionBar>{tr("포인트 항목과 액수")}</SectionBar>
+      <FoldBar title={tr("포인트 항목과 액수")} summary={tr("항목 {0}개", [POINT_ITEMS.length])} defaultOpen={!!draft}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("항목 이름과 액수를 직접 정해요. 학부모 화면의 적립 기준과 안내가 같이 바뀌어요. 바꾼 액수는 그다음부터 쌓이는 포인트에 적용되고, 이미 쌓인 포인트는 그대로예요.")}</p>
         {!draft ? (
           <div className="bg-white rounded-2xl p-4">
@@ -8974,10 +9022,9 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
             </div>
           </div>
         )}
-      </div>
+      </FoldBar>
 
-      <div>
-        <SectionBar>{tr("가족별 포인트")}</SectionBar>
+      <FoldBar title={tr("가족별 포인트")} summary={tr("가족 {0}곳", [families.length])} defaultOpen={false}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("가족별 내역을 보고 적립, 사용 처리, 수동 조정을 해요. 포인트는 현금으로 출금할 수 없고, 다음 프로그램 결제에만 써요.")}</p>
         <div className="space-y-2">
           {families.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 가족이 없어요.")}</p></div>}
@@ -9094,7 +9141,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
             </div>
           ))}
         </div>
-      </div>
+      </FoldBar>
 
       {confirm && (
         <ConfirmDialog
@@ -9158,6 +9205,7 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
 function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
+  const [noticesOpen, setNoticesOpen] = useState(null); // null: open on the overview, folded on the other tabs
   const [dateAsk, setDateAsk] = useState(null);
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
@@ -9382,8 +9430,14 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {teacherNotices.length > 0 && (
         <div className="px-5 mb-3">
-          <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</p>
-          <div className="space-y-1.5">
+          {(() => {
+            const showNotices = noticesOpen === null ? tab === "overview" : noticesOpen;
+            return (<>
+          <button onClick={() => setNoticesOpen(!showNotices)} aria-expanded={showNotices} data-testid="notices-toggle" className="focus-ring tap w-full flex items-center justify-between mb-1.5">
+            <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</span>
+            <span className="f-body text-[13px] font-bold" style={{ color: C.orange }}>{showNotices ? "▴" : "▾"}</span>
+          </button>
+          {showNotices && <div className="space-y-1.5">
             {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 3).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
                 <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
@@ -9404,7 +9458,9 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   {moreReminders ? tr("접기 ▴") : tr("외 {0}건 더 보기 ▾", [teacherNotices.length - 3])}
                 </button>
               )}
-          </div>
+          </div>}
+            </>);
+          })()}
         </div>
       )}
       <div className="px-5 mb-4">
@@ -10899,7 +10955,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
     <div className="px-5 space-y-5">
       {apps.length > 0 && (
         <div data-testid="teacher-apps">
-          <SectionBar>{tr("선생님 가입 신청")}</SectionBar>
+          <FoldBar title={tr("선생님 가입 신청")} summary={tr("대기 {0}건", [apps.length])} defaultOpen={true}>
           <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.")}</p>
           <div className="space-y-2.5">
             {apps.map((a) => {
@@ -10925,10 +10981,9 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
               );
             })}
           </div>
-        </div>
+        </FoldBar></div>
       )}
-      <div>
-        <SectionBar>{tr("선생님 참여 신청")}</SectionBar>
+      <FoldBar title={tr("선생님 참여 신청")} summary={tr("확정 {0} · 대기 {1}", [count("approved"), count("pending") + count("waiting")])} defaultOpen={count("pending") + count("waiting") > 0}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님이 예정 프로그램에 낸 신청이에요. 정원 {0}명까지는 신청하면 자동으로 확정돼요. 넘으면 대기하고, 자리가 나면 순서대로 확정돼요.", [TEACHER_CAP])}</p>
         {programs.length > 0 && (
           <div className="bg-white rounded-2xl p-3 mb-2.5 space-y-2" data-testid="teacher-caps">
@@ -10986,10 +11041,9 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
             );
           })}
         </div>
-      </div>
+      </FoldBar>
 
-      <div>
-        <SectionBar>{tr("선생님 계정")}</SectionBar>
+      <FoldBar title={tr("선생님 계정")} summary={tr("선생님 {0}명", [teachers.filter((t) => t.active).length])} defaultOpen={!teachers.some((t) => t.active)}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("선생님마다 이름과 번호가 따로예요. 번호는 로그인 화면의 Teacher에서 써요.")}</p>
         {!teachers.some((t) => t.active) && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5 mb-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("계정이 없어서 공용 번호 {0}로 들어가요. 첫 계정을 만들면 공용 번호는 쓸 수 없어요.", [legacyPin])}</p>}
         <div className="space-y-2 mb-3">
@@ -11028,7 +11082,7 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
           <div aria-live="polite" className="min-h-[18px] mt-1">{error && <p className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{error}</p>}</div>
           <button onClick={add} disabled={!name.trim() || pin.length !== 4} className="focus-ring tap w-full f-display text-[15px] font-semibold rounded-xl py-2.5 mt-1 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("추가")}</button>
         </div>
-      </div>
+      </FoldBar>
 
       {confirm && (
         <ConfirmDialog

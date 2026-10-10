@@ -28,6 +28,22 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"수당 정산": "Pay settlement",
+"부모님 등록 없이 온 학생": "Students without a parent sign-up",
+"현장 학생 등록": "On-site student sign-up",
+"🔔 지금 처리할 일 {0}": "🔔 To do now {0}",
+"통계·데이터": "Stats & data",
+"의견": "Feedback",
+"의견 {0}": "Feedback {0}",
+"선생님·수당": "Teachers & pay",
+"선생님·수당 {0}": "Teachers {0}",
+"가족·학생": "Families",
+"가족·학생 {0}": "Families {0}",
+"학생·출석": "Students",
+"학생·출석 {0}": "Students {0}",
+"프로그램·자료": "Programs",
+"오늘": "Today",
+"오늘 {0}": "Today {0}",
 "안전수칙 동의": "Safety agreement",
 "안전 경고 기록": "Safety warning records",
 "팀 {0}": "Team {0}",
@@ -8481,7 +8497,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z20"; // change with every delivery
+const APP_BUILD = "2026-10-10-z21"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9561,7 +9577,6 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
 function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
-  const [noticesOpen, setNoticesOpen] = useState(null); // null: open on the overview, folded on the other tabs
   const [dateAsk, setDateAsk] = useState(null);
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
@@ -9744,24 +9759,22 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
   const pendingCount = pendingFamilies(students).length;
   const pendingReviewCount = reviewRecords(suggestions).filter((r) => r.status === "pending").length;
-  // five tabs on top; the ones that hold several screens show a small second row (the screens keep their own keys)
+  // four sections; the ones that hold several screens show a small second row (the screens keep their own keys)
   const GROUPS = [
-    { key: "g-overview", label: tr("현황"), subs: [{ key: "overview", label: tr("현황") }] },
+    { key: "g-overview", label: (teacherNotices.length) ? tr("오늘 {0}", [teacherNotices.length]) : tr("오늘"), subs: [{ key: "overview", label: tr("오늘") }] },
     { key: "g-program", label: needReport.length ? tr("프로그램 {0}", [needReport.length]) : tr("프로그램"), subs: [
-      { key: "programs", label: tr("프로그램등록") },
-      { key: "manage", label: (needReport.length + needReview.length) ? tr("학생관리 {0}", [needReport.length + needReview.length]) : tr("학생관리") },
+      { key: "programs", label: tr("프로그램·자료") },
+      { key: "manage", label: (needReport.length + needReview.length) ? tr("학생·출석 {0}", [needReport.length + needReview.length]) : tr("학생·출석") },
     ] },
-    { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount]) : tr("사람"), subs: [
-      ...(pendingCount > 0 || tab === "approve" ? [{ key: "approve", label: pendingCount ? tr("수락 {0}", [pendingCount]) : tr("수락") }] : []),
-      { key: "teachers", label: teacherTodo ? tr("선생님 {0}", [teacherTodo]) : tr("선생님") },
-      { key: "suggestions", label: unresolvedCount ? tr("학부모의견 {0}", [unresolvedCount]) : tr("학부모의견") },
-      { key: "pay", label: tr("수당") },
-      { key: "register", label: tr("현장등록") },
+    { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount + pendingReviewCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount + pendingReviewCount]) : tr("사람"), subs: [
+      { key: "approve", keys: ["approve", "register", "points"], label: (pendingCount + pendingReviewCount) ? tr("가족·학생 {0}", [pendingCount + pendingReviewCount]) : tr("가족·학생") },
+      { key: "teachers", keys: ["teachers", "pay"], label: teacherTodo ? tr("선생님·수당 {0}", [teacherTodo]) : tr("선생님·수당") },
+      { key: "suggestions", label: unresolvedCount ? tr("의견 {0}", [unresolvedCount]) : tr("의견") },
     ] },
-    { key: "g-points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트"), subs: [{ key: "points", label: tr("포인트") }] },
-    { key: "g-settings", label: tr("설정"), subs: [{ key: "safety", label: tr("안전수칙") }, { key: "stats", label: tr("통계") }] },
+    { key: "g-settings", label: tr("설정"), subs: [{ key: "safety", label: tr("안전수칙") }, { key: "stats", label: tr("통계·데이터") }] },
   ];
-  const activeGroup = GROUPS.find((g) => g.subs.some((x) => x.key === tab)) || GROUPS[0];
+  const subKeys = (x) => x.keys || [x.key];
+  const activeGroup = GROUPS.find((g) => g.subs.some((x) => subKeys(x).includes(tab))) || GROUPS[0];
   const TABS = GROUPS.flatMap((g) => g.subs);
 
   return (
@@ -9785,15 +9798,44 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         );
       })()}
 
-      {teacherNotices.length > 0 && (
+      <div className="px-5 mb-4">
+        <div className="flex gap-1.5" role="tablist" aria-label="HQ">
+          {GROUPS.map((g) => (
+            <button
+              key={g.key}
+              role="tab"
+              aria-selected={activeGroup.key === g.key}
+              onClick={() => go(() => setTab(g.subs[0].key))}
+              className="focus-ring tap flex-1 min-w-0 whitespace-nowrap px-1 text-[14px] f-body font-bold py-2.5 rounded-xl"
+              style={{ background: activeGroup.key === g.key ? C.green : "white", color: activeGroup.key === g.key ? "white" : C.charcoal }}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+        {activeGroup.subs.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto mt-2" data-testid="sub-tabs">
+            {activeGroup.subs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => go(() => setTab(t.key))}
+                aria-pressed={subKeys(t).includes(tab)}
+                className="focus-ring tap shrink-0 whitespace-nowrap px-3.5 text-[14px] f-body font-bold py-1.5 rounded-full"
+                style={{ background: subKeys(t).includes(tab) ? C.beige : "transparent", color: subKeys(t).includes(tab) ? C.green : "#8A8060", border: `1px solid ${C.beige}` }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {teacherNotices.length > 0 && tab === "overview" && (
         <div className="px-5 mb-3">
           {(() => {
-            const showNotices = noticesOpen === null ? tab === "overview" : noticesOpen;
+            const showNotices = true;
             return (<>
-          <button onClick={() => setNoticesOpen(!showNotices)} aria-expanded={showNotices} data-testid="notices-toggle" className="focus-ring tap w-full flex items-center justify-between mb-1.5">
-            <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</span>
-            <span className="f-body text-[13px] font-bold" style={{ color: C.orange }}>{showNotices ? "▴" : "▾"}</span>
-          </button>
+          <p className="f-body text-[14px] font-bold mb-1.5" data-testid="notices-title" style={{ color: C.orange }}>{tr("🔔 지금 처리할 일 {0}", [teacherNotices.length])}</p>
           {showNotices && <div className="space-y-1.5">
             {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 3).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
@@ -9820,38 +9862,6 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           })()}
         </div>
       )}
-      <div className="px-5 mb-4">
-        <div className="flex gap-1.5" role="tablist" aria-label="HQ">
-          {GROUPS.map((g) => (
-            <button
-              key={g.key}
-              role="tab"
-              aria-selected={activeGroup.key === g.key}
-              onClick={() => go(() => setTab(g.subs[0].key))}
-              className="focus-ring tap flex-1 min-w-0 whitespace-nowrap px-1 text-[14px] f-body font-bold py-2.5 rounded-xl"
-              style={{ background: activeGroup.key === g.key ? C.green : "white", color: activeGroup.key === g.key ? "white" : C.charcoal }}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        {activeGroup.subs.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto mt-2" data-testid="sub-tabs">
-            {activeGroup.subs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => go(() => setTab(t.key))}
-                aria-pressed={tab === t.key}
-                className="focus-ring tap shrink-0 whitespace-nowrap px-3.5 text-[14px] f-body font-bold py-1.5 rounded-full"
-                style={{ background: tab === t.key ? C.beige : "transparent", color: tab === t.key ? C.green : "#8A8060", border: `1px solid ${C.beige}` }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       {tab === "overview" && (
         <OverviewPanel
           programs={PROGRAMS}
@@ -9869,12 +9879,16 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         />
       )}
 
-      {tab === "approve" && <ApprovalPanel students={students} onAccept={onAcceptFamily || (() => {})} onReject={onRejectFamily || (() => {})} />}
-
-      {tab === "register" && (
-        <div className="px-5">
-          <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
-          <p className="f-body text-[14px] text-gray-400 mt-2">{tr("보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 \"학생관리\" 탭에서 프로그램에 추가해주세요.")}</p>
+      {["approve", "register", "points"].includes(tab) && (
+        <div className="space-y-4">
+          {pendingCount > 0 && <ApprovalPanel students={students} onAccept={onAcceptFamily || (() => {})} onReject={onRejectFamily || (() => {})} />}
+          <div className="px-5">
+            <FoldBar title={tr("현장 학생 등록")} summary={tr("부모님 등록 없이 온 학생")} defaultOpen={tab === "register"}>
+              <RegisterStudentPanel mode="teacher" students={students} onRegister={(info) => onRegisterStudent(info)} />
+              <p className="f-body text-[14px] text-gray-400 mt-2">{tr("보통은 부모님이 앱에서 직접 등록해요. 여기는 현장에 부모님 등록 없이 온 학생을 위한 기능이에요. 등록만 하면 아직 어떤 프로그램에도 참여하지 않으니 \"학생관리\" 탭에서 프로그램에 추가해주세요.")}</p>
+            </FoldBar>
+          </div>
+          <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />
         </div>
       )}
 
@@ -10109,11 +10123,18 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         </ConfirmDialog>
       )}
 
-      {tab === "teachers" && <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />}
-
-      {tab === "pay" && payData && <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />}
-
-      {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
+      {["teachers", "pay"].includes(tab) && (
+        <div className="space-y-4">
+          <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={upcomingPrograms(adventures)} />
+          {payData && (
+            <div className="px-5">
+              <FoldBar title={tr("수당 정산")} defaultOpen={tab === "pay"}>
+                <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />
+              </FoldBar>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "safety" && <SafetyAdminPanel suggestions={suggestions} students={students} adventures={adventures} />}
 

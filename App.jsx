@@ -5035,6 +5035,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         <div className="px-5 pt-2 space-y-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
+          <SafetySection readOnly programId="" />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -6758,6 +6759,7 @@ function ThreeWarningsCard() {
 /** Parent agreement: read together, tick, one button. Saved per trip with the date and time. */
 function SafetyAgreement({ programId, kids, familyPin, rows }) {
   const [checked, setChecked] = useState(false);
+  const [stopOk, setStopOk] = useState(false);
   if (!kids.length) return null;
   const status = kids.map((k) => ({ k, ag: agreementOf(rows, familyPin, programId, k.id) }));
   const pending = status.filter((x) => !x.ag).map((x) => x.k);
@@ -6772,9 +6774,9 @@ function SafetyAgreement({ programId, kids, familyPin, rows }) {
     );
   }
   const agree = () => {
-    if (!checked) return;
-    SAFETY_SAVE(SAFETY_AGREE_TYPE, familyPin, { kind: "agree", programId, studentIds: pending.map((k) => k.id), names: pending.map((k) => k.name) }, `agree-${programId}`);
-    setChecked(false);
+    if (!checked || !stopOk) return;
+    SAFETY_SAVE(SAFETY_AGREE_TYPE, familyPin, { kind: "agree", programId, studentIds: pending.map((k) => k.id), names: pending.map((k) => k.name), stopAgree: true }, `agree-${programId}`);
+    setChecked(false); setStopOk(false);
   };
   return (
     <div className="bg-white rounded-2xl p-4" data-testid="agreement-form">
@@ -6787,7 +6789,11 @@ function SafetyAgreement({ programId, kids, familyPin, rows }) {
         {checked ? <CheckCircle2 size={22} color={C.orange} className="shrink-0" /> : <Circle size={22} color="#C9BFA8" className="shrink-0" />}
         <span className="f-body text-[15px] font-bold leading-snug" style={{ color: C.charcoal }}>자녀와 함께 안전수칙을 확인했으며, 위 내용을 이해하고 동의합니다.</span>
       </button>
-      <button onClick={agree} disabled={!checked} data-testid="agree-button" className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: checked ? C.orange : "#C9BFA8" }}>안전수칙 동의하기</button>
+      <button onClick={() => setStopOk((v) => !v)} aria-pressed={stopOk} data-testid="agree-stop-check" className="focus-ring tap flex items-start gap-2.5 mt-3 text-left w-full">
+        {stopOk ? <CheckCircle2 size={22} color={C.orange} className="shrink-0" /> : <Circle size={22} color="#C9BFA8" className="shrink-0" />}
+        <span className="f-body text-[15px] font-bold leading-snug" style={{ color: C.charcoal }}>경고 3회 시 수업(활동) 참여가 중단되고, 보호자에게 직접 인계되는 것에 동의합니다.<span className="block font-normal text-gray-500 text-[13px]">I agree that after 3 warnings the activity stops and my child is handed over to me.</span></span>
+      </button>
+      <button onClick={agree} disabled={!(checked && stopOk)} data-testid="agree-button" className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: checked && stopOk ? C.orange : "#C9BFA8" }}>안전수칙 동의하기</button>
     </div>
   );
 }
@@ -8381,7 +8387,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z13"; // change with every delivery
+const APP_BUILD = "2026-10-10-z14"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

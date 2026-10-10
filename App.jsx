@@ -2269,22 +2269,48 @@ function BottomNavigation({ items, active, onSelect }) {
 /* ================================================================== */
 /*  STUDENT: HOME                                                       */
 /* ================================================================== */
-function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
-  const myAdventures = adventures.filter((a) => a.studentId === studentId);
-  const withProgram = myAdventures.map((a) => ({ a, program: getProgram(a.programId) }));
-  const next = withProgram.find(({ a }) => getStatus(a) !== "completed") || withProgram[0];
-  const upcoming = withProgram.filter(({ a }) => getStatus(a) !== "completed");
-  const completed = withProgram.filter(({ a }) => getStatus(a) === "completed");
+/** One place photo as the visual anchor of a home card. Without a photo it is a plain brand-green block, so the layout never changes. */
+function CoverHero({ program, children }) {
+  const photo = program && program.coverPhoto;
+  return (
+    <div className="relative overflow-hidden" style={{ background: C.green, minHeight: 168 }} data-testid="cover-hero" data-photo={photo ? "1" : "0"}>
+      {photo && <img src={photo} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+      {photo && <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(18,52,36,0.10) 0%, rgba(18,52,36,0.80) 100%)" }} />}
+      <div className="relative px-5 pt-5 pb-4 flex flex-col justify-end" style={{ minHeight: 168 }}>{children}</div>
+    </div>
+  );
+}
+/** The text that sits on a CoverHero: small label, big title, level chips. */
+function HeroText({ label, program }) {
+  const lv = programLevels(program);
+  return (
+    <>
+      <p className="f-body text-[13px] font-bold" style={{ color: "#CFE9DA" }}>{label}</p>
+      <p className="f-headline text-[30px] leading-tight text-white mt-1">{splitTitle(program.title)[0] || program.title}</p>
+      {lv.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {sortLevels(lv).map((l) => (
+            <span key={l} className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.88)", color: C.green }}>{l}</span>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
 
-  if (withProgram.length === 0) {
+function StudentHome({ adventures, studentId, name = "", points = 0, onOpen, onViewProgress }) {
+  const myAdventures = adventures.filter((a) => a.studentId === studentId);
+  const withProgram = myAdventures.map((a) => ({ a, program: getProgram(a.programId) })).filter((x) => x.program);
+  const next = withProgram.find(({ a }) => getStatus(a) !== "completed") || withProgram[0];
+
+  if (!next) {
     return (
       <div className="px-5 pt-7 pb-6">
-        <h1 className="f-display text-[27px] font-semibold" style={{ color: C.green }}>Hi, Explorer</h1>
+        <h1 className="f-headline text-[28px]" style={{ color: C.green }}>안녕{name ? `, ${name}` : ""}!</h1>
         <div className="bg-white rounded-2xl p-6 text-center mt-5">
-          <div className="text-4xl mb-3">🌱</div>
-          <p className="f-display font-semibold" style={{ color: C.green }}>No adventures yet</p>
-          <p className="f-body text-[17px] text-gray-500 mt-2">아직 신청한 체험이 없어요. 부모님과 함께 체험을 골라 보세요!</p>
-          <p className="f-body text-[14px] text-gray-400 mt-3">위쪽 "Exit to Parent"를 누르면 부모님 화면으로 돌아가요.</p>
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>아직 신청한 체험이 없어요</p>
+          <p className="f-body text-[16px] text-gray-500 mt-2">부모님과 함께 체험을 골라 보세요.</p>
+          <p className="f-body text-[13px] text-gray-400 mt-3">위쪽 "부모 화면으로"를 누르면 돌아가요.</p>
         </div>
       </div>
     );
@@ -2292,87 +2318,62 @@ function StudentHome({ adventures, studentId, onOpen, onViewProgress }) {
 
   const count = attendedCount(adventures, studentId);
   const { rank } = rankFor(count);
-  const { before, trip, after } = stageState(next.a, next.program);
-
-  const statusLine = !next.a.beforeCompleted
-    ? "Step 1 of 3 · Get Ready"
-    : !isLive(next.program)
-      ? "All set! Waiting for the big day"
-      : !next.a.attended
-        ? "Step 2 of 3 · Explore"
-        : !next.a.afterCompleted
-          ? "Step 3 of 3 · Review"
-          : "Adventure complete!";
+  const badgeCount = computeBadges(adventures, studentId).filter((b) => b.earned).length;
   const others = withProgram.filter(({ program }) => program.id !== next.program.id);
   const otherUpcoming = others.filter(({ a }) => getStatus(a) !== "completed");
   const otherDone = others.filter(({ a }) => getStatus(a) === "completed");
 
-  const ctaLabel = (() => {
-    if (!next.a.beforeCompleted) return "Continue Preparing →";
-    if (!isLive(next.program)) return "You're Ready! →";
-    if (!next.a.attended) return "Start Exploring →";
-    if (!next.a.afterCompleted) return "Start Review →";
-    return "View Adventure →";
+  const step = (() => {
+    if (!next.a.beforeCompleted) return { text: "오늘은 단어를 연습해 볼까요?", cta: "예습 시작하기 →" };
+    if (!isLive(next.program)) return { text: "준비 끝! 체험 날을 기다려요.", cta: "다시 살펴보기 →" };
+    if (!next.a.attended) return { text: "오늘이 체험 날이에요!", cta: "체험 시작하기 →" };
+    if (!next.a.afterCompleted) return { text: "배운 것을 복습해 볼까요?", cta: "복습 시작하기 →" };
+    return { text: "체험을 모두 마쳤어요.", cta: "체험 보기 →" };
   })();
 
   return (
     <div className="pb-6">
-      <div className="px-5 pt-7 pb-2">
-        <h1 className="f-display text-[27px] font-semibold" style={{ color: C.green }}>
-          Hi, Explorer
-        </h1>
-
-        <button onClick={onViewProgress} className="focus-ring tap w-full flex items-center gap-2.5 bg-white rounded-2xl px-4 py-3.5 mt-5" style={{ boxShadow: "0 1px 3px rgba(23,76,53,0.06)" }}>
-          <RankIcon label={rank.label} size={20} color={C.orange} />
-          <span className="f-display text-[16px] font-bold flex-1 text-left" style={{ color: C.green }}>{rank.label}</span>
-          <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>My Journey →</span>
+      <div className="px-5 pt-7">
+        <h1 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안녕{name ? `, ${name}` : ""}!</h1>
+        <button onClick={onViewProgress} data-testid="rank-chip" className="focus-ring tap inline-flex items-center gap-2 mt-2.5 rounded-full pl-3 pr-3.5 py-1.5" style={{ background: C.beige }}>
+          <RankIcon label={rank.label} size={16} color={C.orange} />
+          <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{rank.label}</span>
+          <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>›</span>
         </button>
       </div>
 
       <div className="px-5 mt-5">
-        <SectionBar>Your Next Adventure</SectionBar>
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpen(next.program.id)}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(next.program.id)}
-          className="focus-ring tap w-full text-left cursor-pointer relative"
-        >
-          <div className="bg-white rounded-2xl p-5">
-            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>
-              {next.program.date} · Level {levelLabel(next.program)}
-            </p>
-            <div className="mb-3"><ProgramHeadline program={next.program} size={34} /></div>
-            <p className="f-body text-[16px] text-gray-500">{statusLine}</p>
-            <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-              <PrimaryButton onClick={() => onOpen(next.program.id)}>{ctaLabel}</PrimaryButton>
-            </div>
+        <div className="rounded-2xl overflow-hidden bg-white" style={{ boxShadow: "0 1px 3px rgba(60,50,30,0.08)" }} data-testid="next-activity">
+          <CoverHero program={next.program}>
+            <HeroText label={`다음 체험 · ${next.program.date}`} program={next.program} />
+          </CoverHero>
+          <div className="p-4">
+            <p className="f-display text-[18px] font-bold leading-snug" style={{ color: C.green }}>{step.text}</p>
+            <button data-testid="student-cta" onClick={() => onOpen(next.program.id)} className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-3.5 mt-3 text-white" style={{ background: C.orange }}>{step.cta}</button>
           </div>
+        </div>
+      </div>
+
+      <div className="px-5 mt-6">
+        <p className="f-display text-[18px] font-bold mb-2.5" style={{ color: C.green }}>내 탐험 기록</p>
+        <div className="grid grid-cols-3 gap-2.5" data-testid="my-record">
+          {[["참여 체험", `${count}회`], ["뱃지", `${badgeCount}개`], ["포인트", fmtBalance(points)]].map(([k, v]) => (
+            <div key={k} className="bg-white rounded-2xl px-3 py-3.5 text-center" style={{ boxShadow: "0 1px 3px rgba(60,50,30,0.06)" }}>
+              <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{k}</p>
+              <p className="f-display text-[22px] font-bold mt-0.5" style={{ color: C.green }}>{v}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {others.length > 0 && (
         <div className="px-5 mt-6">
-          <h3 className="f-display font-semibold mb-3" style={{ color: C.green }}>
-            More adventures
-          </h3>
-          {otherUpcoming.length > 0 && (
-            <div className="flex gap-3 overflow-x-auto pb-2 mb-3 -mx-5 px-5">
-              {otherUpcoming.map(({ program }) => (
-                <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
-              ))}
-            </div>
-          )}
-          {otherDone.length > 0 && (
-            <>
-              <SectionBar>Completed</SectionBar>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-                {otherDone.map(({ program }) => (
-                  <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
-                ))}
-              </div>
-            </>
-          )}
+          <p className="f-display text-[18px] font-bold mb-2.5" style={{ color: C.green }}>다른 체험</p>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+            {[...otherUpcoming, ...otherDone].map(({ program }) => (
+              <ProgramMiniCard key={program.id} program={program} onClick={() => onOpen(program.id)} />
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -4680,7 +4681,7 @@ function parentAction(program, adv) {
 }
 
 /** One child on the parents' home: who they are, the one experience that matters now with its one main button, and the rest tucked away. */
-function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onReport, onSurvey, onBrowse }) {
+function ChildHomeCard({ child, adventures, hasUpcoming, showPhoto = false, onStart, onInfo, onReport, onSurvey, onBrowse }) {
   const [showOthers, setShowOthers] = useState(false);
   const count = attendedCount(adventures, child.id);
   const { rank, nextRank } = rankFor(count);
@@ -4690,6 +4691,7 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
     .map((a) => ({ a, program: getProgram(a.programId) }))
     .filter((x) => x.program)
     .map((x) => ({ ...x, act: parentAction(x.program, x.a) }));
+  const mineAll = adventures.filter((a) => a.studentId === child.id);
   const primary = mine.slice().sort((x, y) => x.act.score - y.act.score)[0] || null;
   const others = mine.filter((x) => x !== primary);
   const run = (act) => {
@@ -4709,17 +4711,25 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
     <div className="bg-white rounded-2xl p-4" data-testid="child-card">
       <div className="flex items-baseline justify-between gap-3">
         <p className="f-display font-semibold text-[19px]" style={{ color: C.green }}>{child.avatar} {child.name}</p>
-        <p className="f-body text-[13px] text-gray-400 whitespace-nowrap">Level {child.level} · {rank.label}</p>
+        <p className="f-body text-[13px] text-gray-400 whitespace-nowrap">Level {child.level}</p>
       </div>
       {primary ? (
         <div className="mt-3">
-          <div className="flex items-stretch gap-3">
-            <TitleBar program={primary.program} />
-            <div className="min-w-0 py-0.5">
-              <p className="f-headline text-[22px] leading-snug" style={{ color: C.green }}>{splitTitle(primary.program.title)[0] || primary.program.title}</p>
-              <p className="f-body text-[14px] text-gray-500">{meta(primary.program, primary.a)}</p>
+          {showPhoto && primary.program.coverPhoto ? (
+            <div className="-mx-4 mb-1" data-testid="child-hero">
+              <CoverHero program={primary.program}>
+                <HeroText label={`${["live", "prep", "info", "check"].includes(primary.act.key) ? "다음 체험" : "체험"} · ${meta(primary.program, primary.a)}`} program={primary.program} />
+              </CoverHero>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-stretch gap-3">
+              <TitleBar program={primary.program} />
+              <div className="min-w-0 py-0.5">
+                <p className="f-headline text-[22px] leading-snug" style={{ color: C.green }}>{splitTitle(primary.program.title)[0] || primary.program.title}</p>
+                <p className="f-body text-[14px] text-gray-500">{meta(primary.program, primary.a)}</p>
+              </div>
+            </div>
+          )}
           <div className="mt-2.5" data-testid="child-progress">
             <p className="f-body text-[13px]">
               {childProgress(primary.program, primary.a).steps.map((x, i, arr) => {
@@ -4786,9 +4796,18 @@ function ChildHomeCard({ child, adventures, hasUpcoming, onStart, onInfo, onRepo
           )}
         </div>
       )}
-      <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }}>
-        <div className="flex items-center justify-between mb-1">
-          <span className="f-body text-[13px] font-bold" style={{ color: C.charcoal }}>참여 {count}회</span>
+      <div className="mt-4 pt-4 border-t" style={{ borderColor: C.beige }} data-testid="learning-status">
+        <p className="f-display text-[17px] font-bold mb-2.5" style={{ color: C.green }}>학습 현황</p>
+        <div className="grid grid-cols-3 gap-2">
+          {[["참여 체험", `${count}회`], ["예습 완료", `${mineAll.filter((a) => a.beforeCompleted).length}개`], ["받은 리포트", `${mineAll.filter((a) => feedbackSent(a)).length}개`]].map(([k, v]) => (
+            <div key={k} className="rounded-xl px-2 py-3 text-center" style={{ background: C.cream }}>
+              <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{k}</p>
+              <p className="f-display text-[21px] font-bold mt-0.5" style={{ color: C.green }}>{v}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between mt-3 mb-1">
+          <span className="f-body text-[13px] font-bold" style={{ color: C.charcoal }}>{rank.label}</span>
           <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>{nextRank ? `다음 단계까지 ${nextRank.min - count}회` : "최고 단계 달성"}</span>
         </div>
         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.beige }}>
@@ -4874,6 +4893,15 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
     markGuideSeen();
     setShowGuide(false);
   };
+  useBack(() => {
+    if (infoId) { setInfoId(null); return true; }
+    if (addingChild) { setAddingChild(false); return true; }
+    if (showSheet) { setShowSheet(false); return true; }
+    if (showLevels) { setShowLevels(false); return true; }
+    if (showGuide) { closeGuide(); return true; }
+    if (ptab !== "home") { setPtab("home"); window.scrollTo({ top: 0 }); return true; }
+    return false;
+  });
   const myChildren = students.filter((s) => s.familyPin === familyPin);
   applyPointItems(currentPointItems(suggestions));
   const notices = parentNotices(myChildren, adventures, suggestions);
@@ -4911,7 +4939,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         />
       )}
       {ptab === "home" && (
-      <div className="px-5 space-y-3">
+      <div className="px-5 pt-3 space-y-3">
         {myChildren.length === 0 && (
           <p className="f-body text-[17px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
         )}
@@ -4923,9 +4951,10 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           </div>
         )}
 
-        {myChildren.map((c) => (
+        {myChildren.map((c, ci) => (
           <ChildHomeCard
             key={c.id}
+            showPhoto={ci === 0}
             child={c}
             adventures={adventures}
             hasUpcoming={upcomingPrograms(adventures).some((p) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id))}
@@ -6852,6 +6881,27 @@ const defaultSessions = () => [
   { id: newId("s"), label: "오후", time: "13:00 ~ 14:30", meetingTime: "", meetingPoint: "", published: false },
 ];
 
+/** Shrinks a chosen photo (long side 900px, JPEG) so it stays light to save and to load on a phone. */
+function shrinkPhoto(file, max = 900, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * k));
+        c.height = Math.max(1, Math.round(img.height * k));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", quality));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
 function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef, places = [], onRememberPlace }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
@@ -6863,7 +6913,8 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
   const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
-  const coverPhoto = initial?.coverPhoto || null; // old uploads stay saved but are no longer shown or changed
+  const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null); // the one place photo shown on the home cards
+  const [photoMsg, setPhotoMsg] = useState("");
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
   const [levelSets, setLevelSets] = useState(() => levelSetsFrom(initial)); // one set per level once two or more levels are chosen
   const [prepSets, setPrepSets] = useState(() => Object.fromEntries(Object.entries((initial && initial.prepMaterials) || {}).map(([l, m]) => [l, materialsFrom(m)]))); // levels not run in this trip yet: prepared by HQ, hidden from parents and teachers
@@ -7154,6 +7205,25 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
         className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
+
+      <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }} data-testid="cover-photo-editor">
+        <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("장소 사진")} <span className="font-normal text-gray-400">{tr("(홈 화면에 한 장)")}</span></p>
+        {coverPhoto && <img src={coverPhoto} alt="" className="w-full h-28 object-cover rounded-lg mt-2" />}
+        <div className="flex gap-2 mt-2">
+          <label className="focus-ring tap flex-1 text-center f-body text-[14px] font-bold rounded-xl py-2.5 cursor-pointer" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green }}>
+            {coverPhoto ? tr("사진 바꾸기") : tr("사진 올리기")}
+            <input type="file" accept="image/*" className="hidden" data-testid="cover-photo-input" onChange={async (e) => {
+              const f = e.target.files && e.target.files[0];
+              e.target.value = "";
+              if (!f) return;
+              try { setCoverPhoto(await shrinkPhoto(f)); setPhotoMsg(""); } catch (err) { setPhotoMsg(tr("사진을 읽지 못했어요. 다른 사진으로 해 보세요.")); }
+            }} />
+          </label>
+          {coverPhoto && <button onClick={() => setCoverPhoto(null)} className="focus-ring tap f-body text-[14px] font-bold rounded-xl px-4 py-2.5" style={{ background: "white", border: `1px solid ${C.beige}`, color: "#9C927D" }}>{tr("빼기")}</button>}
+        </div>
+        {photoMsg && <p className="f-body text-[13px] mt-1.5" style={{ color: "#B25A0B" }}>{photoMsg}</p>}
+        <p className="f-body text-[12px] text-gray-400 mt-1.5">{tr("사진은 작게 줄여서 저장돼요. 저장해야 반영돼요.")}</p>
+      </div>
 
       <div className="rounded-xl p-3 mb-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }}>
         <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("시간대")} <span className="font-normal text-gray-400">{tr("(같은 날 여러 타임이면)")}</span></p>
@@ -7788,6 +7858,34 @@ function StatsPanel({ adventures, students, suggestions }) {
 }
 
 // remembered outside the screen so it survives the screen being rebuilt after a save or delete
+/* ---- Phone "back" button: go one step back inside the app instead of leaving it ---- */
+const BACK_HANDLERS = [];
+let backBound = false;
+function bindBack() {
+  if (backBound || typeof window === "undefined" || !window.history) return;
+  backBound = true;
+  try { window.history.pushState({ cw: 1 }, ""); } catch (e) { /* no history access: the phone simply leaves as before */ }
+  window.addEventListener("popstate", () => {
+    const list = BACK_HANDLERS.map((h, i) => ({ h, i })).sort((a, b) => b.h.level - a.h.level || b.i - a.i);
+    for (const { h } of list) {
+      let done = false;
+      try { done = !!h.ref.current(); } catch (e) { done = false; }
+      if (done) { try { window.history.pushState({ cw: 1 }, ""); } catch (e) { /* ignore */ } return; }
+    }
+    try { window.history.back(); } catch (e) { /* ignore */ }
+  });
+}
+/** Register what "back" does on this screen: close the open thing and return true, or return false to let the next one decide. */
+function useBack(fn, level = 1) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => {
+    bindBack();
+    const h = { ref, level };
+    BACK_HANDLERS.push(h);
+    return () => { const i = BACK_HANDLERS.indexOf(h); if (i >= 0) BACK_HANDLERS.splice(i, 1); };
+  }, []);
+}
 const teacherUi = { tab: "overview", programId: null };
 
 const timeAgoKo = (iso) => {
@@ -7890,7 +7988,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-09-s2"; // change with every delivery
+const APP_BUILD = "2026-10-10-u3"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8980,6 +9078,11 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const editApi = useRef(null);
   const [pendingNav, setPendingNav] = useState(null);
   const go = (fn) => ((dirtyNew || dirtyEdit) ? setPendingNav(() => fn) : fn());
+  useBack(() => {
+    if (editingProgramId) { go(() => setEditingProgramId(null)); return true; }
+    if (tab !== "overview") { go(() => setTab("overview")); return true; }
+    return false;
+  });
   // opening a program to edit: first load what the server has now; reopen the form only if it changed
   useEffect(() => {
     if (!editingProgramId || !onRefresh) return;
@@ -10226,6 +10329,11 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const [formKey, setFormKey] = useState(0);
   const [savedAt, setSavedAt] = useState(null);
   const [asking, setAsking] = useState(null); // { program, slot }
+  useBack(() => {
+    if (asking) { setAsking(null); return true; }
+    if (tab !== "materials") { setTab("materials"); return true; }
+    return false;
+  });
   const program = PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null;
   const shortTitle = (p) => splitTitle(p.title)[0] || p.title;
   const mySignups = joins.filter((j) => j.teacherId === teacherId);
@@ -10871,6 +10979,17 @@ export default function CarrotExplorer() {
   const [parentScreen, setParentScreen] = useState({ type: "list" }); // list | { type:'report', studentId } | { type:'student-mode', studentId }
   const [studentTab, setStudentTab] = useState("home");
   const [selectedProgramId, setSelectedProgramId] = useState(null);
+  useBack(() => {
+    if (!session || session.role !== "parent") return false;
+    if (parentScreen.type === "student-mode") {
+      if (selectedProgramId) { setSelectedProgramId(null); return true; }
+      if (studentTab !== "home") { setStudentTab("home"); return true; }
+      setParentScreen({ type: "list" });
+      return true;
+    }
+    if (parentScreen.type !== "list") { setParentScreen({ type: "list" }); return true; }
+    return false;
+  }, 0);
   const [students, setStudents] = useState(INITIAL_STUDENTS);
   const [adventures, setAdventures] = useState(() => buildInitialAdventures());
   const [programsVersion, setProgramsVersion] = useState(0);
@@ -11637,7 +11756,7 @@ export default function CarrotExplorer() {
             className="focus-ring tap f-body text-[14px] font-bold"
             style={{ color: "#B9AE97" }}
           >
-            Exit to Parent
+            부모 화면으로
           </button>
         </div>
 
@@ -11655,7 +11774,7 @@ export default function CarrotExplorer() {
               />
             ) : (
               <>
-                {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
+                {studentTab === "home" && <StudentHome adventures={liveAdventures} studentId={studentId} name={student.name} points={pointsBalance(pointEntries(student.familyPin, students, liveAdventures, suggestions))} onOpen={setSelectedProgramId} onViewProgress={() => setStudentTab("journey")} />}
                 {studentTab === "adventures" && <AdventuresList adventures={liveAdventures} studentId={studentId} onOpen={setSelectedProgramId} />}
                 {studentTab === "journey" && <Journey adventures={liveAdventures} studentId={studentId} points={pointsBalance(pointEntries((students.find((x) => x.id === studentId) || {}).familyPin, students, liveAdventures, suggestions))} />}
                 {studentTab === "badges" && <BadgeCollection adventures={liveAdventures} studentId={studentId} />}
@@ -11668,11 +11787,11 @@ export default function CarrotExplorer() {
         {!selectedProgram && (
           <BottomNavigation
             items={[
-              { key: "home", label: "Home", icon: NavHomeIcon },
-              { key: "adventures", label: "Adventures", icon: NavCompassIcon },
-              { key: "journey", label: "My Journey", icon: NavJourneyIcon },
-              { key: "badges", label: "Badges", icon: NavBadgeIcon },
-              { key: "points", label: "Points", icon: NavPointsIcon },
+              { key: "home", label: "홈", icon: NavHomeIcon },
+              { key: "adventures", label: "체험", icon: NavCompassIcon },
+              { key: "journey", label: "성장 기록", icon: NavJourneyIcon },
+              { key: "badges", label: "뱃지", icon: NavBadgeIcon },
+              { key: "points", label: "포인트", icon: NavPointsIcon },
             ]}
             active={studentTab}
             onSelect={setStudentTab}

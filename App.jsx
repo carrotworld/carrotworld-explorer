@@ -162,6 +162,13 @@ const EN = {
 "체험 전 안내": "Pre-trip info",
 "시간 · 모이는 곳 · 준비물 · 입장료": "Time · meeting place · what to bring · fee",
 "접기 ▴": "Hide ▴",
+"다음 체험": "Next trip",
+"수업자료 열기": "Open materials",
+"담당 레벨": "Levels",
+"자료 준비됨": "Materials ready",
+"자료 준비 중": "Materials in progress",
+"{0}명 남음": "{0} left",
+"신청할 수 있는 체험": "Open for sign-up",
 "대기 {0}건": "{0} waiting",
 "확정 {0} · 대기 {1}": "{0} confirmed · {1} waiting",
 "선생님 {0}명": "{0} teachers",
@@ -8125,7 +8132,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z10"; // change with every delivery
+const APP_BUILD = "2026-10-10-z11"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10482,7 +10489,7 @@ function JoinDialog({ title, onSend, onClose }) {
 function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
-  const [tab, setTab] = useState("materials");
+  const [tab, setTab] = useState("programs");
   const [programId, setProgramId] = useState(() => (PROGRAMS[0] ? PROGRAMS[0].id : null));
   const [mineOnly, setMineOnly] = useState(true);
   const [formKey, setFormKey] = useState(0);
@@ -10491,7 +10498,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const [showGoals, setShowGoals] = useState(false);
   useBack(() => {
     if (asking) { setAsking(null); return true; }
-    if (tab !== "materials") { setTab("materials"); return true; }
+    if (tab !== "programs") { setTab("programs"); return true; }
     return false;
   });
   const program = PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null;
@@ -10519,6 +10526,23 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const list = (filtering ? mine : roster).slice().sort((x, y) => Number(!!y.a.attended) - Number(!!x.a.attended));
   const feedbackLeft = list.filter((x) => x.a.attended && !feedbackDone(x.a)).length;
   const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackDone(x.a)).length : 0;
+  // Home: the teacher's next trip, what is waiting for them (feedback, pay)
+  const sameName = (t) => !!name && (t || "").trim().toLowerCase() === name.trim().toLowerCase();
+  const nextP = upcoming
+    .filter((p) => mySignups.some((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status)))
+    .slice().sort((x, y) => String(x.startDate || "9999").localeCompare(String(y.startDate || "9999")))[0] || null;
+  const nextJoin = nextP ? mySignups.find((j) => j.programId === nextP.id && ["approved", "pending", "waiting"].includes(j.status)) : null;
+  const nextSlot = nextP && nextJoin ? sessionsOf(nextP).find((x) => x.id === nextJoin.slotId) || null : null;
+  const nextTime = nextP ? (infoForSession(infoFrom(nextP), nextSlot).time || "") : "";
+  const nextLevels = nextP ? (() => { const mineT = teamsOf(nextP).filter((t) => sameName(t.teacher)).map((t) => t.level); return [...new Set(mineT.length ? mineT : (nextP.levels || [nextP.level]).filter(Boolean))]; })() : [];
+  const nextReady = nextP ? (() => { try { const v = programForLevel(nextP, (nextP.levels || [nextP.level])[0]); return (v.vocabulary || []).length > 0 && (v.remember || []).length > 0; } catch (e) { return false; } })() : false;
+  const feedbackTotal = PROGRAMS.reduce((n, pp) => {
+    const rows = adventures.filter((a) => a.programId === pp.id && !a.canceled && a.attended && !feedbackDone(a));
+    const own = rows.filter((a) => sameName((teamOf(pp, a) || {}).teacher));
+    const hasOwn = adventures.some((a) => a.programId === pp.id && !a.canceled && sameName((teamOf(pp, a) || {}).teacher));
+    return n + (hasOwn ? own.length : rows.length);
+  }, 0);
+  const payReady = payItems.filter((i) => !i.paid && !i.needsAmount).reduce((n, i) => n + i.amount, 0);
   const TABS = [
     { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
     { key: "materials", label: tr("수업자료") },
@@ -10543,6 +10567,37 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
           {!teacherId && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.")}</p>}
+          {nextP && (
+            <div className="bg-white rounded-2xl p-4" data-testid="next-trip">
+              <div className="flex items-center justify-between gap-2">
+                <span className="f-body text-[12px] font-bold tracking-[0.1em] uppercase" style={{ color: C.orange }}>{tr("다음 체험")}</span>
+                {nextJoin && <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: chipFor(nextJoin).bg, color: chipFor(nextJoin).color }}>{chipFor(nextJoin).text.replace(" ✓", "")}</span>}
+              </div>
+              <p className="f-display text-[22px] font-semibold leading-snug mt-1" style={{ color: C.green }}>{shortTitle(nextP)}</p>
+              <div className="mt-2 space-y-0.5 f-body text-[14px]" style={{ color: "#5F6B66" }}>
+                <p>{[nextP.date, nextSlot && nextSlot.label, nextTime].filter(Boolean).join(" · ")}</p>
+                <p>{nextP.locationKo || nextP.location}</p>
+                {nextLevels.length > 0 && <p>{tr("담당 레벨")} {nextLevels.join(" · ")}</p>}
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: nextReady ? "#EAF7EF" : "#FFF1E2", color: nextReady ? "#1F7A44" : "#B25A0B" }}>{nextReady ? tr("자료 준비됨") : tr("자료 준비 중")}</span>
+              </div>
+              <button onClick={() => { setProgramId(nextP.id); setTab("materials"); }} className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }}>{tr("수업자료 열기")}</button>
+            </div>
+          )}
+          {teacherId && (feedbackTotal > 0 || payReady > 0) && (
+            <div className="grid grid-cols-2 gap-2.5" data-testid="home-todo">
+              <button onClick={() => setTab("feedback")} className="focus-ring tap text-left bg-white rounded-2xl px-4 py-3">
+                <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{tr("피드백")}</p>
+                <p className="f-display text-[18px] font-bold" style={{ color: feedbackTotal ? "#B25A0B" : C.green }}>{feedbackTotal ? tr("{0}명 남음", [feedbackTotal]) : tr("완료")}</p>
+              </button>
+              <button onClick={() => setTab("pay")} className="focus-ring tap text-left bg-white rounded-2xl px-4 py-3">
+                <p className="f-body text-[12px]" style={{ color: "#9C927D" }}>{tr("받을 수당")}</p>
+                <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{won(payTax(payReady, payInfo.taxOn !== false).net)}</p>
+              </button>
+            </div>
+          )}
+          {upcoming.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p>}
           {upcoming.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {upcoming.map((p) => (
             <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
@@ -10555,7 +10610,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
                   return (
                     <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
                       <div className="min-w-0">
-                        {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>🕘 {x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
+                        {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
                         {chip && <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>}
                       </div>
                       {!teacherId ? null : !j || j.status === "declined" ? (
@@ -10582,17 +10637,19 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
       {tab !== "programs" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>}
       {tab !== "programs" && program && (
         <>
-          <div className="px-5 mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label="Programs">
-            {PROGRAMS.map((p) => (
-              <button key={p.id} role="tab" aria-selected={p.id === program.id} onClick={() => { setProgramId(p.id); setSavedAt(null); setFormKey((k) => k + 1); }} className="focus-ring tap shrink-0 f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: p.id === program.id ? C.orange : "white", color: p.id === program.id ? "white" : C.charcoal, border: `1px solid ${p.id === program.id ? C.orange : C.beige}` }}>{shortTitle(p)}</button>
-            ))}
-          </div>
+          {tab !== "pay" && (
+            <div className="px-5 mb-3">
+              <select value={program.id} onChange={(e) => { setProgramId(e.target.value); setSavedAt(null); setFormKey((k) => k + 1); }} aria-label={tr("프로그램")} data-testid="program-select" className="focus-ring w-full rounded-xl px-3.5 py-3 f-body text-[16px] font-bold outline-none" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green }}>
+                {PROGRAMS.map((pp) => <option key={pp.id} value={pp.id}>{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
+              </select>
+            </div>
+          )}
 
           {tab === "materials" && (
             <div className="px-5 pb-8">
               <div className="bg-white rounded-2xl px-4 py-3 mb-3" style={{ border: `1px solid ${C.beige}` }} data-testid="teacher-objectives">
                 <button onClick={() => setShowGoals((v) => !v)} aria-expanded={showGoals} className="focus-ring tap w-full flex items-center justify-between">
-                  <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표")}</span>
+                  <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표").replace("🎯 ", "")}</span>
                   <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{showGoals ? "▴" : "▾"}</span>
                 </button>
                 {showGoals && <div className="mt-2.5"><ObjectiveTable program={program} /></div>}

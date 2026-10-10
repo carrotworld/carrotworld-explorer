@@ -2081,6 +2081,7 @@ function StarRow() {
 
 function CelebrationModal({ title, subtitle, badge, praise = "Great Job!", onClose }) {
   const [opened, setOpened] = useState(!badge);
+  useBack(() => { onClose(); return true; }, 10);
 
   if (!opened) {
     return (
@@ -4753,7 +4754,7 @@ function parentAction(program, adv) {
   if (!adv.beforeCompleted) return R(4, "prep", noticeOut ? "안내가 도착했어요. 예습도 해 주세요." : "단어 카드로 예습해요.", { label: "예습 시작하기", act: "start" }, [...(agreed ? [] : [safety]), ...(noticeOut ? [info] : [])]);
   if (!agreed) return R(5, "info", "예습을 마쳤어요. 다음은 안전수칙 확인이에요.", safety, [...(noticeOut ? [info] : []), ...prepAgain]);
   if (noticeOut) return R(5, "info", "예습을 마쳤어요. 체험 안내를 확인해 주세요.", info, prepAgain);
-  return R(6, "wait", "예습과 안전수칙 동의를 마쳤어요. 체험 안내를 곧 보내 드려요.", null, prepAgain);
+  return R(6, "wait", "예습과 안전수칙 동의를 마쳤어요. 체험 안내는 곧 보내 드려요.", { label: "단어 다시 보기", act: "start" }, [{ ...safety, label: "안전수칙 다시 보기" }]);
 }
 
 /** One child on the parents' home: who they are, the one experience that matters now with its one main button, and the rest tucked away. */
@@ -5905,6 +5906,12 @@ const PIN_WEAK_MSG = "너무 쉬운 번호예요 (예: 1111, 1234). 다른 번�
  */
 /** A centered pop-up question. actions: [{ label, tone: "primary" | "danger" | "plain", onClick }] */
 function ConfirmDialog({ title, children, actions }) {
+  // phone "back" closes the dialog like its cancel button (or just closes nothing when there is no safe way out)
+  useBack(() => {
+    const safe = actions.find((a) => (a.tone || "plain") === "plain" && /취소|닫기|돌아가기|계속|확인|Cancel|Close|OK/.test(a.label));
+    if (safe) safe.onClick();
+    return true;
+  }, 10);
   const tones = {
     primary: { background: C.orange, color: "white" },
     danger: { background: "#C0674A", color: "white" },
@@ -7250,7 +7257,8 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
           ))}
           <SafetySection programId={program.id} kids={kids} familyPin={familyPin} defaultOpen={openSafety} autoScroll={openSafety} />
         </div>
-        <p className="f-body text-[14px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
+        <div className="mt-5"><PrimaryButton onClick={onClose}>확인했어요</PrimaryButton></div>
+        <p className="f-body text-[14px] text-gray-400 text-center mt-4">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
     </div>
   );
@@ -8284,6 +8292,21 @@ function bindBack() {
       try { done = !!h.ref.current(); } catch (e) { done = false; }
       if (done) { try { window.history.pushState({ cw: 1 }, ""); } catch (e) { /* ignore */ } return; }
     }
+    // nothing left to close: the first back only warns, a second one within 2 seconds leaves the app
+    const now = Date.now();
+    if (!window.__cwExit || now - window.__cwExit > 2000) {
+      window.__cwExit = now;
+      try { window.history.pushState({ cw: 1 }, ""); } catch (e) { /* ignore */ }
+      try {
+        const t = document.createElement("div");
+        t.textContent = "한 번 더 누르면 앱이 닫혀요 · Press back again to exit";
+        t.setAttribute("role", "status");
+        t.style.cssText = "position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#174C35;color:#fff;padding:10px 16px;border-radius:999px;font:700 14px sans-serif;z-index:9999;max-width:90vw;text-align:center";
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1800);
+      } catch (e) { /* ignore */ }
+      return;
+    }
     try { window.history.back(); } catch (e) { /* ignore */ }
   });
 }
@@ -8400,7 +8423,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z16"; // change with every delivery
+const APP_BUILD = "2026-10-10-z18"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9500,6 +9523,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const go = (fn) => ((dirtyNew || dirtyEdit) ? setPendingNav(() => fn) : fn());
   useBack(() => {
     if (editingProgramId) { go(() => setEditingProgramId(null)); return true; }
+    if (openNew) { go(() => setOpenNew(false)); return true; }
     if (tab !== "overview") { go(() => setTab("overview")); return true; }
     return false;
   });
@@ -10666,6 +10690,7 @@ const MANUAL = buildManual();
 /** The manual page: sections open and close; the language follows the teacher's choice. */
 function TeacherManual({ lang, onClose, role }) {
   const L = lang === "ko" ? "ko" : "en";
+  useBack(() => { onClose(); return true; }, 5);
   const [open, setOpen] = useState(() => (role === "guide" ? { "guide-start": true } : { start: true }));
   const sections = buildManual().filter((m) => (m.id !== "advice" || FEATURES.parentAdvice) && (role !== "guide" || m.id.startsWith("guide-")));
   const allOpen = sections.every((m) => open[m.id]);

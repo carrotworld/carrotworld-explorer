@@ -4867,7 +4867,8 @@ function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, o
   const when = (program, a) => {
     const slot = sessionOf(program, a);
     const time = infoForSession(infoFrom(program), slot).time;
-    return [program.date, sessionsOf(program).length && slot ? sessionName(slot) : "", time].filter(Boolean).join(" · ");
+    const sn = sessionsOf(program).length && slot ? sessionName(slot) : "";
+    return [program.date, sn, time && !sn.includes(time) ? time : ""].filter(Boolean).join(" · ");
   };
   const reports = mineAll.filter((a) => feedbackSent(a)).length;
   const row = (x) => {
@@ -8480,7 +8481,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z19"; // change with every delivery
+const APP_BUILD = "2026-10-10-z20"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

@@ -4337,6 +4337,37 @@ function LevelSheet({ onClose }) {
   );
 }
 
+/** "홈 화면에 추가": the real browser prompt when it is offered, otherwise the two written ways. Hidden once the app is installed. */
+function InstallButton() {
+  const [open, setOpen] = useState(false);
+  const [gone, setGone] = useState(false);
+  let installed = false;
+  try { installed = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; } catch (e) { /* ignore */ }
+  if (installed || gone) return null;
+  const go = async () => {
+    if (deferredInstall) {
+      try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e) { /* declined */ }
+      deferredInstall = null; setGone(true); return;
+    }
+    setOpen((v) => !v);
+  };
+  return (
+    <div data-testid="install-card">
+      <button onClick={go} aria-expanded={open} data-testid="install-btn" className="focus-ring tap w-full rounded-2xl px-4 py-3.5 flex items-center justify-between text-white" style={{ background: C.orange }}>
+        <span className="f-display text-[17px] font-semibold">📲 홈 화면에 추가</span>
+        <span className="f-body text-[14px]">{open ? "▴" : "앱처럼 바로 열어요"}</span>
+      </button>
+      {open && (
+        <div className="rounded-2xl p-4 mt-2" style={{ background: C.beige }}>
+          <p className="f-body text-[15px] text-gray-700">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
+          <p className="f-body text-[15px] text-gray-700 mt-1">아이폰: 공유 버튼 → 홈 화면에 추가</p>
+          <p className="f-body text-[13px] text-gray-500 mt-2">주소 {APP_ADDRESS}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** The same guide as the KakaoTalk image, as one scrollable page (opened from "도움말"). */
 function GuideSheet({ onClose, onOpenLevels }) {
   const [canInstall, setCanInstall] = useState(!!deferredInstall);
@@ -4844,27 +4875,6 @@ function ObjectiveTable({ program }) {
   );
 }
 
-function ProgramObjectives({ programs }) {
-  if (!programs.length) return null;
-  return (
-    <section data-testid="program-objectives" className="space-y-3">
-      <SectionBar>프로그램별 학습 목표</SectionBar>
-      {programs.map((p) => (
-        <div key={p.id} className="bg-white rounded-2xl px-4 py-3.5" style={{ border: `1px solid ${C.beige}` }}>
-          <div className="flex gap-3">
-            <TitleBar program={p} />
-            <div className="min-w-0">
-              <p className="f-headline text-[18px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
-              {p.themeKo && <p className="f-body text-[14px] text-gray-500 mt-0.5">{p.themeKo}</p>}
-            </div>
-          </div>
-          <div className="mt-3"><ObjectiveTable program={p} /></div>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout, onSubmitReview = async () => ({ ok: false }), onSeenReview = () => {} }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
@@ -5002,11 +5012,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         <div className="px-5 pt-2 space-y-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
-          <ProgramObjectives programs={(() => {
-            const mine = new Set(adventures.filter((a) => myChildren.some((c) => c.id === a.studentId)).map((a) => a.programId));
-            const up = new Set(upcomingPrograms(adventures).map((p) => p.id));
-            return PROGRAMS.filter((p) => (mine.has(p.id) || up.has(p.id)));
-          })()} />
+          <InstallButton />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -8053,7 +8059,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z2"; // change with every delivery
+const APP_BUILD = "2026-10-10-z3"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

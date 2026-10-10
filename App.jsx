@@ -4338,52 +4338,67 @@ function LevelSheet({ onClose }) {
   );
 }
 
-/** "홈 화면에 추가": the real browser prompt when it is offered, otherwise the two written ways. Hidden once the app is installed. */
+/** "홈 화면에 추가", one card that fits the phone it is opened on: the real install window where the browser offers it, otherwise the exact steps for that phone. Hidden once the app is installed. */
 function InstallButton() {
   const [open, setOpen] = useState(false);
   const [gone, setGone] = useState(false);
-  const [diag, setDiag] = useState("");
+  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
   let installed = false;
   try { installed = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true; } catch (e) { /* ignore */ }
   if (installed || gone) return null;
-  /** The browser offers no install window: find out why (missing icon files, no service worker) and say it in plain words. */
-  const check = async () => {
-    const out = [];
-    try {
-      const r = await fetch("/manifest.webmanifest", { cache: "no-store" });
-      if (!r.ok) out.push("manifest 파일을 찾지 못했어요");
-      else {
-        const m = await r.json();
-        for (const ic of m.icons || []) {
-          try { const x = await fetch(ic.src, { cache: "no-store" }); if (!x.ok) out.push(`아이콘 없음: ${ic.src}`); } catch (e) { out.push(`아이콘 없음: ${ic.src}`); }
-        }
-      }
-    } catch (e) { out.push("manifest 파일을 읽지 못했어요"); }
-    try { const reg = navigator.serviceWorker && (await navigator.serviceWorker.getRegistration()); if (!reg) out.push("서비스워커가 등록되지 않았어요(index.html의 스크립트 확인)"); } catch (e) { out.push("서비스워커를 확인하지 못했어요"); }
-    setDiag(out.length ? out.join(" · ") : "앱 설치 조건은 모두 갖춰졌어요. 이 브라우저가 추가 창을 지원하지 않는 거라, 위 방법으로 추가하거나 크롬으로 열어 주세요.");
-  };
+  const ios = /iphone|ipad|ipod/i.test(ua);
+  const inApp = /kakaotalk|naver\(inapp|instagram|fb_iab|fban|line\//i.test(ua);
+  const whale = /whale/i.test(ua);
+  const samsung = /samsungbrowser/i.test(ua);
+  const android = /android/i.test(ua);
+  if (!deferredInstall && window.__bip) deferredInstall = window.__bip;
+  const num = (n) => <span className="w-6 h-6 rounded-full inline-flex items-center justify-center text-[13px] font-bold text-white shrink-0" style={{ background: C.orange }}>{n}</span>;
+  const row = (n, t) => <div className="flex items-start gap-2.5 mt-2">{num(n)}<p className="f-body text-[15px]" style={{ color: C.charcoal }}>{t}</p></div>;
+  const box = (title, children) => (
+    <div className="rounded-2xl p-4" style={{ background: C.beige }} data-testid="install-card">
+      <p className="f-display text-[17px] font-semibold" style={{ color: C.green }}>📲 {title}</p>
+      {children}
+    </div>
+  );
+  if (inApp) {
+    return box("먼저 브라우저로 열어 주세요", <>
+      <p className="f-body text-[14px] text-gray-600 mt-1">카카오톡 등 앱 안에서 열면 홈 화면에 추가할 수 없어요.</p>
+      {row(1, "화면의 메뉴(⋮ 또는 ⋯)에서 \"다른 브라우저로 열기\"를 눌러요.")}
+      {row(2, ios ? "사파리로 열어요." : "크롬으로 열어요.")}
+      {row(3, "열린 화면에서 이 안내 탭으로 다시 와요.")}
+    </>);
+  }
+  if (ios) {
+    return box("홈 화면에 추가 (아이폰)", <>
+      <p className="f-body text-[14px] text-gray-600 mt-1">아이폰은 앱이 대신 설치해 줄 수 없어서 직접 눌러야 해요.</p>
+      {row(1, "사파리 아래의 공유 버튼(□ 위 화살표)을 눌러요.")}
+      {row(2, "목록을 올려서 \"홈 화면에 추가\"를 눌러요.")}
+      {row(3, "오른쪽 위 \"추가\"를 누르면 끝이에요.")}
+    </>);
+  }
+  if (!android && !deferredInstall) return null; // a computer without an install window: nothing to show
   const go = async () => {
-    if (!deferredInstall && window.__bip) deferredInstall = window.__bip;
     if (deferredInstall) {
       try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e) { /* declined */ }
       deferredInstall = null; window.__bip = null; setGone(true); return;
     }
-    setOpen(true);
-    check();
+    setOpen((v) => !v);
   };
   return (
     <div data-testid="install-card">
       <button onClick={go} aria-expanded={open} data-testid="install-btn" className="focus-ring tap w-full rounded-2xl px-4 py-3.5 flex items-center justify-between text-white" style={{ background: C.orange }}>
         <span className="f-display text-[17px] font-semibold">📲 홈 화면에 추가</span>
-        <span className="f-body text-[14px]">{open ? "" : "앱처럼 바로 열어요"}</span>
+        <span className="f-body text-[14px]">{deferredInstall ? "누르면 설치돼요" : open ? "▴" : "방법 보기 ▾"}</span>
       </button>
-      {open && (
+      {open && !deferredInstall && (
         <div className="rounded-2xl p-4 mt-2" style={{ background: C.beige }} data-testid="install-help">
-          <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>이 브라우저에서는 바로 추가 창이 안 떠요. 이렇게 해 주세요.</p>
-          {/whale/i.test((typeof navigator !== "undefined" && navigator.userAgent) || "") && <p className="f-body text-[15px] font-bold mt-1.5" style={{ color: C.green }}>네이버 웨일: 아래 메뉴(≡) → 홈 화면에 추가 (또는 바로가기 추가)</p>}
-          <p className="f-body text-[15px] text-gray-700 mt-1.5">크롬·삼성 인터넷: 브라우저 메뉴(점 3개 또는 ≡) → 홈 화면에 추가</p>
-          <p className="f-body text-[15px] text-gray-700 mt-1">아이폰: 공유 버튼 → 홈 화면에 추가</p>
-          {diag && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }} data-testid="install-diag">{diag}</p>}
+          <p className="f-body text-[14px] text-gray-600">이 브라우저는 자동 설치 창을 지원하지 않아요. 메뉴에서 직접 추가해 주세요.</p>
+          {whale
+            ? <>{row(1, "화면 아래 오른쪽 메뉴(≡)를 눌러요.")}{row(2, "\"홈 화면에 추가\" 또는 \"바로가기 추가\"를 눌러요.")}</>
+            : samsung
+              ? <>{row(1, "화면 아래 오른쪽 메뉴(≡)를 눌러요.")}{row(2, "\"현재 페이지 추가\" → \"홈 화면\"을 눌러요.")}</>
+              : <>{row(1, "브라우저 오른쪽 위 메뉴(점 3개 ⋮)를 눌러요.")}{row(2, "\"홈 화면에 추가\" 또는 \"앱 설치\"를 눌러요.")}</>}
+          <p className="f-body text-[13px] text-gray-500 mt-2">크롬으로 열면 이 버튼 한 번으로 설치돼요.</p>
         </div>
       )}
     </div>
@@ -4423,27 +4438,7 @@ function GuideSheet({ onClose, onOpenLevels }) {
               <p className="f-body text-[16px] text-gray-600">{st.text}</p>
             </div>
           ))}
-          <div className="rounded-2xl p-4" style={{ background: C.beige }}>
-            <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.orange }}>앱 주소</p>
-            <p className="f-display text-[21px] font-semibold mb-2" style={{ color: C.green }}>{APP_ADDRESS}</p>
-            <p className="f-body text-[16px] font-bold mb-1" style={{ color: C.charcoal }}>홈 화면에 추가</p>
-            <p className="f-body text-[15px] text-gray-600">안드로이드: 브라우저 메뉴(점 3개) → 홈 화면에 추가</p>
-            <p className="f-body text-[15px] text-gray-600">아이폰: 공유 버튼 → 홈 화면에 추가</p>
-            {canInstall && (
-              <button onClick={install} className="focus-ring tap f-body text-[16px] font-bold rounded-xl px-4 py-2.5 mt-3 text-white" style={{ background: C.orange }}>
-                지금 홈 화면에 추가
-              </button>
-            )}
-          </div>
-          {onOpenLevels && (
-            <button onClick={onOpenLevels} className="focus-ring tap w-full text-left rounded-2xl p-4 bg-white flex items-center justify-between gap-3">
-              <span>
-                <span className="block f-display font-semibold text-[18px]" style={{ color: C.green }}>🥕 당근나라 레벨 안내</span>
-                <span className="block f-body text-[15px] text-gray-500">레벨, 참여 단계, 뱃지, 올라가는 방식</span>
-              </span>
-              <ChevronRight size={20} color="#C9BFA8" className="shrink-0" />
-            </button>
-          )}
+          <InstallButton />
           <p className="f-body text-[15px] text-gray-400 text-center pt-1">문의는 카카오톡으로 해 주세요.</p>
         </div>
       </div>
@@ -8081,7 +8076,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z5"; // change with every delivery
+const APP_BUILD = "2026-10-10-z6"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

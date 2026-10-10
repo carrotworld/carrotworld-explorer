@@ -8053,7 +8053,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z1"; // change with every delivery
+const APP_BUILD = "2026-10-10-z2"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9147,6 +9147,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   const [editorTick, setEditorTick] = useState(0);
   // unsaved work in the program forms: ask before moving elsewhere
   const [dirtyNew, setDirtyNew] = useState(false);
+  const [openNew, setOpenNew] = useState(false);
   const [dirtyEdit, setDirtyEdit] = useState(false);
   const newApi = useRef(null);
   const editApi = useRef(null);
@@ -9611,7 +9612,13 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {tab === "programs" && (
         <div className="px-5 space-y-3">
-          <RegisterProgramPanel onRegister={onRegisterProgram} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
+          <button onClick={() => setOpenNew((v) => !v)} aria-expanded={openNew} data-testid="new-program-toggle" className="focus-ring tap w-full flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: openNew ? C.beige : C.green }}>
+            <span className="f-display text-[17px] font-semibold" style={{ color: openNew ? C.green : "white" }}>{openNew ? tr("새 프로그램 등록 닫기") : tr("+ 새 프로그램 등록")}</span>
+            <span className="f-body text-[15px] font-bold" style={{ color: openNew ? C.green : "white" }}>{openNew ? "▴" : "▾"}</span>
+          </button>
+          <div className={openNew ? "" : "hidden"} data-testid="new-program-form">
+            <RegisterProgramPanel onRegister={async (...a) => { const r = await onRegisterProgram(...a); setOpenNew(false); return r; }} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
+          </div>
           <SectionBar>{tr("등록된 프로그램")}</SectionBar>
           {PROGRAMS.map((p) =>
             editingProgramId === p.id ? (

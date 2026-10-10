@@ -2631,7 +2631,7 @@ function BadgeCollection({ adventures, studentId }) {
               <p className="f-body text-[14px]" style={{ color: "#C9E6D6" }}>체험 {n}회{nextRank ? ` · ${nextRank.label}까지 ${nextRank.min - n}회` : " · 최고 단계"}</p>
             </div>
           </div>
-          <StampCard count={n} fillColor={C.orange} emptyColor="#3F7358" />
+          <StampCard count={n} fillColor={C.orange} emptyColor="#3F7358" perRow={5} size={52} />
           <p className="f-body text-[13px] mt-3" style={{ color: "#9FD1B8" }}>도장 {n}개 · 다음 뱃지까지 {left}개 · 체험을 마치면 도장 1개{POINT_RULES.trip > 0 ? ` + ${POINT_RULES.trip.toLocaleString("en-US")}P` : ""}</p>
         </div>
 
@@ -7998,7 +7998,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-x3"; // change with every delivery
+const APP_BUILD = "2026-10-10-y4"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8363,6 +8363,7 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
     }
     setBusy(false);
   };
+  const [openCards, setOpenCards] = useState({});
   const feed = recentActivity(programs, adventures, students);
   const cell = (label, value, tone) => (
     <div className="rounded-xl px-3 py-2" style={{ background: tone === "warn" ? "#FFF1E2" : tone === "ok" ? "#EAF7EF" : C.cream }}>
@@ -8370,10 +8371,15 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
       <p className="f-body text-[15px] font-bold" style={{ color: tone === "warn" ? "#B25A0B" : tone === "ok" ? "#1F7A44" : C.charcoal }}>{value}</p>
     </div>
   );
+  const chip = (label, value, tone) => (
+    <span className="f-body text-[12px] rounded-full px-2.5 py-1" style={{ background: tone === "warn" ? "#FFF1E2" : tone === "ok" ? "#EAF7EF" : C.cream, color: tone === "warn" ? "#B25A0B" : tone === "ok" ? "#1F7A44" : C.charcoal }}>
+      <span style={{ opacity: 0.65 }}>{label} </span><b>{value}</b>
+    </span>
+  );
   return (
-    <div className="px-5 space-y-3">
+    <div className="px-5 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="f-body text-[14px] text-gray-500">{tr("마지막 확인 {0}", [timeAgoKo(new Date(lastSyncAt).toISOString())])}</p>
+        <p className="f-body text-[13px] text-gray-500">{tr("마지막 확인 {0}", [timeAgoKo(new Date(lastSyncAt).toISOString())])}</p>
         <button onClick={refresh} disabled={busy} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 disabled:opacity-60" style={{ background: C.beige, color: C.green }}>
           {busy ? tr("확인 중...") : tr("새로고침")}
         </button>
@@ -8385,46 +8391,49 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
         const st = programStatus(p, adventures);
         const next = nextStep(p, st);
         const look = STAGE_LOOK[st.stage];
+        const idle = !next.go; // nothing to do for this program: it folds by itself
+        if (idle && !openCards[p.id]) {
+          return (
+            <button key={p.id} onClick={() => setOpenCards((o) => ({ ...o, [p.id]: true }))} aria-expanded="false" data-testid="program-folded" className="focus-ring tap w-full bg-white rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left">
+              <TitleBar program={p} />
+              <span className="flex-1 min-w-0">
+                <span className="block f-body text-[16px] font-bold truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                <span className="block f-body text-[12px] text-gray-400">{p.date}</span>
+              </span>
+              <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
+              <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>▾</span>
+            </button>
+          );
+        }
         return (
-          <div key={p.id} className="bg-white rounded-2xl p-4">
+          <div key={p.id} className="bg-white rounded-2xl p-3.5">
             <div className="flex items-stretch gap-3">
               <TitleBar program={p} />
               <div className="flex-1 min-w-0 py-0.5">
-                <ProgramTitle program={p} size={21} />
+                <ProgramTitle program={p} size={19} />
                 <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date}{(p.locationKo || p.location) && ` · ${p.locationKo || p.location}`}</p>
               </div>
               <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
+              {idle && <button onClick={() => setOpenCards((o) => ({ ...o, [p.id]: false }))} aria-label={tr("접기")} className="focus-ring tap self-start f-body text-[13px] px-1" style={{ color: "#9C927D" }}>▴</button>}
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {cell(
-                tr("체험 전 안내"),
+            <div className="flex flex-wrap gap-1.5 mt-3" data-testid="program-chips">
+              {chip(
+                tr("안내"),
                 st.sessionInfo.length
                   ? st.sessionInfo.filter((x) => x.count > 0).map((x) => `${x.label} ${x.published ? "✓" : tr("아직")}`).join(" · ") || "—"
                   : st.infoSent ? tr("보냄 ✓") : st.stage === "done" ? "—" : tr("아직 안 보냄"),
                 st.infoSent ? "ok" : st.stage === "done" ? "" : "warn"
               )}
-              {cell(tr("신청 · 출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
-              {cell(tr("복습"), isReviewOpen(p) ? tr("열림 ✓") : tr("닫힘"), isReviewOpen(p) ? "ok" : "")}
-              {cell(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
+              {chip(tr("신청·출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
+              {chip(tr("복습"), isReviewOpen(p) ? tr("열림 ✓") : tr("닫힘"), isReviewOpen(p) ? "ok" : "")}
+              {chip(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
+              {FEATURES.parentAdvice && st.attended > 0 && chip(tr("학부모 조언"), tr("{0}명 보냄 · {1}명 확인 대기", [st.adviceSent, st.adviceDrafts]), st.adviceDrafts > 0 ? "warn" : st.adviceSent > 0 ? "ok" : "")}
+              {st.sessionInfo.length > 0 && chip(tr("시간대"), st.sessionInfo.map((x) => tr("{0} {1}명", [x.label, x.count])).join(" · ") + (st.sessionUnset > 0 ? ` · ${tr("미정 {0}명", [st.sessionUnset])}` : ""), st.sessionUnset > 0 ? "warn" : "")}
+              {st.teamCount > 0 && chip(tr("팀"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
             </div>
-            {FEATURES.parentAdvice && st.attended > 0 && (
-              <div className="mt-2">
-                {cell(tr("학부모 조언"), tr("{0}명 보냄 · {1}명 확인 대기", [st.adviceSent, st.adviceDrafts]), st.adviceDrafts > 0 ? "warn" : st.adviceSent > 0 ? "ok" : "")}
-              </div>
-            )}
-            {st.sessionInfo.length > 0 && (
-              <div className="mt-2">
-                {cell(tr("시간대"), st.sessionInfo.map((x) => tr("{0} {1}명", [x.label, x.count])).join(" · ") + (st.sessionUnset > 0 ? ` · ${tr("미정 {0}명", [st.sessionUnset])}` : ""), st.sessionUnset > 0 ? "warn" : "")}
-              </div>
-            )}
-            {st.teamCount > 0 && (
-              <div className="mt-2">
-                {cell(tr("팀 · 선생님"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
-              </div>
-            )}
             {next.go ? (
-              <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-3 flex items-center justify-between gap-2 rounded-xl px-3.5 py-3 text-left" style={{ background: "#FFF1E2" }}>
-                <span className="f-body text-[15px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
+              <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-2.5 flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-left" style={{ background: "#FFF1E2" }}>
+                <span className="f-body text-[14px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
                 <ChevronRight size={18} color="#B25A0B" className="shrink-0" />
               </button>
             ) : (
@@ -9294,16 +9303,16 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       })()}
 
       {teacherNotices.length > 0 && (
-        <div className="px-5 mb-4">
-          <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</p>
-          <div className="space-y-2">
+        <div className="px-5 mb-3">
+          <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>{tr("🔔 확인이 필요해요 {0}", [teacherNotices.length])}</p>
+          <div className="space-y-1.5">
             {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 3).map((n) => (
-              <div key={n.key} className="flex items-center gap-2 rounded-2xl p-3" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+              <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
                 <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
-                  <span className="text-[27px]">{n.icon}</span>
+                  <span className="text-[20px]">{n.icon}</span>
                   <span className="flex-1 min-w-0">
-                    <span className="block f-body text-[16px] font-bold" style={{ color: C.green }}>{n.title}</span>
-                    <span className="block f-body text-[14px] text-gray-500 truncate">{n.text}</span>
+                    <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                    <span className="block f-body text-[13px] text-gray-500 truncate">{n.text}</span>
                   </span>
                   {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
                 </button>
@@ -10339,6 +10348,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const [formKey, setFormKey] = useState(0);
   const [savedAt, setSavedAt] = useState(null);
   const [asking, setAsking] = useState(null); // { program, slot }
+  const [showGoals, setShowGoals] = useState(false);
   useBack(() => {
     if (asking) { setAsking(null); return true; }
     if (tab !== "materials") { setTab("materials"); return true; }
@@ -10440,12 +10450,13 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
 
           {tab === "materials" && (
             <div className="px-5 pb-8">
-              {(
-                <div className="bg-white rounded-2xl p-4 mb-3" style={{ border: `1px solid ${C.beige}` }} data-testid="teacher-objectives">
-                  <p className="f-body text-[15px] font-bold mb-2" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표")}</p>
-                  <ObjectiveTable program={program} />
-                </div>
-              )}
+              <div className="bg-white rounded-2xl px-4 py-3 mb-3" style={{ border: `1px solid ${C.beige}` }} data-testid="teacher-objectives">
+                <button onClick={() => setShowGoals((v) => !v)} aria-expanded={showGoals} className="focus-ring tap w-full flex items-center justify-between">
+                  <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🎯 레벨별 학습 목표")}</span>
+                  <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{showGoals ? "▴" : "▾"}</span>
+                </button>
+                {showGoals && <div className="mt-2.5"><ObjectiveTable program={program} /></div>}
+              </div>
               <p className="f-body text-[14px] text-gray-500 mb-2">{tr("단어, 미션, 집중 포인트, 퀴즈를 써요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
               <RegisterProgramPanel
                 key={`${program.id}-${formKey}`}

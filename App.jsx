@@ -5,6 +5,31 @@ import { api, sync as syncBase } from "./api";
 let UI_LANG = "ko";
 const setUiLang = (l) => { UI_LANG = l === "en" ? "en" : "ko"; };
 const EN = {
+"영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.": "Add 10–15 English words. Children tap to listen and practise each word 5 times.",
+"모든 체험에 같은 공통 규칙이 적용돼요. 선생님이 따로 입력하지 않아요. 고치는 건 본사만 해요.": "The same common rules apply to every trip. Teachers do not type them in. Only HQ edits them.",
+"공통 규칙 {0}개 · 3 Warnings": "{0} common rules · 3 Warnings",
+"자동 단어 퀴즈와 선생님 질문이에요. 체험이 끝난 뒤 아이가 풀면 점수(%)가 나와요.": "Auto word quiz and teacher questions. After the trip the child answers and gets a score (%).",
+"선생님 질문 · 큰 질문": "Teacher question · big question",
+"+ 규칙 추가": "+ Add rule",
+"공통 안전수칙": "Common safety rules",
+"규칙 {0}개 · 모든 체험에 공통": "{0} rules · common to all trips",
+"한 번만 고치면 학부모·아이·선생님 화면에 모두 반영돼요. 선생님이 따로 입력하지 않아요.": "Edit once and it shows on the parent, child and teacher screens. Teachers do not type it in.",
+"기본값으로": "Reset to default",
+"장소별 추가 수칙": "Extra rules per place",
+"공통 규칙 외에 이 장소에서만 더하는 규칙": "Rules added only for this place, on top of the common ones",
+"동의 현황": "Agreements",
+"체험별로 누가 동의했는지": "Who has agreed, per trip",
+"이 체험에 등록된 아이가 없어요.": "No children are registered for this trip.",
+"아직 안 했어요": "Not yet",
+"동의 {0} / {1}명": "Agreed {0} / {1}",
+"경고 기록": "Warning log",
+"{0}건 · 선생님과 본사만 볼 수 있어요": "{0} entries · visible to teachers and HQ only",
+"기록이 없어요.": "No entries.",
+"심각한 위험": "Serious risk",
+"잘못 기록했어요 (취소)": "Recorded by mistake (void)",
+"안전수칙": "Safety rules",
+"안전수칙 동의": "Safety agreement",
+"안전 경고 기록": "Safety warning records",
 "팀 {0}": "Team {0}",
 "팀 정하기": "Choose team",
 "팀 미배정": "No team yet",
@@ -657,7 +682,7 @@ const EN = {
 "수업자료": "Materials",
 "피드백 {0}": "Feedback {0}",
 "프로그램이 없어요.": "No programs yet.",
-"단어, 미션, 집중 포인트, 퀴즈를 써요. 레벨이 여러 개면 레벨마다 탭이 있어요.": "Write the words, missions, focus points and quiz. If there are several levels, each level has its own tab.",
+"학습 목표, 단어, 퀴즈를 써요. 안전수칙은 공통이라 따로 쓰지 않아요. 레벨이 여러 개면 레벨마다 탭이 있어요.": "Write the objective, words and quiz. Rules are common and already filled in. If there are several levels, each level has its own tab.",
 "저장됐어요. 아이들 화면에 바로 반영돼요.": "Saved. The children see the changes right away.",
 "피드백 {0}명 남음": "Feedback left: {0}",
 "피드백을 모두 썼어요 ✓": "All feedback written ✓",
@@ -2784,10 +2809,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
 /* ================================================================== */
 /*  EXPLORE  (Field Trip Mode)                                          */
 /* ================================================================== */
-function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
-  const doneCount = missionsDoneCount(adv);
-  const allDone = doneCount === adv.missionsCompleted.length;
-
+function FieldTripMode({ program, adv, onFinish }) {
   if (!isLive(program)) {
     return (
       <div className="px-5 pb-10 text-center pt-10">
@@ -2797,42 +2819,13 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
       </div>
     );
   }
-
-  if (readOnly) {
-    return (
-      <div className="px-5 pb-10">
-        {(program.focus || []).length > 0 && (
-          <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-            <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
-            <ul className="space-y-1">
-              {program.focus.map((f, i) => (
-                <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>Missions</p>
-        <div className="space-y-2">
-          {program.missions.map((m) => (
-            <div key={m.id} className="bg-white rounded-2xl p-4 f-body text-[18px] font-semibold" style={{ color: C.charcoal }}>{m.text}</div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  const rules = commonSafetyRules(SAFETY_ROWS);
+  const extra = extraSafetyRules(SAFETY_ROWS, program.id);
   return (
-    <div className="px-5 pb-10">
-      <div className="bg-white rounded-2xl p-4 mb-4 flex items-center justify-between">
-        <span className="f-body font-bold text-[17px]" style={{ color: C.green }}>{doneCount} of {adv.missionsCompleted.length} missions complete</span>
-        <div className="w-24 h-2 rounded-full overflow-hidden" style={{ background: C.beige }}>
-          <div className="h-full rounded-full" style={{ width: `${(doneCount / adv.missionsCompleted.length) * 100}%`, background: C.orange }} />
-        </div>
-      </div>
-
+    <div className="px-5 pb-10 space-y-3" data-testid="trip-rules">
       {(program.focus || []).length > 0 && (
-        <div className="rounded-2xl p-4 mb-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 Today's Focus</p>
+        <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>Today's Focus</p>
           <ul className="space-y-1">
             {program.focus.map((f, i) => (
               <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
@@ -2840,23 +2833,17 @@ function FieldTripMode({ program, adv, onToggleMission, onFinish, readOnly }) {
           </ul>
         </div>
       )}
-
-      <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>Today's Missions</p>
-      <div className="space-y-2 mb-6">
-        {program.missions.map((m, i) => {
-          const state = adv.missionsCompleted[i] || { done: false, photo: null };
-          return (
-            <MissionCard key={m.id} mission={m} done={state.done} onToggle={() => onToggleMission(i)} />
-          );
-        })}
-      </div>
-      {allDone ? (
-        <div className="text-center">
+      <FoldBar title="Field Trip Rules" summary="8 rules · 3 Warnings">
+        <div className="space-y-3 mb-2"><div className="bg-white rounded-2xl p-4"><SafetyRuleList rules={rules} extra={extra} /></div>
+        <ThreeWarningsCard /></div>
+      </FoldBar>
+      {adv.attended ? (
+        <div className="text-center pt-2">
           <p className="f-display font-semibold mb-3" style={{ color: C.green }}>Adventure Complete!</p>
           <PrimaryButton onClick={onFinish}>Go to Review →</PrimaryButton>
         </div>
       ) : (
-        <p className="text-center f-body text-[15px] text-gray-400">Check off each mission as you explore!</p>
+        <p className="text-center f-body text-[15px] text-gray-400 pt-2">Your teacher will check you in. Read the rules together!</p>
       )}
     </div>
   );
@@ -3205,18 +3192,7 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
       {section === "trip" && (
         <FieldTripMode
           program={program}
-          readOnly={!mine}
           adv={adv}
-          onToggleMission={(i) => {
-            const missionsCompleted = adv.missionsCompleted.map((m, idx) => (idx === i ? { ...m, done: !m.done } : m));
-            const nowAttended = missionsCompleted.every((m) => m.done);
-            const wasAttended = adv.attended;
-            const updated = update({ missionsCompleted, attended: nowAttended });
-            if (nowAttended && !wasAttended) {
-              const earned = newlyEarned(updated);
-              if (earned.length) setCelebration({ praise: "Level Up!", title: "You filled a stamp card!", badge: earned[0] });
-            }
-          }}
           onFinish={() => setSection("after")}
         />
       )}
@@ -3283,15 +3259,6 @@ function StudyRecap({ a, program, defaultOpen = false }) {
               ))}
             </div>
           </>}
-          {(view.missions || []).length > 0 && <>
-            {h("체험 미션")}
-            <div className="space-y-1">
-              {view.missions.map((m) => {
-                const done = (a.missionsCompleted || []).find((x) => x.missionId === m.id)?.done;
-                return <p key={m.id} className="f-body text-[16px]" style={{ color: done ? C.charcoal : "#9C927D" }}>{done ? "✓" : "○"} {m.text}</p>;
-              })}
-            </div>
-          </>}
           {focus.length > 0 && <>
             {h("핵심 포인트")}
             <ul className="space-y-1">{focus.map((f, i) => <li key={i} className="f-body text-[16px]" style={{ color: C.charcoal }}>• {f}</li>)}</ul>
@@ -3353,7 +3320,6 @@ function ParentAdventureReport({ a, program, openRecap = false }) {
 
         <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.orange }}>탐험 하이라이트</p>
         <div className="space-y-1.5 mb-3">
-          {a.missionsCompleted.length > 0 && <HighlightLine ok={missionsAllDone(a)} text={`미션 ${missionsDoneCount(a)}/${a.missionsCompleted.length}개 완료`} />}
           <HighlightLine ok={!!a.reflection} text="복습과 소감 작성 완료" />
           <HighlightLine ok={a.attended} text="모둠 활동 참여" />
         </div>
@@ -3848,7 +3814,7 @@ function freeTeacherPin(accounts, hqPin) {
   }
   return "";
 }
-const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE || sg.type === PAY_TYPE || sg.type === PHONE_TYPE; // not shown as parent opinions
+const isSystemRow = (sg) => isWish(sg) || isVisit(sg) || isPointRow(sg) || sg.type === SETTING_TYPE || sg.type === TEACHER_TYPE || sg.type === TEACHER_JOIN_TYPE || sg.type === TEACHER_JOIN_RESULT_TYPE || sg.type === TEACHER_APPLY_TYPE || sg.type === PAY_TYPE || sg.type === PHONE_TYPE || sg.type === SAFETY_AGREE_TYPE || sg.type === SAFETY_WARN_TYPE; // not shown as parent opinions
 /** The teachers' login number: the latest one HQ saved, else the default. */
 const currentGuidePin = (suggestions) => {
   const rows = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "guidePin" && /^\d{4}$/.test(r.value)).sort((a, b) => String(a.at).localeCompare(String(b.at)));
@@ -3981,6 +3947,10 @@ function parentNotices(children, adventures, suggestions) {
           const when = [program.date, shown.time].filter(Boolean).join(" ");
           list.push({ key: `${infoKey}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${slot ? `${slot.label} · ` : ""}${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id, sessionId: slot ? slot.id : null });
         }
+        if (suggestions && !a.attended && !a.canceled && !infoShown.has(`safety-${program.id}`) && !agreementOf(suggestions, child.familyPin, program.id, child.id)) {
+          infoShown.add(`safety-${program.id}`);
+          list.push({ key: `${program.id}-safety`, icon: "🛡️", title: "안전수칙 동의가 필요해요", text: `${splitTitle(program.title)[0] || program.title} · 자녀와 함께 읽고 동의해 주세요`, action: "확인하기", kind: "info", childId: child.id, programId: program.id, sessionId: sessionOf(program, a) ? sessionOf(program, a).id : null });
+        }
         if (FEATURES.parentAdvice && a.advice?.sent && Date.now() - Date.parse(a.advice.sent.sentAt) < 14 * 86400000) {
           list.push({ key: `${base}-advice`, icon: "💬", title: "선생님이 학습 조언을 보냈어요", text: base, action: "읽어 보기", kind: "report", childId: child.id });
         }
@@ -4017,7 +3987,7 @@ function parentNotices(children, adventures, suggestions) {
       });
     });
   }
-  const priority = { "🎒": 0, "📍": 1, "🧑‍🏫": 2, "💬": 3, "📝": 4, "📋": 5, "✏️": 6, "📚": 7, "🥕": 8 };
+  const priority = { "🎒": 0, "📍": 1, "🛡️": 1, "🧑‍🏫": 2, "💬": 3, "📝": 4, "📋": 5, "✏️": 6, "📚": 7, "🥕": 8 };
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
@@ -4983,6 +4953,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
             .map((c) => ({ c, a: adventures.find((x) => x.studentId === c.id && x.programId === infoId) }))
             .filter((x) => x.a && teamOf(getProgram(infoId), x.a))
             .map((x) => `${x.c.name} · ${teamForParent(teamOf(getProgram(infoId), x.a))}`)}
+          kids={myChildren.filter((c) => adventures.some((a) => a.studentId === c.id && a.programId === infoId && !a.canceled))}
+          familyPin={familyPin}
           onClose={() => setInfoId(null)}
         />
       )}
@@ -5614,17 +5586,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
             </div>
           )}
 
-          <div>
-            <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Mission participation</p>
-            <div className="space-y-1.5">
-              {programFor(program, student, adv).missions.map((m, i) => (
-                <button key={m.id} onClick={() => toggleMission(i)} aria-pressed={!!adv.missionsCompleted[i]?.done} className="focus-ring tap w-full flex items-center gap-2 text-left">
-                  {adv.missionsCompleted[i]?.done ? <CheckCircle2 size={18} color={C.orange} /> : <Circle size={18} color="#D8CEB8" />}
-                  <span className="f-body text-[16px]" style={{ color: C.charcoal }}>{m.text}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <WarningTracker student={student} programId={program.id} who={defaultGuideName || (limited ? "Teacher" : "HQ")} />
 
           <div>
             <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Strengths noticed</p>
@@ -6610,7 +6572,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
       )}
       <p className="f-body text-[14px] text-gray-500">{tr("아이 화면에 ")}<b>{tr("영어")}</b>{tr("로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.")}</p>
 
-      <Fold heading={<>{tr("🎯 학습 목표")}{levelTabs && CEFR_GOALS[levelTabs.active] ? ` · ${levelTabs.active} ${CEFR_GOALS[levelTabs.active].verb}` : ""}</>} hint={tr("이 체험에서 이 레벨 아이가 영어로 할 일을 한 줄로 써 주세요. 학부모 안내와 정리에 나와요.")} summary={(() => { const o = value.objective || {}; return o.ko || o.en || tr("아직 없어요"); })()} defaultOpen={!((value.objective || {}).ko || (value.objective || {}).en)}>
+      <Fold heading={<>① Learning Objectives · 학습 목표{levelTabs && CEFR_GOALS[levelTabs.active] ? ` · ${levelTabs.active} ${CEFR_GOALS[levelTabs.active].verb}` : ""}</>} hint={tr("이 체험에서 이 레벨 아이가 영어로 할 일을 한 줄로 써 주세요. 학부모 안내와 정리에 나와요.")} summary={(() => { const o = value.objective || {}; return o.ko || o.en || tr("아직 없어요"); })()} defaultOpen={!((value.objective || {}).ko || (value.objective || {}).en)}>
         <div className="space-y-1.5">
           <MiniInput value={(value.objective || {}).ko || ""} onChange={(ko) => set({ objective: { ...(value.objective || {}), ko } })} placeholder={tr("학습 목표 (예: 농작물과 농기구의 이름을 말한다)")} label={tr("학습 목표")} />
           <MiniInput value={(value.objective || {}).en || ""} onChange={(en) => set({ objective: { ...(value.objective || {}), en } })} placeholder="Learning objective (e.g. Identify and name common crops and farming tools.)" label="Learning objective" />
@@ -6618,54 +6580,18 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이 체험에서 진행하는 레벨 탭에만 써요. 진행하지 않는 레벨은 목표가 나오지 않아요.")}</p>
       </Fold>
 
-      <Fold heading={<>{tr("① 예습 · 단어 카드")}</>} hint={tr("예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length])} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
+      <Fold heading={<>② Prep · 예습 단어</>} hint={tr("영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length])} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
       </Fold>
 
-      <Fold heading={<>{tr("② 체험 · 현장 미션")}</>} hint={tr("현장에서 아이가 찾아보는 미션이에요.")} summary={tr("미션 {0}개 · 집중 포인트 {1}개", [value.missions.filter((m) => (m.text || "").trim()).length, focus.filter((f) => (f || "").trim()).length])} defaultOpen={value.missions.filter((m) => (m.text || "").trim()).length + focus.filter((f) => (f || "").trim()).length === 0}>
-        <div className="space-y-2 mb-2">
-          {value.missions.map((m, i) => (
-            <div key={m.id || i} className="flex items-center gap-2">
-              <MiniInput
-                value={m.text || ""}
-                onChange={(val) => set({ missions: value.missions.map((x, k) => (k === i ? { ...x, text: val } : x)) })}
-                placeholder={tr("미션 (예: Find the oldest airplane.)")}
-              />
-              <RemoveButton onClick={() => set({ missions: value.missions.filter((_, k) => k !== i) })} />
-            </div>
-          ))}
-        </div>
-        <AddButton onClick={() => set({ missions: [...value.missions, { id: newId("m"), text: "" }] })}>{tr("+ 미션 추가")}</AddButton>
-        <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이미 학생이 들어간 프로그램의 미션을 고치면, 학생들의 미션 기록이 자동으로 맞춰져요.")}</p>
-
-        <div className="mt-4">
-          <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{tr("🔍 오늘의 집중 포인트")}</p>
-          <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2">{tr("체험 시간에 아이와 선생님이 함께 집중할 한두 가지예요. 아이 현장 화면과 학부모 안내문에 나와요.")}</p>
-          <div className="space-y-1.5 mb-2">
-            {focus.map((f, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <MiniInput value={f} onChange={(val) => set({ focus: focus.map((x, k) => (k === i ? val : x)) })} placeholder={tr("집중 포인트")} label={tr("집중 포인트 {0}", [i + 1])} />
-                <RemoveButton onClick={() => set({ focus: focus.filter((_, k) => k !== i) })} />
-              </div>
-            ))}
-          </div>
-          {focus.length < 4 && <AddButton onClick={() => set({ focus: [...focus, ""] })}>{tr("+ 집중 포인트 추가")}</AddButton>}
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {FOCUS_IDEAS.filter((t) => !focus.includes(tr(t))).map((t) => (
-              <button
-                key={t}
-                onClick={() => focus.length < 4 && set({ focus: [...focus.filter((x) => x.trim()), tr(t)] })}
-                className="focus-ring tap f-body text-[14px] font-bold px-2.5 py-1.5 rounded-full"
-                style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}
-              >
-                + {tr(t)}
-              </button>
-            ))}
-          </div>
+      <Fold heading={<>③ On-site Rules · 현장 안전수칙</>} hint={tr("모든 체험에 같은 공통 규칙이 적용돼요. 선생님이 따로 입력하지 않아요. 고치는 건 본사만 해요.")} summary={tr("공통 규칙 {0}개 · 3 Warnings", [commonSafetyRules(SAFETY_ROWS).length])} defaultOpen={false}>
+        <div className="space-y-2.5" data-testid="mat-rules">
+          <div className="bg-white rounded-xl p-3"><SafetyRuleList rules={commonSafetyRules(SAFETY_ROWS)} /></div>
+          <ThreeWarningsCard />
         </div>
       </Fold>
 
-      <Fold heading={<>{tr("③ 복습 · 퀴즈")}</>} hint={tr("체험이 끝난 뒤, 선생님이 가르친 내용으로 O/X나 객관식 문제를 만들어 주세요. 아이가 푼 뒤 점수(%)가 나와요.")} summary={(value.autoWords ? tr("단어 퀴즈 자동 + ") : "") + tr("{0}문제", [(value.remember || []).length])} defaultOpen={(value.remember || []).length === 0 && !value.autoWords}>
+      <Fold heading={<>④ Review · 복습</>} hint={tr("자동 단어 퀴즈와 선생님 질문이에요. 체험이 끝난 뒤 아이가 풀면 점수(%)가 나와요.")} summary={(value.autoWords ? tr("단어 퀴즈 자동 + ") : "") + tr("{0}문제", [(value.remember || []).length])} defaultOpen={(value.remember || []).length === 0 && !value.autoWords && !value.bigQuestion}>
         <QuizEditor items={value.remember} onChange={(remember) => set({ remember })} />
         <button onClick={() => set({ autoWords: !value.autoWords })} aria-pressed={!!value.autoWords} className="focus-ring tap flex items-start gap-2 mt-3 text-left">
           {value.autoWords ? <CheckCircle2 size={20} color={C.orange} className="shrink-0" /> : <Circle size={20} color="#D8CEB8" className="shrink-0" />}
@@ -6697,9 +6623,8 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             </div>
           );
         })()}
-      </Fold>
-
-      <Fold heading={<>{tr("④ 복습 · 큰 질문")}</>} hint={tr("복습 퀴즈 다음에 아이가 하나를 골라요.")} summary={value.bigQuestion || tr("아직 없어요")} defaultOpen={!value.bigQuestion}>
+        <div className="mt-4">
+        <p className="f-display text-[17px] font-bold mb-1.5" style={{ color: C.green }}>{tr("선생님 질문 · 큰 질문")}</p>
         <div className="space-y-1.5">
           <MiniInput value={value.bigQuestion} onChange={(bigQuestion) => set({ bigQuestion })} placeholder={tr("질문 (예: How can an airplane fly?)")} />
           {bqOpts.map((o, i) => (
@@ -6711,6 +6636,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
             />
           ))}
         </div>
+        </div>
       </Fold>
 
       <button onClick={() => set({ reviewOpen: !value.reviewOpen })} aria-pressed={value.reviewOpen} className="focus-ring tap flex items-start gap-2 text-left rounded-xl p-3 w-full" style={{ background: value.reviewOpen ? "#DCF3E4" : "white", border: `1px solid ${value.reviewOpen ? "#9FD6B2" : C.beige}` }}>
@@ -6718,6 +6644,334 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
         <span className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("복습 열기")}<span className="block font-normal text-gray-500">{tr("퀴즈를 다 만든 뒤 켜고 저장하면, 체험에 다녀온 아이들이 복습을 시작할 수 있어요.")}</span>
         </span>
       </button>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  ON-SITE RULES & SAFETY                                            */
+/*  One common rule template for every trip (HQ edits it), optional    */
+/*  extra rules per program, a parent agreement per trip, and a        */
+/*  warning log that only teachers and HQ see. All stored as          */
+/*  create-only rows: nothing is ever overwritten or deleted.          */
+/* ================================================================== */
+const SAFETY_AGREE_TYPE = "안전동의";
+const SAFETY_WARN_TYPE = "안전경고";
+const DEFAULT_SAFETY_RULES = [
+  { en: "No Running", ko: "뛰지 않기" },
+  { en: "No Screaming", ko: "소리 지르지 않기" },
+  { en: "No Fighting or Pushing", ko: "싸우거나 밀지 않기" },
+  { en: "Stay with Your Group", ko: "선생님과 그룹에서 떨어지지 않기" },
+  { en: "Listen to Your Teacher", ko: "선생님 지시 따르기" },
+  { en: "Respect the Place", ko: "전시물과 시설 보호하기" },
+  { en: "Wait Your Turn", ko: "차례 지키기" },
+  { en: "Be Kind to Others", ko: "친구와 다른 방문객 배려하기" },
+];
+const WARNING_STEPS = [
+  { n: 1, en: "1st Warning", ko: "1차 경고", enText: "Verbal warning and a reminder of the rule", koText: "구두 경고 및 규칙 안내" },
+  { n: 2, en: "2nd Warning", ko: "2차 경고", enText: "Second warning and a call to the parent", koText: "재경고 및 보호자 연락" },
+  { n: 3, en: "3rd Warning", ko: "3차 경고", enText: "Activity stops and the child is handed over to the parent", koText: "활동 참여 중단 및 보호자 인계 절차 진행" },
+];
+let SAFETY_ROWS = []; // the latest rows, set by the app on every render (so deep components can read the rules)
+let SAFETY_SAVE = () => {};
+
+const safetyStampText = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+};
+const byAt = (x, y) => String(x.at || "").localeCompare(String(y.at || ""));
+const cleanSafetyList = (list) => (Array.isArray(list) ? list : []).map((r) => ({ en: String((r && r.en) || "").trim(), ko: String((r && r.ko) || "").trim() })).filter((r) => r.en || r.ko);
+const latestSetting = (rows, test) => (rows || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter(test).sort(byAt).pop() || null;
+function commonSafetyRules(rows) {
+  const r = latestSetting(rows, (x) => x.key === "safetyRules" && Array.isArray(x.rules));
+  const list = r ? cleanSafetyList(r.rules) : [];
+  return list.length ? list : DEFAULT_SAFETY_RULES;
+}
+function extraSafetyRules(rows, programId) {
+  const r = latestSetting(rows, (x) => x.key === "safetyExtra" && x.programId === programId && Array.isArray(x.items));
+  return r ? cleanSafetyList(r.items) : [];
+}
+function safetyAgreements(rows) {
+  return (rows || []).filter((sg) => sg.type === SAFETY_AGREE_TYPE).map((sg) => ({ ...readRow(sg), familyPin: sg.familyPin })).filter((r) => r.programId && Array.isArray(r.studentIds)).sort(byAt);
+}
+const agreementOf = (rows, familyPin, programId, studentId) => safetyAgreements(rows).filter((r) => r.familyPin === familyPin && r.programId === programId && r.studentIds.includes(studentId)).pop() || null;
+function safetyWarnings(rows) {
+  const all = (rows || []).filter((sg) => sg.type === SAFETY_WARN_TYPE).map(readRow);
+  const voided = new Set(all.filter((r) => r.kind === "void").map((r) => r.id));
+  return all.filter((r) => r.kind === "warn" && r.id && !voided.has(r.id)).sort(byAt);
+}
+/** How far a child is on the three-warnings ladder (a serious-risk entry stops the activity at once). */
+function warningState(list) {
+  const n = list.filter((w) => !w.severe).length;
+  const severe = list.some((w) => w.severe);
+  return { n, stopped: severe || n >= 3 };
+}
+
+/** The checklist itself: English rule, short Korean line, numbered. */
+function SafetyRuleList({ rules, extra = [] }) {
+  const row = (r, i, k) => (
+    <li key={`${k}${i}`} className="flex items-start gap-3 py-2.5" style={{ borderTop: i === 0 && k === "c" ? "none" : `1px solid ${C.beige}` }}>
+      <span className="shrink-0 w-6 min-w-[1.5rem] h-6 rounded-md flex items-center justify-center f-body text-[13px] font-bold" style={{ border: `1.5px solid ${C.green}`, color: C.green }}>{i + 1}</span>
+      <span className="min-w-0">
+        <span className="block f-body text-[17px] font-bold leading-snug" style={{ color: C.charcoal }}>{r.en || r.ko}</span>
+        {r.en && r.ko && <span className="block f-body text-[15px] text-gray-500 leading-snug">{r.ko}</span>}
+      </span>
+    </li>
+  );
+  return (
+    <div data-testid="safety-rules">
+      <p className="f-body text-[12px] font-bold tracking-[0.14em] mb-1" style={{ color: C.orange }}>CARROTWORLD FIELD TRIP RULES</p>
+      <ul>{rules.map((r, i) => row(r, i, "c"))}</ul>
+      {extra.length > 0 && (
+        <div className="mt-3" data-testid="safety-extra">
+          <p className="f-body text-[12px] font-bold tracking-[0.14em] mt-1" style={{ color: C.orange }}>EXTRA RULES FOR THIS PLACE · 이 장소 추가 수칙</p>
+          <ul>{extra.map((r, i) => row(r, i, "x"))}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The warning ladder, in its own clearly marked box. */
+function ThreeWarningsCard() {
+  return (
+    <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="three-warnings">
+      <p className="f-display text-[17px] font-bold" style={{ color: C.orange }}>Three Warnings Rule</p>
+      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>3 Warnings → Activity Removal · 경고 3회 시 활동 중단</p>
+      <ol className="mt-2.5 space-y-2">
+        {WARNING_STEPS.map((s) => (
+          <li key={s.n} className="f-body text-[15px]" style={{ color: C.charcoal }}>
+            <b>{s.en}</b> — {s.enText}
+            <span className="block text-[14px] text-gray-500">{s.ko} · {s.koText}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="f-body text-[14px] mt-3 leading-snug" style={{ color: C.charcoal }}>In case of a serious safety risk, the activity may be stopped at once and the parent called, whatever the warning count.</p>
+      <p className="f-body text-[13px] text-gray-500 leading-snug">심각한 안전 위험이 생기면 경고 횟수와 관계없이 즉시 활동을 중단하고 보호자에게 연락할 수 있어요.</p>
+      <p className="f-body text-[14px] mt-2 leading-snug font-bold" style={{ color: C.charcoal }}>A child is never left alone or sent home without being handed over to a parent.</p>
+      <p className="f-body text-[13px] text-gray-500 leading-snug">아이를 혼자 두거나 보호자에게 인계하지 않은 상태에서 귀가시키지 않아요.</p>
+    </div>
+  );
+}
+
+/** Parent agreement: read together, tick, one button. Saved per trip with the date and time. */
+function SafetyAgreement({ programId, kids, familyPin, rows }) {
+  const [checked, setChecked] = useState(false);
+  if (!kids.length) return null;
+  const status = kids.map((k) => ({ k, ag: agreementOf(rows, familyPin, programId, k.id) }));
+  const pending = status.filter((x) => !x.ag).map((x) => x.k);
+  if (pending.length === 0) {
+    return (
+      <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }} data-testid="agreement-done">
+        <p className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>안전수칙 동의 완료 · Safety agreement signed</p>
+        {status.map((x) => (
+          <p key={x.k.id} className="f-body text-[14px]" style={{ color: C.charcoal }}>{x.k.name} · {safetyStampText(x.ag.at)}</p>
+        ))}
+      </div>
+    );
+  }
+  const agree = () => {
+    if (!checked) return;
+    SAFETY_SAVE(SAFETY_AGREE_TYPE, familyPin, { kind: "agree", programId, studentIds: pending.map((k) => k.id), names: pending.map((k) => k.name) }, `agree-${programId}`);
+    setChecked(false);
+  };
+  return (
+    <div className="bg-white rounded-2xl p-4" data-testid="agreement-form">
+      <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>안전수칙 확인 및 동의</p>
+      <p className="f-body text-[15px] mt-2 leading-snug" style={{ color: C.charcoal }}>당근나라는 모든 아이들이 안전하고 즐겁게 체험할 수 있도록 현장 안전수칙을 운영합니다.</p>
+      <p className="f-body text-[15px] mt-2 leading-snug" style={{ color: C.charcoal }}>저는 자녀와 함께 위 안전수칙을 확인했으며, 안전한 체험 진행을 위해 선생님의 안내에 협조하겠습니다.</p>
+      <p className="f-body text-[15px] mt-2 leading-snug" style={{ color: C.charcoal }}>반복적인 안전수칙 위반으로 다른 참가자의 안전이나 활동 진행에 지장이 발생하는 경우, 경고 및 보호자 연락 후 자녀의 활동 참여가 중단될 수 있음을 이해합니다.</p>
+      {kids.length > 1 && <p className="f-body text-[14px] mt-2 text-gray-500">대상: {pending.map((k) => k.name).join(", ")}</p>}
+      <button onClick={() => setChecked((v) => !v)} aria-pressed={checked} data-testid="agree-check" className="focus-ring tap flex items-start gap-2.5 mt-4 text-left w-full">
+        {checked ? <CheckCircle2 size={22} color={C.orange} className="shrink-0" /> : <Circle size={22} color="#C9BFA8" className="shrink-0" />}
+        <span className="f-body text-[15px] font-bold leading-snug" style={{ color: C.charcoal }}>자녀와 함께 안전수칙을 확인했으며, 위 내용을 이해하고 동의합니다.</span>
+      </button>
+      <button onClick={agree} disabled={!checked} data-testid="agree-button" className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: checked ? C.orange : "#C9BFA8" }}>안전수칙 동의하기</button>
+    </div>
+  );
+}
+
+/** What parents (and the child, read-only) see on the trip notice. */
+function SafetySection({ programId, kids = [], familyPin, readOnly, defaultOpen }) {
+  const rows = SAFETY_ROWS;
+  const rules = commonSafetyRules(rows);
+  const extra = extraSafetyRules(rows, programId);
+  const signed = kids.length > 0 && kids.every((k) => agreementOf(rows, familyPin, programId, k.id));
+  const summary = readOnly ? "CarrotWorld Field Trip Rules" : kids.length === 0 ? "체험 전에 함께 읽어 주세요" : signed ? "동의 완료" : "동의가 필요해요";
+  return (
+    <div data-testid="safety-section">
+      <FoldBar title="현장 안전수칙 · Field Trip Rules" summary={summary} defaultOpen={defaultOpen !== undefined ? defaultOpen : false}>
+        <div className="space-y-2.5 mb-2.5">
+          <div className="bg-white rounded-2xl p-4"><SafetyRuleList rules={rules} extra={extra} /></div>
+          <ThreeWarningsCard />
+          {!readOnly && <SafetyAgreement programId={programId} kids={kids} familyPin={familyPin} rows={rows} />}
+        </div>
+      </FoldBar>
+    </div>
+  );
+}
+
+/** Teacher / HQ: record a warning on a child, see the ladder, nothing parents can see. */
+function WarningTracker({ student, programId, who }) {
+  const rows = SAFETY_ROWS;
+  const list = safetyWarnings(rows).filter((w) => w.studentId === student.id && w.programId === programId);
+  const { n, stopped } = warningState(list);
+  const rules = commonSafetyRules(rows);
+  const [open, setOpen] = useState(false);
+  const [ruleIdx, setRuleIdx] = useState("");
+  const [note, setNote] = useState("");
+  const [severe, setSevere] = useState(false);
+  const reason = ruleIdx === "" ? "" : ruleIdx === "other" ? "" : rules[Number(ruleIdx)]?.en || "";
+  const canSave = !!(reason || note.trim());
+  const save = () => {
+    if (!canSave) return;
+    SAFETY_SAVE(SAFETY_WARN_TYPE, "teacher", { kind: "warn", id: `w${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`, programId, studentId: student.id, studentName: student.name, n: severe ? 0 : n + 1, severe, reason, note: note.trim(), by: who }, `warn-${student.id}`);
+    setOpen(false); setRuleIdx(""); setNote(""); setSevere(false);
+  };
+  const step = WARNING_STEPS[Math.min(n, 2)];
+  return (
+    <div data-testid="warning-tracker">
+      <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>Rules & warnings</p>
+      <div className="flex items-center gap-1.5 mb-2">
+        {[1, 2, 3].map((i) => (
+          <span key={i} className="flex-1 h-2 rounded-full" style={{ background: i <= n ? (i === 3 ? "#C0674A" : C.orange) : C.beige }} />
+        ))}
+        <span className="f-body text-[14px] font-bold pl-1" style={{ color: stopped ? "#B03A2E" : C.charcoal }}>{stopped ? "Stopped" : `${n} / 3`}</span>
+      </div>
+      {list.length === 0 && <p className="f-body text-[14px] text-gray-400 mb-2">No warnings. Only teachers and HQ can see this.</p>}
+      {list.length > 0 && (
+        <ul className="space-y-1.5 mb-2" data-testid="warning-log">
+          {list.map((w) => (
+            <li key={w.id} className="f-body text-[14px] rounded-lg px-3 py-2" style={{ background: "#FFF8F0", border: `1px solid ${C.beige}`, color: C.charcoal }}>
+              <b>{w.severe ? "Serious risk · stopped" : WARNING_STEPS[Math.min(Math.max((w.n || 1) - 1, 0), 2)].en}</b> · {safetyStampText(w.at)}
+              <span className="block text-gray-600">{[w.reason, w.note].filter(Boolean).join(" — ")}{w.by ? ` (${w.by})` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {stopped && (
+        <p className="f-body text-[14px] font-bold rounded-xl p-3 mb-2" style={{ background: "#FDEDEA", color: "#B03A2E" }}>Activity stopped. Contact the parent and hand the child over in person. Never send a child home alone. · 보호자에게 연락하고 직접 인계해 주세요. 혼자 귀가시키지 않아요.</p>
+      )}
+      {!stopped && !open && (
+        <button onClick={() => setOpen(true)} data-testid="warn-open" className="focus-ring tap f-body text-[15px] font-bold rounded-lg px-3.5 py-2" style={{ background: C.beige, color: C.green }}>+ Record {step.en.toLowerCase()}</button>
+      )}
+      {!stopped && open && (
+        <div className="rounded-xl p-3 space-y-2" style={{ background: C.cream, border: `1px solid ${C.beige}` }}>
+          <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{severe ? "Serious safety risk" : step.en} — {severe ? "stop the activity now" : step.enText}</p>
+          <select value={ruleIdx} onChange={(e) => setRuleIdx(e.target.value)} aria-label="Rule broken" data-testid="warn-rule" className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[16px] outline-none bg-white" style={{ border: `1px solid ${C.beige}` }}>
+            <option value="">Which rule? / 어떤 규칙?</option>
+            {rules.map((r, i) => <option key={i} value={i}>{i + 1}. {r.en}</option>)}
+            <option value="other">Other / 기타</option>
+          </select>
+          <MiniInput value={note} onChange={setNote} placeholder="Short note (reason)" label="Warning note" />
+          <button onClick={() => setSevere((v) => !v)} aria-pressed={severe} className="focus-ring tap flex items-start gap-2 text-left">
+            {severe ? <CheckCircle2 size={20} color="#B03A2E" className="shrink-0" /> : <Circle size={20} color="#C9BFA8" className="shrink-0" />}
+            <span className="f-body text-[14px]" style={{ color: C.charcoal }}>Serious safety risk — stop the activity at once · 심각한 위험</span>
+          </button>
+          <div className="flex gap-2">
+            <button onClick={() => { setOpen(false); setSevere(false); }} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal, border: `1px solid ${C.beige}` }}>Cancel</button>
+            <button onClick={save} disabled={!canSave} data-testid="warn-save" className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2 text-white" style={{ background: canSave ? C.orange : "#C9BFA8" }}>Save</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** HQ: common rules, extra rules per place, who has agreed, and the warning log. */
+function SafetyAdminPanel({ suggestions, students, adventures }) {
+  const rows = suggestions || [];
+  const stored = commonSafetyRules(rows);
+  const [draft, setDraft] = useState(null);
+  const list = draft || stored;
+  const dirty = !!draft && JSON.stringify(cleanSafetyList(draft)) !== JSON.stringify(stored);
+  const setRule = (i, p) => setDraft((list || []).map((r, k) => (k === i ? { ...r, ...p } : r)));
+  const programs = PROGRAMS.filter((p) => !p.archived);
+  const [pid, setPid] = useState(() => (programs[0] || {}).id || "");
+  const [extraDraft, setExtraDraft] = useState(null);
+  const storedExtra = extraSafetyRules(rows, pid);
+  const extra = extraDraft || storedExtra;
+  const extraDirty = !!extraDraft && JSON.stringify(cleanSafetyList(extraDraft)) !== JSON.stringify(storedExtra);
+  const enrolled = adventures.filter((a) => a.programId === pid && !a.canceled).map((a) => students.find((s) => s.id === a.studentId)).filter(Boolean);
+  const agreeRows = enrolled.map((s) => ({ s, ag: agreementOf(rows, s.familyPin, pid, s.id) }));
+  const warns = safetyWarnings(rows).slice().reverse();
+  const titleOf = (id) => { const p = PROGRAMS.find((x) => x.id === id); return p ? splitTitle(p.title)[0] || p.title : id; };
+  const ruleEditor = (items, setItems) => (
+    <div className="space-y-2">
+      {items.map((r, i) => (
+        <div key={i} className="rounded-xl p-2.5 space-y-1.5" style={{ background: "white", border: `1px solid ${C.beige}` }}>
+          <div className="flex items-center gap-2">
+            <span className="f-body text-[13px] font-bold w-5 text-center" style={{ color: C.green }}>{i + 1}</span>
+            <MiniInput value={r.en} onChange={(en) => setItems(items.map((x, k) => (k === i ? { ...x, en } : x)))} placeholder="English (e.g. No Running)" label={`Rule ${i + 1} English`} />
+            <RemoveButton onClick={() => setItems(items.filter((_, k) => k !== i))} />
+          </div>
+          <div className="pl-7"><MiniInput value={r.ko} onChange={(ko) => setItems(items.map((x, k) => (k === i ? { ...x, ko } : x)))} placeholder="한국어 (예: 뛰지 않기)" label={`Rule ${i + 1} Korean`} /></div>
+        </div>
+      ))}
+      <AddButton onClick={() => setItems([...items, { en: "", ko: "" }])}>{tr("+ 규칙 추가")}</AddButton>
+    </div>
+  );
+  const select = (
+    <select value={pid} onChange={(e) => { setPid(e.target.value); setExtraDraft(null); }} aria-label={tr("프로그램")} data-testid="safety-program" className="focus-ring w-full rounded-xl px-3 py-2.5 f-body text-[16px] outline-none bg-white mb-2.5" style={{ border: `1px solid ${C.beige}` }}>
+      {programs.map((p) => <option key={p.id} value={p.id}>{splitTitle(p.title)[0] || p.title}</option>)}
+    </select>
+  );
+  return (
+    <div className="px-5 space-y-3 pb-6" data-testid="safety-admin">
+      <FoldBar title={tr("공통 안전수칙")} summary={tr("규칙 {0}개 · 모든 체험에 공통", [stored.length])}>
+        <p className="f-body text-[13px] text-gray-400 mb-2">{tr("한 번만 고치면 학부모·아이·선생님 화면에 모두 반영돼요. 선생님이 따로 입력하지 않아요.")}</p>
+        {ruleEditor(list, setDraft)}
+        <div className="flex gap-2 mt-3">
+          <button onClick={() => setDraft(DEFAULT_SAFETY_RULES.map((r) => ({ ...r })))} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: "white", color: C.charcoal, border: `1px solid ${C.beige}` }}>{tr("기본값으로")}</button>
+          <button
+            onClick={() => { SAFETY_SAVE(SETTING_TYPE, "hq", { key: "safetyRules", rules: cleanSafetyList(list) }, "rules"); setDraft(null); }}
+            disabled={!dirty || cleanSafetyList(list).length === 0}
+            data-testid="safety-rules-save"
+            className="focus-ring tap flex-1 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white"
+            style={{ background: dirty ? C.orange : "#C9BFA8" }}
+          >{tr("저장")}</button>
+        </div>
+      </FoldBar>
+
+      <FoldBar title={tr("장소별 추가 수칙")} summary={tr("공통 규칙 외에 이 장소에서만 더하는 규칙")}>
+        {select}
+        {ruleEditor(extra, setExtraDraft)}
+        <button
+          onClick={() => { SAFETY_SAVE(SETTING_TYPE, "hq", { key: "safetyExtra", programId: pid, items: cleanSafetyList(extra) }, `extra-${pid}`); setExtraDraft(null); }}
+          disabled={!extraDirty}
+          data-testid="safety-extra-save"
+          className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white"
+          style={{ background: extraDirty ? C.orange : "#C9BFA8" }}
+        >{tr("저장")}</button>
+      </FoldBar>
+
+      <FoldBar title={tr("동의 현황")} summary={tr("체험별로 누가 동의했는지")}>
+        {select}
+        {enrolled.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("이 체험에 등록된 아이가 없어요.")}</p>}
+        <div className="space-y-1.5" data-testid="agreement-list">
+          {agreeRows.map(({ s, ag }) => (
+            <div key={s.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2 bg-white">
+              <span className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{s.name}</span>
+              <span className="f-body text-[14px] font-bold" style={{ color: ag ? "#1F7A44" : "#B25A0B" }}>{ag ? safetyStampText(ag.at) : tr("아직 안 했어요")}</span>
+            </div>
+          ))}
+        </div>
+        {enrolled.length > 0 && <p className="f-body text-[13px] text-gray-500 mt-2">{tr("동의 {0} / {1}명", [agreeRows.filter((x) => x.ag).length, enrolled.length])}</p>}
+      </FoldBar>
+
+      <FoldBar title={tr("경고 기록")} summary={tr("{0}건 · 선생님과 본사만 볼 수 있어요", [warns.length])}>
+        {warns.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("기록이 없어요.")}</p>}
+        <div className="space-y-1.5" data-testid="admin-warning-list">
+          {warns.map((w) => (
+            <div key={w.id} className="rounded-xl px-3 py-2 bg-white f-body text-[14px]" style={{ color: C.charcoal }}>
+              <b>{w.studentName || "?"}</b> · {titleOf(w.programId)} · {w.severe ? tr("심각한 위험") : (WARNING_STEPS[Math.min(Math.max((w.n || 1) - 1, 0), 2)].ko)}
+              <span className="block text-gray-500">{safetyStampText(w.at)} · {[w.reason, w.note].filter(Boolean).join(" — ")}{w.by ? ` (${w.by})` : ""}</span>
+              <button onClick={() => SAFETY_SAVE(SAFETY_WARN_TYPE, "teacher", { kind: "void", id: w.id }, `void-${w.id}`)} className="focus-ring tap f-body text-[13px] font-bold mt-1" style={{ color: "#C0674A" }}>{tr("잘못 기록했어요 (취소)")}</button>
+            </div>
+          ))}
+        </div>
+      </FoldBar>
     </div>
   );
 }
@@ -6906,7 +7160,7 @@ function InfoEditor({ program, value, onChange, sessions = [], onSessionChange }
 }
 
 /** What parents see: one clear page, only the rows that were filled in. */
-function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true, onClose }) {
+function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true, kids = [], familyPin = "", onClose }) {
   const slot = sessionsOf(program).find((x) => x.id === sessionId) || null;
   const info = infoForSession(infoFrom(program), slot);
   const place = info.venue || program.locationKo || program.location;
@@ -6975,6 +7229,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
           {rows.slice(3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
+          <SafetySection programId={program.id} kids={kids} familyPin={familyPin} />
         </div>
         <p className="f-body text-[14px] text-gray-400 text-center mt-5">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
@@ -7533,7 +7788,7 @@ function compareWithServer(local, fresh) {
     rows.push({ key: `student-${key}`, label, total: targets.length, saved });
   });
   const freshSug = new Map((fresh.suggestions || []).map((x) => [x.id, x]));
-  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")], [REVIEW_TYPE, tr("외부 후기 제출")], [REVIEW_RESULT_TYPE, tr("외부 후기 결과")], [POINT_TYPE, tr("포인트 내역")], [TEACHER_TYPE, tr("선생님 계정")], [TEACHER_JOIN_TYPE, tr("선생님 참여 신청")], [TEACHER_JOIN_RESULT_TYPE, tr("선생님 신청 결과")], [SETTING_TYPE, tr("설정 (포인트 항목, 샘 공용 번호)")]].forEach(([type, label]) => {
+  [[WISH_TYPE, tr("찜")], [VISIT_TYPE, tr("방문 기록")], [REVIEW_TYPE, tr("외부 후기 제출")], [REVIEW_RESULT_TYPE, tr("외부 후기 결과")], [POINT_TYPE, tr("포인트 내역")], [TEACHER_TYPE, tr("선생님 계정")], [TEACHER_JOIN_TYPE, tr("선생님 참여 신청")], [TEACHER_JOIN_RESULT_TYPE, tr("선생님 신청 결과")], [SAFETY_AGREE_TYPE, tr("안전수칙 동의")], [SAFETY_WARN_TYPE, tr("안전 경고 기록")], [SETTING_TYPE, tr("설정 (포인트 항목, 샘 공용 번호)")]].forEach(([type, label]) => {
     const targets = (local.suggestions || []).filter((x) => x.type === type);
     const saved = targets.filter((x) => freshSug.has(x.id)).length;
     rows.push({ key: `sug-${type}`, label, total: targets.length, saved });
@@ -7975,12 +8230,6 @@ function StatsPanel({ adventures, students, suggestions }) {
                 )}
               </StatCard>
 
-              <StatCard title={tr("현장 미션 달성률")} hint={tr("미션마다 몇 명이 해냈는지 보여요.")}>
-                {detail.missions.map((m) => (
-                  <StatBar key={m.id} label={m.text} value={m.done} total={m.n} sub={m.n ? tr("{0}/{1}명 · {2}%", [m.done, m.n, pctOf(m.done, m.n)]) : tr("대상 없음")} />
-                ))}
-              </StatCard>
-
               <StatCard title={tr("큰 질문에 아이들은 뭐라고 답했나요?")} hint={tr("예습에서 고른 답이에요.")}>
                 {detail.bigQ.length === 0 ? (
                   <p className="f-body text-[15px] text-gray-400">{tr("아직 답이 없어요.")}</p>
@@ -8132,7 +8381,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-10-z11"; // change with every delivery
+const APP_BUILD = "2026-10-10-z13"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9409,7 +9658,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       { key: "register", label: tr("현장등록") },
     ] },
     { key: "g-points", label: pendingReviewCount ? tr("포인트 {0}", [pendingReviewCount]) : tr("포인트"), subs: [{ key: "points", label: tr("포인트") }] },
-    { key: "g-settings", label: tr("설정"), subs: [{ key: "stats", label: tr("통계") }] },
+    { key: "g-settings", label: tr("설정"), subs: [{ key: "safety", label: tr("안전수칙") }, { key: "stats", label: tr("통계") }] },
   ];
   const activeGroup = GROUPS.find((g) => g.subs.some((x) => x.key === tab)) || GROUPS[0];
   const TABS = GROUPS.flatMap((g) => g.subs);
@@ -9764,6 +10013,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       {tab === "pay" && payData && <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />}
 
       {tab === "points" && <PointsAdminPanel students={students} adventures={adventures} suggestions={suggestions} onDecide={onDecideReview || (() => {})} onAddEntry={onAddPointEntry || (() => {})} onSaveItems={onSavePointItems || (() => {})} />}
+
+      {tab === "safety" && <SafetyAdminPanel suggestions={suggestions} students={students} adventures={adventures} />}
 
       {tab === "stats" && (
         <>
@@ -10654,7 +10905,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
                 </button>
                 {showGoals && <div className="mt-2.5"><ObjectiveTable program={program} /></div>}
               </div>
-              <p className="f-body text-[14px] text-gray-500 mb-2">{tr("단어, 미션, 집중 포인트, 퀴즈를 써요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
+              <p className="f-body text-[14px] text-gray-500 mb-2">{tr("학습 목표, 단어, 퀴즈를 써요. 안전수칙은 공통이라 따로 쓰지 않아요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
               <RegisterProgramPanel
                 key={`${program.id}-${formKey}`}
                 materialsOnly
@@ -11298,6 +11549,8 @@ function CarrotExplorer() {
     setSuggestions((prev) => (prev.some((x) => x.id === row.id) ? prev : [...prev, row]));
     sync(api.createSuggestion(row));
   };
+  SAFETY_ROWS = suggestions;
+  SAFETY_SAVE = (type, familyPin, obj, tag) => saveRow({ id: `sf-${tag}-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type, familyPin, resolved: false, message: JSON.stringify({ ...obj, at: new Date().toISOString() }) });
   PHONE_SAVER = (kind, id, phone) => {
     const at = new Date().toISOString(); const rid = `ph-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     if (kind === "family") saveRow({ id: rid, type: PHONE_TYPE, familyPin: id, resolved: false, message: JSON.stringify({ kind: "set", familyPin: id, phone, at }) });

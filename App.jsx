@@ -106,6 +106,7 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"선생님 체험 신청 {0}건": "{0} teacher sign-up(s)",
 "학생 고르기": "Choose a student",
 "학생을 골라 주세요": "Choose a student",
 "🧑‍🏫 샘 신청": "🧑‍🏫 Teacher sign-ups",
@@ -8795,7 +8796,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z44"; // change with every delivery
+const APP_BUILD = "2026-10-13-z45"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10184,7 +10185,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -10359,6 +10360,22 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   });
   if (teacherApps.length) {
     teacherNotices.push({ key: "teacher-apps", icon: "🧑‍🏫", title: tr("선생님 가입 신청 {0}건", [teacherApps.length]), text: tr("수락하면 그 번호로 로그인할 수 있어요"), onClick: () => setTab("teachers") });
+  }
+  // a teacher signed up for a program/slot: tell HQ once (even when a free seat confirmed it by itself); "확인함" marks them all seen
+  const joinSeenAt = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "joinSeen").map((r) => String(r.at || "")).sort().pop() || "";
+  const newJoins = joins.filter((j) => ["approved", "pending", "waiting"].includes(j.status) && (j.auto || !j.decidedAt) && String(j.requestedAt || "") > joinSeenAt && PROGRAMS.some((p) => p.id === j.programId));
+  if (newJoins.length) {
+    const first = newJoins[0];
+    const label = (j) => { const p = getProgram(j.programId) || {}; const sl = sessionsOf(p).find((x) => x.id === j.slotId); return `${(teachers.find((t) => t.id === j.teacherId) || {}).name || "샘"} · ${splitTitle(p.title || "")[0]}${sl ? ` ${sl.label}` : ""}`; };
+    teacherNotices.unshift({
+      key: "new-teacher-joins",
+      icon: "🧑‍🏫",
+      title: tr("선생님 체험 신청 {0}건", [newJoins.length]),
+      text: newJoins.slice(0, 2).map(label).join(" / "),
+      onClick: () => { setProgramId(first.programId); setTab("manage"); },
+      doneLabel: tr("✓ 확인함"),
+      onDone: () => (onMarkJoinsSeen || (() => {}))(),
+    });
   }
   const pendingJoinCount = joins.filter((j) => j.status === "waiting").length; // over the quota, waiting for HQ
   const teacherTodo = pendingJoinCount + teacherApps.length; // everything waiting in the Teachers screen
@@ -12385,6 +12402,7 @@ function CarrotExplorer() {
     if (known && known.venue === p.venue && known.meetingPoint === p.meetingPoint && known.intro === p.intro) return; // nothing new to remember
     saveRow({ id: `set-place-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "place", ...p, at: new Date().toISOString() }) });
   };
+  const markJoinsSeen = () => saveRow({ id: `set-joinSeen-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "joinSeen", at: new Date().toISOString() }) });
   const setTeacherCap = (programId, value) => saveRow({ id: `set-teacherCap-${programId}-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "teacherCap", programId, value, at: new Date().toISOString() }) });
   const savePointItems = (items) => saveRow({ id: `set-pointItems-${Date.now()}`, type: SETTING_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ key: "pointItems", items, at: new Date().toISOString() }) });
   const addPointEntry = ({ familyPin, kind, delta, friend, note, target, title, name, itemId }) => {
@@ -12923,6 +12941,7 @@ function CarrotExplorer() {
               onSetTeacherPin={setTeacherPin}
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
+              onMarkJoinsSeen={markJoinsSeen}
               onSetTeacherCap={setTeacherCap}
               payData={payData}
               onSetPayRate={setPayRate}

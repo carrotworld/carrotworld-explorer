@@ -28,6 +28,10 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"선생님 활동비 (세전)": "Teacher pay (before tax)",
+"예: 45000": "e.g. 45000",
+"저장했어요 ✓": "Saved ✓",
+"비워 두면 체험 시간 × 시급({0})으로 계산해요. 선생님 신청 화면에 이 금액이 보여요.": "If empty, trip hours x hourly rate ({0}) is used. Teachers see this amount when signing up.",
 "활동비": "Pay",
 "활동비 확인 중": "Pay to be confirmed",
 "세전 (3.3% 공제 전)": "before 3.3% tax",
@@ -8665,7 +8669,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z29"; // change with every delivery
+const APP_BUILD = "2026-10-13-z30"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9763,6 +9767,31 @@ function PointsAdminPanel({ students, adventures, suggestions, onDecide, onAddEn
   );
 }
 
+/** HQ types what a teacher gets (before 3.3% tax) for one program; empty = hours x hourly rate. Saved when the field is left or Enter is pressed. */
+function ProgramPayField({ value, rate, onSave }) {
+  const [text, setText] = useState(value === undefined ? "" : String(value));
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setText(value === undefined ? "" : String(value)); }, [value]);
+  const commit = () => {
+    const t = text.replace(/[^\d]/g, "");
+    if ((t === "" && value === undefined) || (t !== "" && Number(t) === value)) return;
+    onSave(t === "" ? "" : Number(t));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
+  return (
+    <div className="mt-2 rounded-xl px-3 py-2.5" style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="program-pay">
+      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("선생님 활동비 (세전)")}</p>
+      <div className="flex items-center gap-2 mt-1">
+        <input value={text} onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ""))} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} inputMode="numeric" placeholder={tr("예: 45000")} aria-label={tr("프로그램 금액")} className="focus-ring rounded-lg px-2.5 py-2 f-body text-[16px] outline-none flex-1 min-w-0" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+        <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>원</span>
+        {saved && <span className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("저장했어요 ✓")}</span>}
+      </div>
+      <p className="f-body text-[12px] text-gray-500 mt-1">{tr("비워 두면 체험 시간 × 시급({0})으로 계산해요. 선생님 신청 화면에 이 금액이 보여요.", [won(rate)])}</p>
+    </div>
+  );
+}
+
 function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
@@ -10130,6 +10159,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                 ))}
               </div>
               <p className="f-body text-[13px] text-gray-400 mt-2">{tr("한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.", [roster.length])}</p>
+              {payData && onSetPayAmount && <ProgramPayField key={programId} value={(payData.amounts || {})[programId]} rate={payData.rate} onSave={(v) => onSetPayAmount(programId, v)} />}
               {onSetProgramRecruit && (
                 <button onClick={() => onSetProgramRecruit(programId, !program.teacherClosed)} aria-pressed={!program.teacherClosed} data-testid="recruit-toggle" className="focus-ring tap w-full mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left" style={{ background: program.teacherClosed ? "#F3EEE3" : "#DCF3E4", border: `1px solid ${program.teacherClosed ? C.beige : "#9FD6B2"}` }}>
                   <span className="f-body text-[15px] font-bold" style={{ color: program.teacherClosed ? "#8A8060" : "#1F7A44" }}>{tr("선생님 모집")} · {program.teacherClosed ? tr("마감") : tr("신청 받는 중")}</span>

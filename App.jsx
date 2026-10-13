@@ -106,6 +106,12 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"부모 노출": "Visible to parents",
+"부모 비노출": "Hidden from parents",
+"오늘 진행 중": "Live today",
+"지난 체험": "Past trip",
+"모든 아이가 신청함": "All children applied",
+"아이 {0}명에게 보여요": "Shown to {0} children",
 "{0} 등록했어요. 부모님 앱의 '예정 체험'에 바로 올라가요.": "{0} is registered. It now shows under 'Upcoming trips' in the parent app.",
 "등록하면 부모님 앱의 '예정 체험'에 바로 올라가요.": "Once registered, it shows under 'Upcoming trips' in the parent app.",
 "빠진 것: {0}": "Missing: {0}",
@@ -8743,7 +8749,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z37"; // change with every delivery
+const APP_BUILD = "2026-10-13-z38"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8966,7 +8972,13 @@ const infoForSession = (info, session) =>
 const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(program).filter((t) => !t.sessionId || t.sessionId === adv?.sessionId) : teamsOf(program));
 
 /** Programs that have not run yet: nobody attended and "Live today" is off. Parents and teachers both see these as "Upcoming". */
-const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage));
+const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage) || (hasDate(p) && !isLive(p) && todayKst() < p.startDate)); // a dated trip that has not started is always upcoming, even if someone was marked present early
+/** Why a program is (not) shown to parents: it shows while it is upcoming and a child has not applied yet. */
+function parentVisibility(p, adventures, students) {
+  if (!upcomingPrograms(adventures).some((u) => u.id === p.id)) return { on: false, why: isLive(p) ? "오늘 진행 중" : "지난 체험" };
+  const pending = (students || []).filter((st) => !isPendingStudent(st) && !adventures.some((a) => a.studentId === st.id && a.programId === p.id)).length;
+  return pending > 0 ? { on: true, why: "아이 {0}명에게 보여요", n: pending } : { on: false, why: "모든 아이가 신청함" };
+}
 
 /** Where a program stands, worked out from existing data (nothing extra is stored). */
 function programStatus(program, adventures) {
@@ -9019,7 +9031,7 @@ const STAGE_LOOK = {
   done: { label: "완료", bg: "#174C35", color: "#FFFFFF" },
 };
 /** The small pills shown on the right of a program row. */
-function StatusPills({ status }) {
+function StatusPills({ status, parent }) {
   const pill = (text, bg, color, key) => (
     <span key={key} className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: bg, color }}>{text}</span>
   );
@@ -9029,6 +9041,7 @@ function StatusPills({ status }) {
   else if (status.infoSent && status.stage === "live") pills.push(pill(tr("안내 완료 ✓"), "#EAF7EF", "#1F7A44", "info-ok"));
   if (status.reportsLeft > 0) pills.push(pill(tr("피드백 {0}명 전", [status.reportsLeft]), "#FFE9D2", "#B25A0B", "report"));
   else if (status.reportsDone) pills.push(pill(tr("피드백 완료 ✓"), "#EAF7EF", "#1F7A44", "report-ok"));
+  if (parent) pills.push(pill(parent.on ? `👪 ${tr("부모 노출")} · ${tr(parent.why, [parent.n])}` : `${tr("부모 비노출")} · ${tr(parent.why)}`, parent.on ? "#E2F3E8" : "#EFEBE3", parent.on ? "#1F7A44" : "#9C927D", "parent"));
   return <div className="flex flex-col items-end justify-center gap-1.5 shrink-0" data-testid="status-pills">{pills}</div>;
 }
 
@@ -10566,7 +10579,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                     <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, p.id).length])}</p>
                   )}
                 </div>
-                <StatusPills status={programStatus(p, adventures)} />
+                <StatusPills status={programStatus(p, adventures)} parent={parentVisibility(p, adventures, students)} />
                 <ChevronRight size={16} color="#C9BFA8" className="self-center shrink-0" />
               </button>
             )

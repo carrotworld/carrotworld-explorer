@@ -102,6 +102,9 @@ const EN = {
 "리포트 미작성": "Report not written",
 "완료 {0}회 · 뱃지 {1}개 · 🥕{2}": "Completed {0} · Badges {1} · 🥕{2}",
 "학생 정보": "Student info",
+"생년월일 · 레벨": "Birth date · Level",
+"생년월일": "Birth date",
+"생년월일 없음": "No birth date",
 "수정": "Edit",
 "학생 이름": "Student name",
 "학생 이름 수정": "Edit student name",
@@ -5544,6 +5547,40 @@ function AdviceStrip({ program, roster, onSave }) {
   );
 }
 
+/** Korean ordering (ㄱㄴㄷ) for names; English names fall in with them by the same collation. */
+const byKoName = (a, b) => String(a || "").localeCompare(String(b || ""), "ko");
+/** "만 7세" from a YYYY-MM-DD birth date ("" when there is none or it is not a date). */
+function ageText(birth) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(birth || ""));
+  if (!m) return "";
+  const now = new Date();
+  let age = now.getFullYear() - Number(m[1]);
+  if (now.getMonth() + 1 < Number(m[2]) || (now.getMonth() + 1 === Number(m[2]) && now.getDate() < Number(m[3]))) age -= 1;
+  return age >= 0 && age < 100 ? `만 ${age}세` : "";
+}
+/** Birth date and level: a teacher (or HQ) can fill these in; saved the moment they are chosen. */
+function StudentBasics({ student, onSave }) {
+  const [saved, setSaved] = useState(false);
+  const save = (patch) => { onSave(patch); setSaved(true); setTimeout(() => setSaved(false), 1500); };
+  return (
+    <div className="rounded-xl p-3" style={{ background: C.cream }} data-testid="student-basics">
+      <div className="flex items-center justify-between mb-2">
+        <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("생년월일 · 레벨")}</p>
+        {saved && <span className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("저장했어요 ✓")}</span>}
+      </div>
+      <div className="flex items-center gap-2 mb-2">
+        <input type="date" value={student.birthDate || ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => save({ birthDate: e.target.value })} aria-label={tr("생년월일")} data-testid="birth-input" className="focus-ring rounded-lg px-2.5 py-2 f-body text-[16px] outline-none flex-1 min-w-0" style={{ background: "white", border: `1px solid ${C.beige}`, minHeight: 44 }} />
+        {ageText(student.birthDate) && <span className="f-body text-[14px] font-bold shrink-0" style={{ color: C.green }}>{ageText(student.birthDate)}</span>}
+      </div>
+      <div className="flex gap-1.5 flex-wrap">
+        {LEVEL_CHOICES.map((l) => (
+          <button key={l} onClick={() => student.level !== l && save({ level: l })} aria-pressed={student.level === l} data-testid={`level-${l}`} className="focus-ring tap flex-1 text-[14px] f-body font-bold rounded-lg py-1.5" style={{ background: student.level === l ? C.green : "white", color: student.level === l ? "white" : C.charcoal, border: `1px solid ${student.level === l ? C.green : C.beige}`, minHeight: 40, minWidth: 44 }}>{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, onCancelEnrollment, onAssignTeam, onAssignSession, programTitle, adv, program, adventures, participationCount, onUpdate, onOpenToday, onEditStudent, onDeleteStudent }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -5556,6 +5593,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
   const [editAvatar, setEditAvatar] = useState(student.avatar);
   const [editLevel, setEditLevel] = useState(student.level);
   const [editPin, setEditPin] = useState(student.familyPin);
+  const [editBirth, setEditBirth] = useState(student.birthDate || "");
 
   const totalCompleted = adventures.filter((a) => a.studentId === student.id && a.afterCompleted).length;
   const badges = computeBadges(adventures, student.id);
@@ -5589,7 +5627,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 
   const saveEdit = () => {
     if (!editName.trim() || !/^\d{4}$/.test(editPin)) return;
-    onEditStudent({ name: editName.trim(), avatar: editAvatar, level: editLevel, familyPin: editPin });
+    onEditStudent({ name: editName.trim(), avatar: editAvatar, level: editLevel, familyPin: editPin, birthDate: editBirth });
     setEditing(false);
   };
 
@@ -5599,6 +5637,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
         <span className="text-[27px]">{student.avatar}</span>
         <div className="flex-1 min-w-0">
           <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{student.name}</p>
+          <p className="f-body text-[12px] text-gray-500">{student.level ? `Level ${student.level}` : ""}{student.birthDate ? ` · ${student.birthDate}${ageText(student.birthDate) ? ` (${ageText(student.birthDate)})` : ""}` : ` · ${tr("생년월일 없음")}`}</p>
           {!adv.attended && !adv.absent && (() => { const ok = !!agreementOf(SAFETY_ROWS, student.familyPin, program.id, student.id); return <p className="f-body text-[12px] font-bold" style={{ color: ok ? "#1F7A44" : "#B25A0B" }} data-testid="agree-chip">{ok ? "Safety agreement signed" : "Safety agreement pending"}</p>; })()}
         </div>
         {limited ? (
@@ -5693,6 +5732,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
 
       {open && (
         <div className="px-4 pb-4 space-y-4">
+          {limited && onEditStudent && <StudentBasics student={student} onSave={(patch) => onEditStudent(patch)} />}
           {!limited && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -5738,6 +5778,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
                     </button>
                   ))}
                 </div>
+                <input type="date" value={editBirth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setEditBirth(e.target.value)} aria-label={tr("생년월일")} className="focus-ring w-full rounded-xl p-2.5 f-body text-[16px] outline-none mb-2" style={{ background: "white", border: `1px solid ${C.beige}` }} />
                 <input
                   value={editPin}
                   onChange={(e) => setEditPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
@@ -8685,7 +8726,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z31"; // change with every delivery
+const APP_BUILD = "2026-10-13-z32"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9294,7 +9335,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
 
   // the checklist: children of this level first, then the others; children without a team before the placed ones
   const checklist = form
-    ? [...roster].sort((x, y) => (y.student.level === form.level) - (x.student.level === form.level) || (placed(x) ? 1 : 0) - (placed(y) ? 1 : 0) || x.student.name.localeCompare(y.student.name))
+    ? [...roster].sort((x, y) => (y.student.level === form.level) - (x.student.level === form.level) || (placed(x) ? 1 : 0) - (placed(y) ? 1 : 0) || byKoName(x.student.name, y.student.name))
     : [];
   const field = "focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none";
   return (
@@ -9822,11 +9863,11 @@ function StudentRoster({ students, adventures }) {
   const needle = q.trim().toLowerCase();
   const shown = rows
     .filter((r) => !needle || r.st.name.toLowerCase().includes(needle) || String(r.st.familyPin).includes(needle) || String(r.st.level || "").toLowerCase().includes(needle))
-    .sort((a, b) => (sort === "registered" ? (b.reg || "").localeCompare(a.reg || "") : sort === "applied" ? (b.lastApply || "").localeCompare(a.lastApply || "") : a.st.name.localeCompare(b.st.name)));
+    .sort((a, b) => (sort === "registered" ? (b.reg || "").localeCompare(a.reg || "") : sort === "applied" ? (b.lastApply || "").localeCompare(a.lastApply || "") : byKoName(a.st.name, b.st.name)));
   const exportCsv = () => {
-    const head = ["이름", "레벨", "가족 PIN", "등록일", "신청 프로그램", "마지막 신청일", "참여 횟수", "상태"];
+    const head = ["이름", "레벨", "생년월일", "가족 PIN", "등록일", "신청 프로그램", "마지막 신청일", "참여 횟수", "상태"];
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const lines = [head, ...shown.map((r) => [r.st.name, r.st.level || "", r.st.familyPin, r.reg, r.advs.filter((a) => !a.canceled).map((a) => `${(getProgram(a.programId) || {}).title || a.programId}(${dayKst(a.enrolledAt) || "-"})`).join(" / "), r.lastApply, r.took, r.st.status === "pending" ? "승인 대기" : ""])].map((l) => l.map(esc).join(","));
+    const lines = [head, ...shown.map((r) => [r.st.name, r.st.level || "", r.st.birthDate || "", r.st.familyPin, r.reg, r.advs.filter((a) => !a.canceled).map((a) => `${(getProgram(a.programId) || {}).title || a.programId}(${dayKst(a.enrolledAt) || "-"})`).join(" / "), r.lastApply, r.took, r.st.status === "pending" ? "승인 대기" : ""])].map((l) => l.map(esc).join(","));
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -9855,7 +9896,7 @@ function StudentRoster({ students, adventures }) {
                   <span className="text-[24px]">{r.st.avatar}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block f-body text-[17px] font-bold truncate" style={{ color: C.green }}>{r.st.name}{r.st.status === "pending" && <span className="ml-1.5 f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("승인 대기")}</span>}</span>
-                    <span className="block f-body text-[13px] text-gray-500">{r.st.level ? `Level ${r.st.level} · ` : ""}PIN <b style={{ color: C.charcoal }}>{r.st.familyPin}</b> · {tr("등록")} {r.reg || "—"}</span>
+                    <span className="block f-body text-[13px] text-gray-500">{r.st.level ? `Level ${r.st.level} · ` : ""}{r.st.birthDate ? `${r.st.birthDate}${ageText(r.st.birthDate) ? ` (${ageText(r.st.birthDate)})` : ""} · ` : ""}PIN <b style={{ color: C.charcoal }}>{r.st.familyPin}</b> · {tr("등록")} {r.reg || "—"}</span>
                   </span>
                   <span className="text-right shrink-0">
                     <span className="block f-body text-[13px] text-gray-500">{tr("신청 {0} · 참여 {1}", [r.applied, r.took])}</span>
@@ -9921,7 +9962,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
     .filter((a) => a.programId === programId)
     .map((adv) => ({ student: students.find((s) => s.id === adv.studentId), adv }))
     .filter((r) => r.student);
-  const unenrolled = students.filter((s) => !isPendingStudent(s) && !roster.some((r) => r.student.id === s.id));
+  const unenrolled = students.filter((s) => !isPendingStudent(s) && !roster.some((r) => r.student.id === s.id)).sort((x, y) => byKoName(x.name, y.name));
   const canceledHere = canceledAdventures
     .filter((a) => a.programId === programId)
     .map((a) => students.find((s) => s.id === a.studentId))
@@ -10351,7 +10392,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           )}
 
           <div className="px-5 space-y-3">
-            {rosterShown.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv)))).map(({ student, adv }) => (
+            {rosterShown.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv))) || byKoName(x.student.name, y.student.name)).map(({ student, adv }) => (
               <TeacherStudentCard
                 key={student.id}
                 student={student}
@@ -11197,7 +11238,7 @@ function JoinDialog({ title, onSend, onClose }) {
 }
 
 /** What the foreign teachers see: upcoming programs to sign up for, the class materials and the feedback. */
-function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
+function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("programs");
@@ -11245,7 +11286,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
   const mine = name ? roster.filter((x) => ((teamOf(program, x.a) || {}).teacher || "").trim().toLowerCase() === name.trim().toLowerCase()) : [];
   const filtering = mineOnly && mine.length > 0;
   const fbRank = (x) => (x.a.attended && !feedbackDone(x.a) ? 0 : x.a.attended ? 2 : 1); // feedback still to write first, finished ones last
-  const list = (filtering ? mine : roster).slice().sort((x, y) => fbRank(x) - fbRank(y));
+  const list = (filtering ? mine : roster).slice().sort((x, y) => fbRank(x) - fbRank(y) || byKoName(x.st.name, y.st.name));
   const feedbackLeft = list.filter((x) => x.a.attended && !feedbackDone(x.a)).length;
   const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackDone(x.a)).length : 0;
   // Home: the teacher's next trip, what is waiting for them (feedback, pay)
@@ -11414,6 +11455,7 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
                   adventures={adventures}
                   participationCount={attendedCount(adventures, st.id)}
                   onUpdate={(patch) => updateAdventure(st.id, program.id, patch)}
+                  onEditStudent={onEditStudent ? (patch) => onEditStudent(st.id, patch) : undefined}
                   onOpenToday={() => {}}
                 />
               ))}
@@ -12567,7 +12609,7 @@ function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           {showManual && <TeacherManual lang={teacherLang} role="guide" onClose={() => setShowManual(false)} />}
           <div className="flex-1 overflow-y-auto">
-            <GuideApp teacher={{ id: session.teacherId, name: session.teacherName }} payInfo={{ taxOn: payData.taxOn, rate: payData.rate, amounts: payData.amounts }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
+            <GuideApp onEditStudent={editStudent} teacher={{ id: session.teacherId, name: session.teacherName }} payInfo={{ taxOn: payData.taxOn, rate: payData.rate, amounts: payData.amounts }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
           </div>
         </div>
       </div>

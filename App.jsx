@@ -105,6 +105,9 @@ const EN = {
 "생년월일 · 레벨": "Birth date · Level",
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
+"피드백 모아보기": "All feedback",
+"발송됨": "Sent",
+"작성 중": "Drafting",
 "수정": "Edit",
 "학생 이름": "Student name",
 "학생 이름 수정": "Edit student name",
@@ -8726,7 +8729,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z33"; // change with every delivery
+const APP_BUILD = "2026-10-13-z34"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9908,6 +9911,21 @@ function StudentRoster({ students, adventures, onEditStudent }) {
                 <div className="px-3.5 pb-3 pl-14 space-y-1">
                   {onEditStudent && <div className="pb-2"><StudentBasics student={r.st} onSave={(patch) => onEditStudent(r.st.id, patch)} /></div>}
                   {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
+                  {r.advs.some((a) => a.feedback && !a.canceled) && (
+                    <div className="pt-1 pb-2" data-testid="roster-feedbacks">
+                      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.green }}>{tr("피드백 모아보기")}</p>
+                      {r.advs.filter((a) => a.feedback && !a.canceled).slice().sort((x, y) => String(y.enrolledAt || "").localeCompare(String(x.enrolledAt || ""))).map((a) => (
+                        <div key={`fb-${a.programId}`} className="mb-2">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{splitTitle((getProgram(a.programId) || {}).title || a.programId)[0]}</p>
+                            <span className="f-body text-[12px] font-bold rounded-full px-2 py-0.5 shrink-0" style={{ background: feedbackSent(a) ? "#E2F3E8" : "#FFF1E2", color: feedbackSent(a) ? "#1F7A44" : "#B25A0B" }}>{feedbackSent(a) ? tr("발송됨") : feedbackPending(a) ? tr("승인 대기") : tr("작성 중")}</span>
+                          </div>
+                          <ParentFeedbackReport feedback={a.feedback} />
+                          {a.teacherNote && <p className="f-body text-[14px] italic mb-1" style={{ color: C.charcoal }}>"{a.teacherNote}"</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {r.advs.map((a) => (
                     <p key={a.programId} className="f-body text-[14px]" style={{ color: a.canceled ? "#B9AE99" : C.charcoal }}>
                       {(splitTitle((getProgram(a.programId) || {}).title || a.programId)[0])} · {tr("신청")} {dayKst(a.enrolledAt) || "—"} · {a.canceled ? tr("취소") : a.attended ? tr("참여 ✓") : a.absent ? tr("결석") : tr("예정")}

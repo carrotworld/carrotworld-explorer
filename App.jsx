@@ -28,6 +28,18 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"영어 문장": "English sentence",
+"영어 문장 (예: I would like to try it.)": "English sentence (e.g. I would like to try it.)",
+"한국어 뜻": "Korean meaning",
+"+ 표현 추가": "+ Add expression",
+"표현 한꺼번에 붙여넣기": "Paste expressions all at once",
+"한 줄에 하나씩 적어요\nI would like to try it. - 해 보고 싶어요.\nCould you help me? - 도와주실 수 있나요?": "One per line\nI would like to try it. - 해 보고 싶어요.\nCould you help me? - 도와주실 수 있나요?",
+"형식: 영어 문장 - 한국어 뜻 (가운데 \" - \" 앞뒤에 띄어쓰기). 번호나 점은 자동으로 빼요.": "Format: English sentence - Korean meaning (with spaces around the \" - \"). Numbers and bullets are removed.",
+"붙여넣은 표현 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.": "{0} pasted expressions are not in the list yet. They are saved together when you save.",
+"붙여넣은 표현 추가": "Add pasted expressions",
+"단어 아래에 나오는 문장이에요. 영어 문장과 한국어 뜻을 넣어 주세요. 비워 두면 보이지 않아요.": "Sentences shown below the words. Add the English sentence and its Korean meaning. Empty means hidden.",
+"표현 {0}개": "{0} expressions",
+"체험 시간·집합 시간·모이는 곳은 위에서 고른 시간대마다 따로 적어요. 비워 두면 회색 글씨의 기본값을 써요.": "Trip time, meeting time and meeting place are set per time slot chosen above. If empty, the grey default is used.",
 "② 출석은 '오늘 진행'을 켜면 나타나요.": "② Attendance appears once 'Today' is on.",
 "체험 당일 빠른 처리 — ① 오늘 진행 켜기 → ② 출석 확정 → ③ 복습 열기": "Trip day: ① Start today → ② Confirm attendance → ③ Open review",
 "수당 정산": "Pay settlement",
@@ -1218,7 +1230,7 @@ const PROGRAMS = [
 /*  and big question for each level (`levelMaterials`). A child gets the */
 /*  set of their own level; without levelMaterials everyone shares one.  */
 /* ================================================================== */
-const LEVEL_FIELDS = ["vocabulary", "bigQuestion", "bigQuestionOptions", "missions", "remember", "focus", "objective"];
+const LEVEL_FIELDS = ["vocabulary", "expressions", "bigQuestion", "bigQuestionOptions", "missions", "remember", "focus", "objective"];
 /** The levels that have their own set ([] while the program uses one shared set). */
 const materialLevels = (program) => (program && program.levelMaterials ? sortLevels(Object.keys(program.levelMaterials)) : []);
 /** The program as a child of this level sees it. */
@@ -2769,6 +2781,24 @@ function BadgeCollection({ adventures, studentId }) {
 /* ================================================================== */
 /*  GET READY  (Before)                                                 */
 /* ================================================================== */
+/** Useful Expressions: whole sentences; tap one to hear it. */
+function ExpressionList({ items, title = "Useful Expressions" }) {
+  const list = (items || []).filter((x) => (x.en || "").trim());
+  if (!list.length) return null;
+  return (
+    <div className="mb-5" data-testid="expr-list">
+      <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>{title}</p>
+      <div className="space-y-2">
+        {list.map((x) => (
+          <button key={x.id || x.en} onClick={() => speak(x.en)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3" style={{ border: `1px solid ${C.beige}` }}>
+            <span className="block f-body text-[17px] font-semibold leading-snug" style={{ color: C.charcoal }}>🔊 {x.en}</span>
+            {x.ko && <span className="block f-body text-[15px] text-gray-500 mt-0.5">{x.ko}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly }) {
   const [isReplay, setIsReplay] = useState(false);
   // Usage insights: recorded the moment the child acts, so nothing is lost if they leave half-way.
@@ -2792,6 +2822,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
             <VocabularyCard key={v.id} v={v} />
           ))}
         </div>
+        <div className="mt-5"><ExpressionList items={program.expressions} /></div>
       </div>
     );
   }
@@ -2815,6 +2846,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
             ))}
           </div>
         </div>
+        <ExpressionList items={program.expressions} />
         <GhostButton icon={RotateCcw} onClick={() => setIsReplay(true)}>
           Practice Again
         </GhostButton>
@@ -2846,6 +2878,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
           />
         ))}
       </div>
+      <ExpressionList items={program.expressions} />
       <PrimaryButton onClick={finish}>{isReplay ? "Done" : "I'm ready!"}</PrimaryButton>
     </div>
   );
@@ -6254,6 +6287,8 @@ function newId(prefix) {
 function defaultMaterials() {
   return {
     vocabulary: [{ id: "explore", en: "explore", meaning: "To look around and discover new things.", emoji: "🔍" }],
+    expressions: [], // Useful Expressions: whole sentences with a Korean meaning
+    exprBulk: "",
     bigQuestion: "What did you discover today?",
     bigQuestionOptions: ["I discovered something new", "It was fun", "I'm not sure yet"],
     challenge: [], // the old "before" quiz is no longer used; the review quiz lives in `remember`
@@ -6277,6 +6312,8 @@ function materialsFrom(program) {
   const remember = (program.remember || d.remember).filter((q) => !q.auto && q.id !== "match-auto").map((q) => ({ ...q, options: q.options ? [...q.options] : q.options }));
   return {
     vocabulary: (program.vocabulary || d.vocabulary).map((v) => ({ ...v })),
+    expressions: (program.expressions || []).map((x) => ({ ...x })),
+    exprBulk: "",
     bigQuestion: program.bigQuestion || d.bigQuestion,
     bigQuestionOptions: [...(program.bigQuestionOptions || d.bigQuestionOptions)],
     challenge: challenge.map((q) => ({ ...q, options: q.options ? [...q.options] : q.options })),
@@ -6294,6 +6331,7 @@ function cloneMaterials(m) {
   return {
     ...m,
     vocabulary: withIds(m.vocabulary, "v"),
+    expressions: withIds(m.expressions, "x"),
     missions: withIds(m.missions, "m"),
     remember: (m.remember || []).map((q) => (q.id === "match-auto" ? { ...q } : { ...q, id: newId("q"), options: q.options ? [...q.options] : q.options })),
     bigQuestionOptions: [...(m.bigQuestionOptions || [])],
@@ -6364,6 +6402,7 @@ function buildMaterials(m) {
     meaning: (v.meaning || "").trim(),
     emoji: (v.emoji || "").trim() || DEFAULT_EMOJI,
   }));
+  const expressions = [...(m.expressions || []).filter((x) => (x.en || "").trim()), ...parseBulkExpressions(m.exprBulk)].map((x) => ({ ...x, id: x.id || newId("x"), en: x.en.trim(), ko: (x.ko || "").trim() }));
   const challenge = cleanQuiz(m.challenge); // kept as-is for old programs, not shown any more
   const remember = cleanQuiz(m.remember);
   if (m.autoWords) remember.push(...autoWordQuestions(vocabulary));
@@ -6374,6 +6413,7 @@ function buildMaterials(m) {
   const focus = (m.focus || []).map((t) => String(t).trim()).filter(Boolean).slice(0, 4);
   return {
     vocabulary: vocabulary.length ? vocabulary : d.vocabulary,
+    expressions,
     bigQuestion: m.bigQuestion.trim() || d.bigQuestion,
     bigQuestionOptions: options.length >= 2 ? options : d.bigQuestionOptions,
     challenge,
@@ -6430,6 +6470,63 @@ function parseBulkWords(text) {
       return { id: newId("v"), en: en || "", meaning: meaning || "", emoji: emoji || "" };
     })
     .filter((v) => v.en);
+}
+
+/** Reads pasted lines ("English sentence - 한국어 뜻", one per line) into expression cards. */
+function parseBulkExpressions(text) {
+  return String(text || "")
+    .split("\n")
+    .map((l) => l.trim().replace(/^([-–—•*·]|\d+[.)])\s+/, ""))
+    .filter(Boolean)
+    .map((line) => {
+      const m = line.match(/^(.*?)\s+[-–—]\s+(.*)$/) || line.match(/^(.*?)\t+(.*)$/);
+      return { id: newId("x"), en: ((m ? m[1] : line) || "").trim(), ko: ((m ? m[2] : "") || "").trim() };
+    })
+    .filter((x) => x.en);
+}
+
+function ExpressionEditor({ items, onChange, bulk, onBulk }) {
+  const pendingCount = parseBulkExpressions(bulk).length;
+  const update = (i, p) => onChange(items.map((x, idx) => (idx === i ? { ...x, ...p } : x)));
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
+  const add = () => onChange([...items, { id: newId("x"), en: "", ko: "" }]);
+  const addBulk = () => {
+    const rows = parseBulkExpressions(bulk);
+    if (!rows.length) return;
+    onChange([...items.filter((x) => (x.en || "").trim() || (x.ko || "").trim()), ...rows], { exprBulk: "" });
+  };
+  return (
+    <div data-testid="expr-editor">
+      <div className="space-y-2 mb-2">
+        {items.map((x, i) => (
+          <div key={x.id || i} className="rounded-xl p-2.5 space-y-1.5" style={editorFieldStyle}>
+            <div className="flex gap-2 items-center">
+              <textarea value={x.en || ""} onChange={(e) => update(i, { en: e.target.value })} rows={2} placeholder={tr("영어 문장 (예: I would like to try it.)")} aria-label={tr("영어 문장")} className="focus-ring flex-1 min-w-0 rounded-lg px-2.5 py-2 f-body text-[15px] outline-none" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+              <RemoveButton onClick={() => remove(i)} />
+            </div>
+            <textarea value={x.ko || ""} onChange={(e) => update(i, { ko: e.target.value })} rows={2} placeholder={tr("한국어 뜻")} aria-label={tr("한국어 뜻")} className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+          </div>
+        ))}
+      </div>
+      <AddButton onClick={add}>{tr("+ 표현 추가")}</AddButton>
+      <div className="mt-3">
+        <p className="f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("한꺼번에 붙여넣기")}</p>
+        <textarea
+          value={bulk}
+          onChange={(e) => onBulk(e.target.value)}
+          rows={4}
+          placeholder={tr("한 줄에 하나씩 적어요\nI would like to try it. - 해 보고 싶어요.\nCould you help me? - 도와주실 수 있나요?")}
+          aria-label={tr("표현 한꺼번에 붙여넣기")}
+          data-testid="expr-bulk"
+          className="focus-ring w-full rounded-lg px-2.5 py-2 f-body text-[15px] outline-none"
+          style={{ ...editorFieldStyle, background: "white" }}
+        />
+        <p className="f-body text-[13px] text-gray-400 mt-1">{tr("형식: 영어 문장 - 한국어 뜻 (가운데 \" - \" 앞뒤에 띄어쓰기). 번호나 점은 자동으로 빼요.")}</p>
+        {pendingCount > 0 && <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: "#B25A0B" }}>{tr("붙여넣은 표현 {0}개는 아직 목록에 없어요. 저장하면 함께 저장돼요.", [pendingCount])}</p>}
+        <div className="mt-1.5"><AddButton onClick={addBulk}>{tr("붙여넣은 표현 추가")}</AddButton></div>
+      </div>
+    </div>
+  );
 }
 
 function VocabEditor({ items, onChange, bulk: bulkProp, onBulk }) {
@@ -6708,8 +6805,13 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이 체험에서 진행하는 레벨 탭에만 써요. 진행하지 않는 레벨은 목표가 나오지 않아요.")}</p>
       </Fold>
 
-      <Fold heading={<>② Prep · 예습 단어</>} hint={tr("영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length])} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
+      <Fold heading={<>② Prep · 예습 단어</>} hint={tr("영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length]) + ((value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length ? ` · ${tr("표현 {0}개", [(value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length])}` : "")} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
+        <div className="mt-5 pt-4 border-t" style={{ borderColor: C.beige }}>
+          <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>Useful Expressions · 유용한 표현</p>
+          <p className="f-body text-[13px] text-gray-400 mt-0.5 mb-2.5">{tr("단어 아래에 나오는 문장이에요. 영어 문장과 한국어 뜻을 넣어 주세요. 비워 두면 보이지 않아요.")}</p>
+          <ExpressionEditor items={value.expressions || []} onChange={(expressions, extra) => set({ expressions, ...(extra || {}) })} bulk={value.exprBulk || ""} onBulk={(exprBulk) => set({ exprBulk })} />
+        </div>
       </Fold>
 
       <Fold heading={<>③ On-site Rules · 현장 안전수칙</>} hint={tr("모든 체험에 같은 공통 규칙이 적용돼요. 선생님이 따로 입력하지 않아요. 고치는 건 본사만 해요.")} summary={tr("공통 규칙 {0}개 · 3 Warnings", [commonSafetyRules(SAFETY_ROWS).length])} defaultOpen={false}>
@@ -7207,22 +7309,22 @@ function InfoEditor({ program, value, onChange, sessions = [], onSessionChange }
               </button>
             ))}
           </div>
-          <p className="f-body text-[13px] text-gray-600 mt-1.5">{tr("아래 시간·집합 정보는 모든 시간대의 기본값이에요. 시간대에 따로 적은 값이 있으면 그 값을 써요.")}</p>
+          <p className="f-body text-[13px] text-gray-600 mt-1.5">{tr("체험 시간·집합 시간·모이는 곳은 위에서 고른 시간대마다 따로 적어요. 비워 두면 회색 글씨의 기본값을 써요.")}</p>
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className={label} style={{ color: C.charcoal }}>{tr("⏰ 체험 시간")}</p>
-          <input value={value.time} onChange={(e) => set({ time: e.target.value })} placeholder="10:00 ~ 12:30" aria-label={tr("체험 시간")} className={field} style={fieldStyle} />
+          <p className={label} style={{ color: C.charcoal }}>{tr("⏰ 체험 시간")}{slot && ` · ${slot.label}`}</p>
+          <input value={slot ? slot.time || "" : value.time} onChange={(e) => (slot ? onSessionChange && onSessionChange(slot.id, { time: e.target.value }) : set({ time: e.target.value }))} placeholder={slot ? value.time || "10:00 ~ 12:30" : "10:00 ~ 12:30"} aria-label={tr("체험 시간")} data-testid="info-time" className={field} style={fieldStyle} />
         </div>
         <div>
-          <p className={label} style={{ color: C.charcoal }}>{tr("🕘 집합 시간")}</p>
-          <input value={value.meetingTime} onChange={(e) => set({ meetingTime: e.target.value })} placeholder="09:50" aria-label={tr("집합 시간")} className={field} style={fieldStyle} />
+          <p className={label} style={{ color: C.charcoal }}>{tr("🕘 집합 시간")}{slot && ` · ${slot.label}`}</p>
+          <input value={slot ? slot.meetingTime || "" : value.meetingTime} onChange={(e) => (slot ? onSessionChange && onSessionChange(slot.id, { meetingTime: e.target.value }) : set({ meetingTime: e.target.value }))} placeholder={slot ? value.meetingTime || "09:50" : "09:50"} aria-label={tr("집합 시간")} data-testid="info-meeting-time" className={field} style={fieldStyle} />
         </div>
       </div>
       <div>
-        <p className={label} style={{ color: C.charcoal }}>{tr("🧭 모이는 곳")}</p>
-        <input value={value.meetingPoint} onChange={(e) => set({ meetingPoint: e.target.value })} placeholder={tr("예: 정문 앞 분수대")} aria-label={tr("모이는 곳")} className={field} style={fieldStyle} />
+        <p className={label} style={{ color: C.charcoal }}>{tr("🧭 모이는 곳")}{slot && ` · ${slot.label}`}</p>
+        <input value={slot ? slot.meetingPoint || "" : value.meetingPoint} onChange={(e) => (slot ? onSessionChange && onSessionChange(slot.id, { meetingPoint: e.target.value }) : set({ meetingPoint: e.target.value }))} placeholder={slot ? value.meetingPoint || tr("예: 정문 앞 분수대") : tr("예: 정문 앞 분수대")} aria-label={tr("모이는 곳")} className={field} style={fieldStyle} />
       </div>
       <div>
         <p className={label} style={{ color: C.charcoal }}>{tr("📍 장소 (주소)")}</p>
@@ -8532,7 +8634,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-11-z24"; // change with every delivery
+const APP_BUILD = "2026-10-13-z26"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11978,7 +12080,7 @@ function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const dm = defaultMaterials();
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -12006,6 +12108,7 @@ function CarrotExplorer() {
       objective: objective || null,
       sessions: sessions || [],
       vocabulary: vocabulary || dm.vocabulary,
+      expressions: expressions || [],
       bigQuestion: bigQuestion || dm.bigQuestion,
       bigQuestionOptions: bigQuestionOptions || dm.bigQuestionOptions,
       challenge: challenge || dm.challenge,
@@ -12020,7 +12123,7 @@ function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
+  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info }) => {
     const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -12062,6 +12165,7 @@ function CarrotExplorer() {
       });
     }
     if (vocabulary) patch.vocabulary = vocabulary;
+    if (expressions) patch.expressions = expressions;
     if (bigQuestion) patch.bigQuestion = bigQuestion;
     if (bigQuestionOptions) patch.bigQuestionOptions = bigQuestionOptions;
     if (challenge) patch.challenge = challenge;

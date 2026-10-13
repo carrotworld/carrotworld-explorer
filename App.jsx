@@ -28,6 +28,10 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"🙋 참여 신청 {0}명": "🙋 Sign-ups: {0}",
+"부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.": "Children whose parents applied in the app. Tap to add them to this program.",
+"+ 학생 직접 추가": "+ Add a student",
+"추가할 수 있는 학생 {0}명": "Students you can add: {0}",
 "영어 문장": "English sentence",
 "영어 문장 (예: I would like to try it.)": "English sentence (e.g. I would like to try it.)",
 "한국어 뜻": "Korean meaning",
@@ -3542,6 +3546,8 @@ const SUGGESTION_TYPES = ["건의사항", "장소 요청", "기타"];
 const WISH_TYPE = "찜";
 const KAKAO_CHAT_URL = ""; // paste the KakaoTalk channel / open-chat link here to show a "카카오톡으로 문의하기" button
 const wishId = (familyPin, programId) => `wish-${familyPin}-${programId}`;
+const APPLY_TYPE = "신청 문의";
+const applyId = (studentId, programId) => `apply-${studentId}-${programId}`;
 const isWish = (sg) => sg.type === WISH_TYPE;
 
 /* App visits (customers only): one small row per family per day, saved the first time a parent
@@ -4094,7 +4100,7 @@ function parentNotices(children, adventures, suggestions) {
   return list.sort((x, y) => priority[x.icon] - priority[y.icon]);
 }
 
-function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish }) {
+function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish, onApply }) {
   const [openId, setOpenId] = useState(null);
   // only programs that have not run yet, and that none of the family's children has applied to
   const cards = upcomingPrograms(adventures)
@@ -4103,24 +4109,22 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
       pending: children.filter((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id)),
     }))
     .filter((x) => x.pending.length > 0);
+  const applied = (c, p) => suggestions.some((sg) => sg.id === applyId(c.id, p.id) && !sg.resolved);
 
   return (
-    <div id="browse-programs" className="pt-2">
-      <div className="flex items-baseline justify-between px-1 mb-2">
-        <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>예정 체험</p>
-        <p className="f-body text-[12px] text-gray-400">♡ 찜 · 신청은 카카오톡 문의</p>
+    <div id="browse-programs" className="pt-1" data-testid="browse">
+      <div className="flex items-center justify-between px-1 mb-2">
+        <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>예정 체험 {cards.length > 0 && <span className="ml-1 f-body text-[13px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{cards.length}</span>}</p>
+        {KAKAO_CHAT_URL && (
+          <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap f-body text-[13px] font-bold rounded-full px-3 py-1.5" style={{ background: "#FEE500", color: "#3C1E1E" }}>카카오톡 문의</a>
+        )}
       </div>
-      {KAKAO_CHAT_URL && (
-        <a href={KAKAO_CHAT_URL} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block f-body text-[14px] font-bold rounded-xl px-3 py-1.5 mb-2" style={{ background: "#FEE500", color: "#3C1E1E" }}>
-          카카오톡으로 문의하기
-        </a>
-      )}
       {cards.length === 0 ? (
         <div className="bg-white rounded-2xl px-4 py-3">
           <p className="f-body text-[14px] text-gray-400">지금 신청할 수 있는 새 체험이 없어요.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl overflow-hidden">
+        <div className="space-y-2.5">
           {cards.map(({ program: p, pending }) => {
             const message = `${pending.map((c) => c.name).join(", ")} · ${p.title} 찜`;
             const liked = suggestions.some((sg) => sg.id === wishId(familyPin, p.id) && !sg.resolved);
@@ -4128,20 +4132,19 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
             const fits = pending.some((c) => (p.levels || [p.level]).includes(c.level));
             const slots = sessionsOf(p);
             return (
-              <div key={p.id} className="px-3.5 py-2.5 border-b last:border-b-0" style={{ borderColor: C.beige }} data-testid="upcoming-card">
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 flex items-center gap-2.5 text-left">
-                    <span className="self-stretch w-1 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
-                    <span className="min-w-0">
-                      <span className="block f-body text-[16px] font-bold leading-snug truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
-                      <span className="block f-body text-[12px] text-gray-400">{p.date} · {levelLabel(p)}{fits ? <b style={{ color: "#1F7A44" }}> · 우리 아이 레벨</b> : null}</span>
-                    </span>
+              <div key={p.id} className="bg-white rounded-2xl p-3.5" style={{ border: `1px solid ${C.beige}` }} data-testid="upcoming-card">
+                <div className="flex items-start gap-2.5">
+                  <span className="self-stretch w-1 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
+                  <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 text-left">
+                    <span className="block f-display text-[18px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                    <span className="block f-body text-[13px] text-gray-500 mt-0.5">{p.date} · {levelLabel(p)}{fits ? <b style={{ color: "#1F7A44" }}> · 우리 아이 레벨</b> : null}</span>
+                    <span className="block f-body text-[12px] mt-0.5" style={{ color: "#9C927D" }}>{open ? "접기 ▴" : "자세히 ▾"}</span>
                   </button>
                   <button
                     onClick={() => onToggleWish({ familyPin, programId: p.id, message })}
                     aria-pressed={liked}
                     aria-label={liked ? "찜 취소" : "찜하기"}
-                    className="focus-ring tap shrink-0 w-9 h-9 rounded-full text-[18px]"
+                    className="focus-ring tap shrink-0 w-11 h-11 rounded-full text-[20px]"
                     style={{ background: liked ? "#FFE3E0" : C.cream, color: liked ? "#C0392B" : "#B9AE99" }}
                   >
                     {liked ? "♥" : "♡"}
@@ -4156,6 +4159,27 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     {isNoticeOut(p, null) && feeText(p.info) && <p className="f-body text-[13px] text-gray-500 mt-0.5">입장료 · {feeText(p.info)}</p>}
                   </div>
                 )}
+                <div className="mt-3 space-y-2">
+                  {pending.map((c) => {
+                    const done = applied(c, p);
+                    return done ? (
+                      <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5" style={{ background: "#EAF7EF" }} data-testid="apply-done">
+                        <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요 · 확인 중</span>
+                        {onApply && <button onClick={() => onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의` })} className="focus-ring tap f-body text-[13px] font-bold px-2 py-1" style={{ color: "#8A8060" }}>취소</button>}
+                      </div>
+                    ) : (
+                      <button
+                        key={c.id}
+                        onClick={() => onApply && onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의` })}
+                        data-testid="apply-btn"
+                        className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl text-white"
+                        style={{ background: C.orange, minHeight: 48 }}
+                      >
+                        {pending.length > 1 ? `${c.name} 참여 신청하기` : "참여 신청하기"}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -4937,7 +4961,7 @@ function GuideLinks({ program, adv, onInfo }) {
 const experienceStatus = (a) => (a.afterCompleted ? "완료" : a.attended ? "체험 완료" : a.beforeCompleted ? "예습 완료" : "신청 완료");
 
 /** One child on the parents' home. */
-function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, onSurvey, onPoints }) {
+function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, onSurvey, onPoints, browse }) {
   const [openId, setOpenId] = useState(null);
   const mineAll = adventures.filter((a) => a.studentId === child.id && !a.canceled);
   const mine = mineAll.map((a) => ({ a, program: getProgram(a.programId) })).filter((x) => x.program);
@@ -5015,6 +5039,7 @@ function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, o
         })}
       </div>
 
+      {browse}
       {section("신청한 체험", otherActive)}
       {section("지난 체험", pastRows)}
     </div>
@@ -5062,7 +5087,7 @@ function ObjectiveTable({ program }) {
   );
 }
 
-function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout, onSubmitReview = async () => ({ ok: false }), onSeenReview = () => {} }) {
+function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggestion, onToggleWish, onApply, onViewReport, onOpenSurvey, onStartAdventure, onAddChild, onLogout, onSubmitReview = async () => ({ ok: false }), onSeenReview = () => {} }) {
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
@@ -5160,14 +5185,11 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 onReport={onViewReport}
                 onSurvey={onOpenSurvey}
                 onPoints={() => { setPtab("points"); window.scrollTo({ top: 0 }); }}
+                browse={<ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} onApply={onApply} />}
               />
             </>
           );
         })()}
-
-        {myChildren.length > 0 && (
-          <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} />
-        )}
 
         <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
         {myChildren.length > 0 && onAddChild && (
@@ -8634,7 +8656,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z26"; // change with every delivery
+const APP_BUILD = "2026-10-13-z27"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9023,7 +9045,7 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
 
       {programs.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("등록된 프로그램이 아직 없어요.")}</p></div>}
 
-      {programs.map((p) => {
+      {programs.slice().sort((x, y) => Number(programStatus(x, adventures).stage === "done") - Number(programStatus(y, adventures).stage === "done")).map((p) => {
         const st = programStatus(p, adventures);
         const next = nextStep(p, st);
         const look = STAGE_LOOK[st.stage];
@@ -9832,7 +9854,10 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       icon: "🙋",
       title: tr("새 신청 문의 {0}건", [pendingInquiries.length]),
       text: pendingInquiries.slice(-2).map((x) => x.message).join(" / "),
-      onClick: () => setTab("suggestions"),
+      onClick: () => {
+        const hit = PROGRAMS.find((pp) => pendingInquiries.some((x) => students.some((st) => x.id === applyId(st.id, pp.id))));
+        if (hit) { setProgramId(hit.id); setTab("manage"); } else setTab("suggestions");
+      },
       onDone: () => onResolveSuggestions(pendingInquiries.map((x) => x.id)),
     });
   }
@@ -10101,6 +10126,59 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
             </div>
           </div>
 
+          {(() => {
+            const enrollButtons = (st, afterEnroll) => (slots.length > 0 ? (
+                <span className="flex gap-1.5 flex-wrap justify-end">
+                  {slots.map((x) => (
+                    <button key={x.id} onClick={() => { onEnrollStudent(st.id, programId, undefined, x.id); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>+ {x.label}</button>
+                  ))}
+                </span>
+              ) : (
+                <button onClick={() => { onEnrollStudent(st.id, programId); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("+ 추가")}</button>
+              ));
+            const applies = unenrolled
+              .map((st) => ({ st, row: suggestions.find((x) => x.id === applyId(st.id, programId) && !x.resolved) }))
+              .filter((x) => x.row);
+            const others = unenrolled.filter((st) => !applies.some((x) => x.st.id === st.id));
+            return (
+              <div className="px-5 mb-3 space-y-2.5" data-testid="add-students">
+                {applies.length > 0 && (
+                  <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="apply-queue">
+                    <p className="f-display text-[17px] font-bold mb-2" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
+                    <div className="space-y-2">
+                      {applies.map(({ st, row }) => (
+                        <div key={st.id} className="flex items-center gap-3">
+                          <span className="text-[23px]">{st.avatar}</span>
+                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}</span>
+                          {enrollButtons(st, () => onResolveSuggestions([row.id]))}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="f-body text-[13px] text-gray-500 mt-2">{tr("부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.")}</p>
+                  </div>
+                )}
+                {others.length > 0 && (
+                  <FoldBar title={tr("+ 학생 직접 추가")} summary={tr("추가할 수 있는 학생 {0}명", [others.length])} defaultOpen={roster.length === 0 && applies.length === 0}>
+                    <div className="bg-white rounded-2xl p-4">
+                      <div className="space-y-2">
+                        {others.map((st) => (
+                          <div key={st.id} className="flex items-center gap-3">
+                            <span className="text-[23px]">{st.avatar}</span>
+                            <span className="flex-1 min-w-0 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>
+                              {st.name}
+                              {wishesFor(suggestions, programId).some((w) => w.familyPin === st.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심")}</span>}
+                            </span>
+                            {enrollButtons(st)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </FoldBar>
+                )}
+              </div>
+            );
+          })()}
+
           {slots.length > 0 && (
             <div className="px-5 mb-3">
               <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Time slots">
@@ -10136,7 +10214,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           )}
 
           <div className="px-5 space-y-3">
-            {rosterShown.map(({ student, adv }) => (
+            {rosterShown.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv)))).map(({ student, adv }) => (
               <TeacherStudentCard
                 key={student.id}
                 student={student}
@@ -10174,32 +10252,6 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                     <p className="f-body text-[13px] text-gray-400">{tr("되돌리면 예습 기록과 함께 다시 신청한 상태로 돌아가요.")}</p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {unenrolled.length > 0 && (
-              <div className="bg-white rounded-2xl p-4">
-                <p className="f-display text-[18px] font-bold mb-2" style={{ color: C.green }}>{tr("이 프로그램에 없는 학생")}</p>
-                <div className="space-y-2">
-                  {unenrolled.map((s) => (
-                    <div key={s.id} className="flex items-center gap-3">
-                      <span className="text-[23px]">{s.avatar}</span>
-                      <span className="flex-1 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>
-                        {s.name}
-                        {wishesFor(suggestions, programId).some((w) => w.familyPin === s.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심")}</span>}
-                      </span>
-                      {slots.length > 0 ? (
-                        <span className="flex gap-1.5 flex-wrap justify-end">
-                          {slots.map((x) => (
-                            <button key={x.id} onClick={() => onEnrollStudent(s.id, programId, undefined, x.id)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>+ {x.label}</button>
-                          ))}
-                        </span>
-                      ) : (
-                      <button onClick={() => onEnrollStudent(s.id, programId)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green }}>{tr("+ 추가")}</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
@@ -11045,7 +11097,8 @@ function GuideApp({ teacher, payItems = [], payouts = [], payInfo = {}, students
     : [];
   const mine = name ? roster.filter((x) => ((teamOf(program, x.a) || {}).teacher || "").trim().toLowerCase() === name.trim().toLowerCase()) : [];
   const filtering = mineOnly && mine.length > 0;
-  const list = (filtering ? mine : roster).slice().sort((x, y) => Number(!!y.a.attended) - Number(!!x.a.attended));
+  const fbRank = (x) => (x.a.attended && !feedbackDone(x.a) ? 0 : x.a.attended ? 2 : 1); // feedback still to write first, finished ones last
+  const list = (filtering ? mine : roster).slice().sort((x, y) => fbRank(x) - fbRank(y));
   const feedbackLeft = list.filter((x) => x.a.attended && !feedbackDone(x.a)).length;
   const allFeedbackLeft = program ? roster.filter((x) => x.a.attended && !feedbackDone(x.a)).length : 0;
   // Home: the teacher's next trip, what is waiting for them (feedback, pay)
@@ -11895,6 +11948,19 @@ function CarrotExplorer() {
       sync(api.createSuggestion(wish));
     }
   };
+  const applyProgram = ({ studentId, programId, familyPin, message }) => {
+    const id = applyId(studentId, programId);
+    const existing = suggestions.find((sg) => sg.id === id);
+    if (existing) {
+      const next = !existing.resolved;
+      setSuggestions((prev) => prev.map((sg) => (sg.id === id ? { ...sg, resolved: next, message } : sg)));
+      sync(api.updateSuggestion(id, { resolved: next }));
+    } else {
+      const row = { id, type: APPLY_TYPE, message, familyPin, resolved: false };
+      setSuggestions((prev) => [...prev, row]);
+      sync(api.createSuggestion(row));
+    }
+  };
   const toggleSuggestion = (id) => {
     const cur = suggestions.find((sg) => sg.id === id);
     if (!cur) return;
@@ -12434,6 +12500,7 @@ function CarrotExplorer() {
               suggestions={suggestions}
               onAddSuggestion={addSuggestion}
               onToggleWish={toggleWish}
+              onApply={applyProgram}
               onViewReport={(studentId, programId) => setParentScreen({ type: "report", studentId, programId: programId || null })}
               onOpenSurvey={(studentId, programId) => setParentScreen({ type: "survey", studentId, programId })}
               onAddChild={(info) => registerStudent(info)}

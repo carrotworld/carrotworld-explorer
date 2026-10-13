@@ -28,6 +28,22 @@ const EN = {
 "심각한 위험": "Serious risk",
 "잘못 기록했어요 (취소)": "Recorded by mistake (void)",
 "안전수칙": "Safety rules",
+"학생 명단": "Student list",
+"엑셀로 받기": "Download for Excel",
+"이름, PIN, 레벨로 찾기": "Search by name, PIN or level",
+"학생 찾기": "Find a student",
+"이름순": "By name",
+"등록일순": "By registered",
+"최근 신청순": "By latest sign-up",
+"찾는 학생이 없어요.": "No students found.",
+"승인 대기": "Waiting for approval",
+"등록": "Registered",
+"신청 {0} · 참여 {1}": "Applied {0} · Took part {1}",
+"최근 {0}": "Latest {0}",
+"아직 신청한 체험이 없어요.": "No trips applied yet.",
+"신청": "Applied",
+"참여 ✓": "Took part ✓",
+"결석": "Absent",
 "선생님 활동비 (세전)": "Teacher pay (before tax)",
 "예: 45000": "e.g. 45000",
 "저장했어요 ✓": "Saved ✓",
@@ -8669,7 +8685,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z30"; // change with every delivery
+const APP_BUILD = "2026-10-13-z31"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9792,6 +9808,79 @@ function ProgramPayField({ value, rate, onSave }) {
   );
 }
 
+/** HQ: every student in one list: registration date, sign-up dates, family PIN, level, how often they took part. Search, sort, CSV. */
+const dayKst = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }); };
+function StudentRoster({ students, adventures }) {
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState("name");
+  const [openId, setOpenId] = useState(null);
+  const rows = students.map((st) => {
+    const advs = adventures.filter((a) => a.studentId === st.id).slice().sort((x, y) => String(y.enrolledAt || "").localeCompare(String(x.enrolledAt || "")));
+    const live = advs.filter((a) => !a.canceled);
+    return { st, advs, applied: live.length, took: live.filter((a) => a.attended).length, lastApply: dayKst((advs[0] || {}).enrolledAt), reg: dayKst(st.registeredAt) || ((g) => (g ? `≈${g}` : ""))(advs.map((a) => dayKst(a.enrolledAt)).filter(Boolean).sort()[0]) };
+  });
+  const needle = q.trim().toLowerCase();
+  const shown = rows
+    .filter((r) => !needle || r.st.name.toLowerCase().includes(needle) || String(r.st.familyPin).includes(needle) || String(r.st.level || "").toLowerCase().includes(needle))
+    .sort((a, b) => (sort === "registered" ? (b.reg || "").localeCompare(a.reg || "") : sort === "applied" ? (b.lastApply || "").localeCompare(a.lastApply || "") : a.st.name.localeCompare(b.st.name)));
+  const exportCsv = () => {
+    const head = ["이름", "레벨", "가족 PIN", "등록일", "신청 프로그램", "마지막 신청일", "참여 횟수", "상태"];
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [head, ...shown.map((r) => [r.st.name, r.st.level || "", r.st.familyPin, r.reg, r.advs.filter((a) => !a.canceled).map((a) => `${(getProgram(a.programId) || {}).title || a.programId}(${dayKst(a.enrolledAt) || "-"})`).join(" / "), r.lastApply, r.took, r.st.status === "pending" ? "승인 대기" : ""])].map((l) => l.map(esc).join(","));
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `students-${kstDay()}.csv`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const chip = (k, label) => (
+    <button key={k} onClick={() => setSort(k)} aria-pressed={sort === k} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: sort === k ? C.green : "white", color: sort === k ? "white" : C.charcoal, border: `1px solid ${sort === k ? C.green : C.beige}`, minHeight: 40 }}>{label}</button>
+  );
+  return (
+    <div className="px-5 space-y-3" data-testid="student-roster">
+      <div className="flex items-center justify-between gap-2">
+        <p className="f-display text-[18px] font-bold" style={{ color: C.green }}>{tr("학생 명단")} <span className="f-body text-[14px] font-normal text-gray-500">{tr("{0}명", [shown.length])}</span></p>
+        <button onClick={exportCsv} data-testid="roster-csv" className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("엑셀로 받기")}</button>
+      </div>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("이름, PIN, 레벨로 찾기")} aria-label={tr("학생 찾기")} data-testid="roster-search" className="focus-ring w-full rounded-xl px-3.5 py-2.5 f-body text-[16px] outline-none" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+      <div className="flex gap-2 overflow-x-auto">{chip("name", tr("이름순"))}{chip("registered", tr("등록일순"))}{chip("applied", tr("최근 신청순"))}</div>
+      <div className="bg-white rounded-2xl overflow-hidden">
+        {shown.length === 0 && <p className="f-body text-[15px] text-gray-400 text-center py-6">{tr("찾는 학생이 없어요.")}</p>}
+        {shown.map((r) => {
+          const open = openId === r.st.id;
+          return (
+            <div key={r.st.id} className="border-b last:border-b-0" style={{ borderColor: C.beige }} data-testid="roster-row">
+              <button onClick={() => setOpenId(open ? null : r.st.id)} aria-expanded={open} className="focus-ring tap w-full text-left px-3.5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[24px]">{r.st.avatar}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block f-body text-[17px] font-bold truncate" style={{ color: C.green }}>{r.st.name}{r.st.status === "pending" && <span className="ml-1.5 f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("승인 대기")}</span>}</span>
+                    <span className="block f-body text-[13px] text-gray-500">{r.st.level ? `Level ${r.st.level} · ` : ""}PIN <b style={{ color: C.charcoal }}>{r.st.familyPin}</b> · {tr("등록")} {r.reg || "—"}</span>
+                  </span>
+                  <span className="text-right shrink-0">
+                    <span className="block f-body text-[13px] text-gray-500">{tr("신청 {0} · 참여 {1}", [r.applied, r.took])}</span>
+                    <span className="block f-body text-[12px] text-gray-400">{r.lastApply ? tr("최근 {0}", [r.lastApply.slice(5)]) : "—"}</span>
+                  </span>
+                </div>
+              </button>
+              {open && (
+                <div className="px-3.5 pb-3 pl-14 space-y-1">
+                  {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
+                  {r.advs.map((a) => (
+                    <p key={a.programId} className="f-body text-[14px]" style={{ color: a.canceled ? "#B9AE99" : C.charcoal }}>
+                      {(splitTitle((getProgram(a.programId) || {}).title || a.programId)[0])} · {tr("신청")} {dayKst(a.enrolledAt) || "—"} · {a.canceled ? tr("취소") : a.attended ? tr("참여 ✓") : a.absent ? tr("결석") : tr("예정")}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TeacherDashboard({ adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
@@ -9988,6 +10077,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
       { key: "manage", label: (needReport.length + needReview.length) ? tr("학생·출석 {0}", [needReport.length + needReview.length]) : tr("학생·출석") },
     ] },
     { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount + pendingReviewCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount + pendingReviewCount]) : tr("사람"), subs: [
+      { key: "roster", label: tr("학생 명단") },
       { key: "approve", keys: ["approve", "register", "points"], label: (pendingCount + pendingReviewCount) ? tr("가족·학생 {0}", [pendingCount + pendingReviewCount]) : tr("가족·학생") },
       { key: "teachers", keys: ["teachers", "pay"], label: teacherTodo ? tr("선생님·수당 {0}", [teacherTodo]) : tr("선생님·수당") },
       { key: "suggestions", label: unresolvedCount ? tr("의견 {0}", [unresolvedCount]) : tr("의견") },
@@ -10088,6 +10178,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
           }
         />
       )}
+
+      {tab === "roster" && <StudentRoster students={students} adventures={[...adventures, ...canceledAdventures]} />}
 
       {["approve", "register", "points"].includes(tab) && (
         <div className="space-y-4">
@@ -12115,7 +12207,8 @@ function CarrotExplorer() {
     const student = {
       id, name, avatar, level, familyPin,
       ...(contact ? { phoneLast4: contact.phoneLast4, phoneCode: contact.phoneCode } : {}),
-      ...(waiting ? { status: "pending", registeredAt: new Date().toISOString() } : {}),
+      registeredAt: new Date().toISOString(),
+      ...(waiting ? { status: "pending" } : {}),
     };
     if (contact && contact.phone && FAMILY_PHONES[familyPin] !== contact.phone) saveRow({ id: `ph-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: PHONE_TYPE, familyPin, resolved: false, message: JSON.stringify({ kind: "set", familyPin, phone: contact.phone, at: new Date().toISOString() }) });
     setStudents((prev) => [...prev, student]);

@@ -106,6 +106,8 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"학생 고르기": "Choose a student",
+"학생을 골라 주세요": "Choose a student",
 "🧑‍🏫 샘 신청": "🧑‍🏫 Teacher sign-ups",
 "🧑‍🏫 샘 신청 · 팀": "🧑‍🏫 Teacher sign-ups · Teams",
 "아직 신청한 샘이 없어요.": "No teacher has signed up yet.",
@@ -8793,7 +8795,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z42"; // change with every delivery
+const APP_BUILD = "2026-10-13-z43"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9452,6 +9454,27 @@ function MyTeamsCard({ program, adventures, students, name, signups, onOpenMater
         <p className="f-body text-[13px] text-gray-500 mt-2">{tr("다른 팀")}: {others.map((t) => `${t.teacher} (Level ${t.level} · ${tr("{0}명", [kidsOf(t).length])})`).join(", ")}</p>
       )}
       <button onClick={() => onOpenMaterials(program.id)} data-testid="my-teams-materials" className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("Level {0} 수업 자료 보기", [levels.join(" · ")])}</button>
+    </div>
+  );
+}
+
+/** Pick one student from a drop-down, then the slot button(s) to add them (a long list gets unwieldy). */
+function AddStudentPicker({ others, enrollButtons, liked }) {
+  const [pickId, setPickId] = useState("");
+  const list = others.slice().sort((x, y) => byKoName(x.name, y.name));
+  const st = list.find((x) => x.id === pickId) || null;
+  return (
+    <div className="bg-white rounded-2xl p-4" data-testid="add-picker">
+      <select value={pickId} onChange={(e) => setPickId(e.target.value)} aria-label={tr("학생 고르기")} data-testid="add-select" className="focus-ring w-full rounded-xl px-3.5 py-3 f-body text-[16px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}`, minHeight: 48 }}>
+        <option value="">{tr("학생을 골라 주세요")}</option>
+        {list.map((x) => <option key={x.id} value={x.id}>{x.avatar} {x.name}{x.level ? ` · ${x.level}` : ""}{liked(x) ? " ♥" : ""}</option>)}
+      </select>
+      {st && (
+        <div className="flex items-center justify-between gap-3 mt-3">
+          <span className="f-body text-[16px] font-semibold min-w-0 truncate" style={{ color: C.charcoal }}>{st.avatar} {st.name}</span>
+          {enrollButtons(st, () => setPickId(""))}
+        </div>
+      )}
     </div>
   );
 }
@@ -10576,21 +10599,8 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   </div>
                 )}
                 {others.length > 0 && (
-                  <FoldBar title={tr("+ 학생 직접 추가")} summary={tr("추가할 수 있는 학생 {0}명", [others.length])} defaultOpen={roster.length === 0 && applies.length === 0}>
-                    <div className="bg-white rounded-2xl p-4">
-                      <div className="space-y-2">
-                        {others.map((st) => (
-                          <div key={st.id} className="flex items-center gap-3">
-                            <span className="text-[23px]">{st.avatar}</span>
-                            <span className="flex-1 min-w-0 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>
-                              {st.name}
-                              {wishesFor(suggestions, programId).some((w) => w.familyPin === st.familyPin) && <span className="ml-1.5 text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심")}</span>}
-                            </span>
-                            {enrollButtons(st)}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <FoldBar title={tr("+ 학생 직접 추가")} summary={tr("추가할 수 있는 학생 {0}명", [others.length])} defaultOpen={false}>
+                    <AddStudentPicker others={others} enrollButtons={enrollButtons} liked={(st) => wishesFor(suggestions, programId).some((w) => w.familyPin === st.familyPin)} />
                   </FoldBar>
                 )}
               </div>

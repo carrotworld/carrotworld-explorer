@@ -105,6 +105,7 @@ const EN = {
 "생년월일 · 레벨": "Birth date · Level",
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
+"이 학생 삭제": "Delete this student",
 "피드백 모아보기": "All feedback",
 "발송됨": "Sent",
 "작성 중": "Drafting",
@@ -8729,7 +8730,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z34"; // change with every delivery
+const APP_BUILD = "2026-10-13-z35"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9854,8 +9855,9 @@ function ProgramPayField({ value, rate, onSave }) {
 
 /** HQ: every student in one list: registration date, sign-up dates, family PIN, level, how often they took part. Search, sort, CSV. */
 const dayKst = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }); };
-function StudentRoster({ students, adventures, onEditStudent }) {
+function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent }) {
   const [q, setQ] = useState("");
+  const [delId, setDelId] = useState(null);
   const [sort, setSort] = useState("name");
   const [openId, setOpenId] = useState(null);
   const rows = students.map((st) => {
@@ -9911,6 +9913,11 @@ function StudentRoster({ students, adventures, onEditStudent }) {
                 <div className="px-3.5 pb-3 pl-14 space-y-1">
                   {onEditStudent && <div className="pb-2"><StudentBasics student={r.st} onSave={(patch) => onEditStudent(r.st.id, patch)} /></div>}
                   {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
+                  {onDeleteStudent && (
+                    <div className="pt-2">
+                      <button onClick={() => setDelId(r.st.id)} data-testid="roster-delete" className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2" style={{ background: "#FDECEA", color: "#C0392B", minHeight: 40 }}>{tr("이 학생 삭제")}</button>
+                    </div>
+                  )}
                   {r.advs.some((a) => a.feedback && !a.canceled) && (
                     <div className="pt-1 pb-2" data-testid="roster-feedbacks">
                       <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.green }}>{tr("피드백 모아보기")}</p>
@@ -9937,6 +9944,20 @@ function StudentRoster({ students, adventures, onEditStudent }) {
           );
         })}
       </div>
+      {delId && (() => {
+        const st = students.find((x) => x.id === delId);
+        if (!st) return null;
+        const hasRec = adventures.some((a) => a.studentId === st.id && (a.feedback || a.reflection || a.reviewScore || a.insights || a.parentSurvey || a.teacherNote || a.attended));
+        return (
+          <ConfirmDialog
+            title={tr("{0} 학생을 삭제할까요?", [st.name])}
+            actions={[
+              { label: tr("삭제"), tone: "danger", onClick: () => { setDelId(null); setOpenId(null); onDeleteStudent(st.id); } },
+              { label: tr("취소"), tone: "plain", onClick: () => setDelId(null) },
+            ]}
+          >{tr("{0}정말 삭제할까요?", [hasRec ? tr("이 아이의 피드백·복습 기록도 함께 삭제돼요. 삭제하기 전에 백업 파일이 자동으로 내려받아져요. ") : ""])}</ConfirmDialog>
+        );
+      })()}
     </div>
   );
 }
@@ -10239,7 +10260,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         />
       )}
 
-      {tab === "roster" && <StudentRoster students={students} adventures={[...adventures, ...canceledAdventures]} onEditStudent={onEditStudent} />}
+      {tab === "roster" && <StudentRoster students={students} adventures={[...adventures, ...canceledAdventures]} onEditStudent={onEditStudent} onDeleteStudent={onDeleteStudent} />}
 
       {["approve", "register", "points"].includes(tab) && (
         <div className="space-y-4">

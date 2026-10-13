@@ -106,6 +106,7 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"같은 체험을 다른 날짜로 복제": "Copy this trip to another date",
 "임시 저장": "Save draft",
 "제출 · 공개": "Submit · Publish",
 "제출 · 부모님께 공개": "Submit · Publish to parents",
@@ -1350,6 +1351,18 @@ function addDays(ymd, n) {
   return d.toISOString().slice(0, 10);
 }
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/** The trip day: the calendar date when there is one; otherwise read it from a typed label like "10월 6일" (assume this year, next year if that is long past). */
+function tripDayOf(p) {
+  if (!p) return "";
+  if (YMD.test(p.startDate || "")) return p.startDate;
+  const m = /(\d{1,2})\s*월\s*(\d{1,2})\s*일/.exec(p.date || "");
+  if (!m) return "";
+  const t = todayKst();
+  const mk = (y) => `${y}-${String(m[1]).padStart(2, "0")}-${String(m[2]).padStart(2, "0")}`;
+  let d = mk(Number(t.slice(0, 4)));
+  if ((Date.parse(`${t}T00:00:00Z`) - Date.parse(`${d}T00:00:00Z`)) / 864e5 > 180) d = mk(Number(t.slice(0, 4)) + 1);
+  return d;
+}
 const hasDate = (p) => !!(p && YMD.test(p.startDate || ""));
 /** The last day of the trip: the optional end date (for 1 night 2 days and the like), else the start date. */
 const lastDay = (p) => (p && YMD.test(p.endDate || "") && p.endDate >= p.startDate ? p.endDate : p.startDate);
@@ -7629,7 +7642,7 @@ function shrinkPhoto(file, max = 900, quality = 0.72) {
   });
 }
 
-function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef, places = [], onRememberPlace }) {
+function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef, places = [], onRememberPlace }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
   const [startDate, setStartDate] = useState(initial?.startDate || ""); // the real date: the screens switch by it
@@ -8075,6 +8088,9 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
 
       {isEdit && !materialsOnly && initial && initial.published === false && (
         <p className="f-body text-[13px] text-center mb-2" style={{ color: "#B25A0B" }}>{tr("임시 저장 중이에요. '제출 · 공개'를 누르면 부모님께 보여요.")}</p>
+      )}
+      {isEdit && !materialsOnly && onDuplicate && (
+        <button onClick={onDuplicate} data-testid="program-duplicate" className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-2 rounded-xl mb-1" style={{ background: C.cream, color: C.green, border: `1px solid ${C.beige}` }}>{tr("같은 체험을 다른 날짜로 복제")}</button>
       )}
       {isEdit && !materialsOnly && (
         <button onClick={() => setConfirmDelete(true)} className="focus-ring tap w-full text-center f-body text-[14px] font-bold py-1.5" style={{ color: "#C0674A" }}>{tr("프로그램 삭제")}</button>
@@ -8763,7 +8779,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z40"; // change with every delivery
+const APP_BUILD = "2026-10-13-z41"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -8986,7 +9002,7 @@ const infoForSession = (info, session) =>
 const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(program).filter((t) => !t.sessionId || t.sessionId === adv?.sessionId) : teamsOf(program));
 
 /** Programs that have not run yet: nobody attended and "Live today" is off. Parents and teachers both see these as "Upcoming". */
-const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => p.published !== false).filter((p) => (hasDate(p) ? todayKst() < p.startDate : ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage))); // a dated trip is upcoming strictly before its start date (nothing else changes that); undated ones follow their stage
+const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => p.published !== false).filter((p) => (tripDayOf(p) ? todayKst() < tripDayOf(p) : ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage))); // a dated trip is upcoming strictly before its start date (nothing else changes that); undated ones follow their stage
 /** Why a program is (not) shown to parents: it shows while it is upcoming and a child has not applied yet. */
 function parentVisibility(p, adventures, students) {
   if (p.published === false) return { on: false, why: "임시 저장 (공개 전)" };
@@ -10577,6 +10593,10 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
                   return n > 0 ? tr("아이 {0}명의 피드백·복습·점수 기록이 함께 삭제돼요.", [n]) : "";
                 })()}
                 onDelete={() => { onDeleteProgram(p.id); setEditingProgramId(null); }}
+                onDuplicate={() => {
+                  setEditingProgramId(null);
+                  onRegisterProgram({ ...p, date: "", startDate: "", endDate: "", dateReached: false, reviewOpen: false, published: false, info: p.info ? { ...p.info, published: false, publishedAt: "" } : null, sessions: (p.sessions || []).map((x) => ({ ...x, id: newId("s"), published: false, publishedAt: "" })) });
+                }}
                 onCancel={() => setEditingProgramId(null)}
               />
             ) : (

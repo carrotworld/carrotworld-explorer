@@ -106,6 +106,7 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"이름": "Name",
 "피드백 모아보기": "All feedback",
 "발송됨": "Sent",
 "작성 중": "Drafting",
@@ -5576,9 +5577,9 @@ function StudentBasics({ student, onSave }) {
         <input type="date" value={student.birthDate || ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => save({ birthDate: e.target.value })} aria-label={tr("생년월일")} data-testid="birth-input" className="focus-ring rounded-lg px-2.5 py-2 f-body text-[16px] outline-none flex-1 min-w-0" style={{ background: "white", border: `1px solid ${C.beige}`, minHeight: 44 }} />
         {ageText(student.birthDate) && <span className="f-body text-[14px] font-bold shrink-0" style={{ color: C.green }}>{ageText(student.birthDate)}</span>}
       </div>
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex" style={{ gap: 4, flexWrap: "nowrap" }}>
         {LEVEL_CHOICES.map((l) => (
-          <button key={l} onClick={() => student.level !== l && save({ level: l })} aria-pressed={student.level === l} data-testid={`level-${l}`} className="focus-ring tap flex-1 text-[14px] f-body font-bold rounded-lg py-1.5" style={{ background: student.level === l ? C.green : "white", color: student.level === l ? "white" : C.charcoal, border: `1px solid ${student.level === l ? C.green : C.beige}`, minHeight: 40, minWidth: 44 }}>{l}</button>
+          <button key={l} onClick={() => student.level !== l && save({ level: l })} aria-pressed={student.level === l} data-testid={`level-${l}`} className="focus-ring tap f-body font-bold rounded-lg" style={{ flex: "1 1 0", minWidth: 0, padding: "0 1px", fontSize: 12, whiteSpace: "nowrap",  background: student.level === l ? C.green : "white", color: student.level === l ? "white" : C.charcoal, border: `1px solid ${student.level === l ? C.green : C.beige}`, minHeight: 40 }}>{l}</button>
         ))}
       </div>
     </div>
@@ -8730,7 +8731,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z35"; // change with every delivery
+const APP_BUILD = "2026-10-13-z36"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9855,9 +9856,33 @@ function ProgramPayField({ value, rate, onSave }) {
 
 /** HQ: every student in one list: registration date, sign-up dates, family PIN, level, how often they took part. Search, sort, CSV. */
 const dayKst = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }); };
+/** HQ: fix a wrongly registered student (name, animal, family PIN). */
+function StudentEditForm({ student, onSave, onCancel }) {
+  const [name, setName] = useState(student.name);
+  const [avatar, setAvatar] = useState(student.avatar);
+  const [pin, setPin] = useState(student.familyPin);
+  const ok = name.trim() && /^\d{4}$/.test(pin);
+  return (
+    <div className="rounded-xl p-3" style={{ background: C.cream }} data-testid="student-edit-form">
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("이름")} aria-label={tr("이름")} data-testid="edit-name" className="focus-ring w-full rounded-lg px-3 py-2.5 f-body text-[16px] outline-none mb-2" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+      <div className="flex gap-1.5 flex-wrap mb-2">
+        {AVATAR_CHOICES.map((a) => (
+          <button key={a} onClick={() => setAvatar(a)} aria-pressed={avatar === a} className="focus-ring tap w-9 h-9 rounded-lg flex items-center justify-center text-[18px]" style={{ background: avatar === a ? C.green : "white", border: `1px solid ${avatar === a ? C.green : C.beige}` }}>{a}</button>
+        ))}
+      </div>
+      <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder={tr("가족 로그인 번호 4자리")} aria-label={tr("가족 로그인 번호 4자리")} data-testid="edit-pin" className="focus-ring w-full rounded-lg px-3 py-2.5 f-body text-[16px] outline-none mb-2" style={{ background: "white", border: `1px solid ${C.beige}` }} />
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2" style={{ background: "white", color: C.charcoal, border: `1px solid ${C.beige}`, minHeight: 44 }}>{tr("취소")}</button>
+        <button onClick={() => ok && onSave({ name: name.trim(), avatar, familyPin: pin })} disabled={!ok} data-testid="edit-save" className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-lg py-2 text-white" style={{ background: ok ? C.green : "#B9AE99", minHeight: 44 }}>{tr("저장")}</button>
+      </div>
+    </div>
+  );
+}
+
 function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent }) {
   const [q, setQ] = useState("");
   const [delId, setDelId] = useState(null);
+  const [editId, setEditId] = useState(null);
   const [sort, setSort] = useState("name");
   const [openId, setOpenId] = useState(null);
   const rows = students.map((st) => {
@@ -9910,12 +9935,14 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
                 </div>
               </button>
               {open && (
-                <div className="px-3.5 pb-3 pl-14 space-y-1">
+                <div className="px-3.5 pb-3 space-y-1">
+                  {onEditStudent && editId === r.st.id && <div className="pb-2"><StudentEditForm student={r.st} onCancel={() => setEditId(null)} onSave={(patch) => { onEditStudent(r.st.id, patch); setEditId(null); }} /></div>}
                   {onEditStudent && <div className="pb-2"><StudentBasics student={r.st} onSave={(patch) => onEditStudent(r.st.id, patch)} /></div>}
                   {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
-                  {onDeleteStudent && (
-                    <div className="pt-2">
-                      <button onClick={() => setDelId(r.st.id)} data-testid="roster-delete" className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2" style={{ background: "#FDECEA", color: "#C0392B", minHeight: 40 }}>{tr("이 학생 삭제")}</button>
+                  {(onDeleteStudent || onEditStudent) && (
+                    <div className="pt-2 flex gap-2">
+                      {onEditStudent && <button onClick={() => setEditId(editId === r.st.id ? null : r.st.id)} data-testid="roster-edit" className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("수정")}</button>}
+                      {onDeleteStudent && <button onClick={() => setDelId(r.st.id)} data-testid="roster-delete" className="focus-ring tap f-body text-[14px] font-bold rounded-lg px-3 py-2" style={{ background: "#FDECEA", color: "#C0392B", minHeight: 40 }}>{tr("이 학생 삭제")}</button>}
                     </div>
                   )}
                   {r.advs.some((a) => a.feedback && !a.canceled) && (

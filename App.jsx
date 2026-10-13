@@ -8795,7 +8795,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z43"; // change with every delivery
+const APP_BUILD = "2026-10-13-z44"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9089,7 +9089,7 @@ function StatusPills({ status, parent }) {
   if (status.reportsLeft > 0) pills.push(pill(tr("피드백 {0}명 전", [status.reportsLeft]), "#FFE9D2", "#B25A0B", "report"));
   else if (status.reportsDone) pills.push(pill(tr("피드백 완료 ✓"), "#EAF7EF", "#1F7A44", "report-ok"));
   if (parent) pills.push(pill(parent.on ? `👪 ${tr("부모 노출")} · ${tr(parent.why, [parent.n])}` : `${tr("부모 비노출")} · ${tr(parent.why)}`, parent.on ? "#E2F3E8" : "#EFEBE3", parent.on ? "#1F7A44" : "#9C927D", "parent"));
-  return <div className="flex flex-col items-end justify-center gap-1.5 shrink-0" data-testid="status-pills">{pills}</div>;
+  return <div className="flex flex-wrap items-center gap-1.5" data-testid="status-pills">{pills}</div>;
 }
 
 /** The latest things done on this app, from existing time stamps (who did it is not recorded). */
@@ -10734,15 +10734,19 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
               >
                 <span className="w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                 <div className="flex-1 min-w-0 py-0.5">
-                  <p className="f-headline text-[24px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
-                  {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
-                  <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
-                  {wishesFor(suggestions, p.id).length > 0 && (
-                    <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, p.id).length])}</p>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="f-headline text-[24px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+                      {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
+                      <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
+                      {wishesFor(suggestions, p.id).length > 0 && (
+                        <p className="f-body text-[14px] font-bold" style={{ color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, p.id).length])}</p>
+                      )}
+                    </div>
+                    <ChevronRight size={16} color="#C9BFA8" className="shrink-0" style={{ marginTop: 10 }} />
+                  </div>
+                  <div className="mt-2"><StatusPills status={programStatus(p, adventures)} parent={parentVisibility(p, adventures, students)} /></div>
                 </div>
-                <StatusPills status={programStatus(p, adventures)} parent={parentVisibility(p, adventures, students)} />
-                <ChevronRight size={16} color="#C9BFA8" className="self-center shrink-0" />
               </button>
             )
           )}

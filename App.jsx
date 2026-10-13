@@ -106,6 +106,10 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"{0} 등록했어요. 부모님 앱의 '예정 체험'에 바로 올라가요.": "{0} is registered. It now shows under 'Upcoming trips' in the parent app.",
+"등록하면 부모님 앱의 '예정 체험'에 바로 올라가요.": "Once registered, it shows under 'Upcoming trips' in the parent app.",
+"빠진 것: {0}": "Missing: {0}",
+"아이콘 (추가 설정)": "Icon (More settings)",
 "이름": "Name",
 "피드백 모아보기": "All feedback",
 "발송됨": "Sent",
@@ -239,7 +243,7 @@ const EN = {
 "이어서 작성": "Continue writing",
 "버리기": "Discard",
 "저장할까요?": "Save it?",
-"이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요.": "Fill in name, date, level and icon to save.",
+"이름·날짜·레벨을 채워야 저장할 수 있어요.": "Fill in name, date and level to save.",
 "저장하지 않은 내용이 있어요": "You have unsaved changes",
 "저장하고 나가기": "Save and leave",
 "저장 안 하고 나가기": "Leave without saving",
@@ -5564,6 +5568,9 @@ function ageText(birth) {
   return age >= 0 && age < 100 ? `만 ${age}세` : "";
 }
 /** Birth date and level: a teacher (or HQ) can fill these in; saved the moment they are chosen. */
+/** The screen remounts after a program is registered, so the "registered" note lives outside it (shown for a minute). */
+const LAST_REGISTERED = { title: "", at: 0 };
+const recentRegistered = () => (Date.now() - LAST_REGISTERED.at < 60000 ? LAST_REGISTERED.title : "");
 function StudentBasics({ student, onSave }) {
   const [saved, setSaved] = useState(false);
   const save = (patch) => { onSave(patch); setSaved(true); setTimeout(() => setSaved(false), 1500); };
@@ -7644,7 +7651,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
     return d && d.state && stableJson({ levelSets: {}, prepSets: {}, sessions: [], startDate: "", endDate: "", ...d.state }) !== snap ? d : null;
   });
 
-  const canSubmit = title.trim() && date.trim() && levels.length > 0 && icons.length > 0;
+  const canSubmit = title.trim() && date.trim() && levels.length > 0; // the theme icon is optional (default carrot)
 
   // two or more levels: each gets its own words, missions, focus points and quiz (a new level starts as a copy of the first)
   const sortedLv = sortLevels(levels);
@@ -7748,7 +7755,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
       onSave({ ...shared, levelMaterials });
       return;
     }
-    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0], icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0] || "", icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (onRememberPlace && location.trim() && (noticeInfo.venue || "").trim()) onRememberPlace({ name: location.trim(), venue: noticeInfo.venue.trim(), meetingPoint: (noticeInfo.meetingPoint || "").trim(), intro: themeKo.trim() });
     if (isEdit) {
       onSave(info);
@@ -7785,7 +7792,7 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
             { label: tr("계속 작성하기"), tone: "plain", onClick: () => setLeaving(false) },
           ]}
         >
-          {canSubmit ? tr("저장할까요?") : tr("이름·날짜·레벨·아이콘을 채워야 저장할 수 있어요.")}
+          {canSubmit ? tr("저장할까요?") : tr("이름·날짜·레벨을 채워야 저장할 수 있어요.")}
         </ConfirmDialog>
       )}
       {!materialsOnly && (
@@ -8042,6 +8049,11 @@ function RegisterProgramPanel({ materialsOnly, initial, defaultShowInfo, default
           className="focus-ring tap w-full f-display text-[17px] font-semibold rounded-xl py-2.5 text-white"
           style={{ background: canSubmit ? C.orange : "#C9BFA8" }}
         >{tr("프로그램 등록")}</button>
+      )}
+      {!isEdit && !materialsOnly && (
+        <p className="f-body text-[13px] text-center mb-2" style={{ color: canSubmit ? "#9C927D" : "#B25A0B" }} data-testid="register-hint">
+          {canSubmit ? tr("등록하면 부모님 앱의 '예정 체험'에 바로 올라가요.") : tr("빠진 것: {0}", [[!title.trim() && tr("이름"), !date.trim() && tr("날짜"), levels.length === 0 && tr("레벨")].filter(Boolean).join(", ")])}
+        </p>
       )}
 
       {isEdit && !materialsOnly && (
@@ -8731,7 +8743,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z36"; // change with every delivery
+const APP_BUILD = "2026-10-13-z37"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10004,6 +10016,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
   // unsaved work in the program forms: ask before moving elsewhere
   const [dirtyNew, setDirtyNew] = useState(false);
   const [openNew, setOpenNew] = useState(false);
+  const [justRegistered, setJustRegistered] = useState(recentRegistered);
   const [dirtyEdit, setDirtyEdit] = useState(false);
   const newApi = useRef(null);
   const editApi = useRef(null);
@@ -10505,7 +10518,13 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
 
       {tab === "programs" && (
         <div className="px-5 space-y-3">
-          <button onClick={() => setOpenNew((v) => !v)} aria-expanded={openNew} data-testid="new-program-toggle" className="focus-ring tap w-full flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: openNew ? C.beige : C.green }}>
+          {justRegistered && (
+            <div className="rounded-2xl px-4 py-3 flex items-start justify-between gap-3" style={{ background: "#E2F3E8" }} data-testid="registered-banner" role="status">
+              <p className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {tr("{0} 등록했어요. 부모님 앱의 '예정 체험'에 바로 올라가요.", [justRegistered])}</p>
+              <button onClick={() => { LAST_REGISTERED.title = ""; setJustRegistered(""); }} aria-label={tr("닫기")} className="focus-ring tap f-body text-[15px] font-bold shrink-0" style={{ color: "#1F7A44" }}>✕</button>
+            </div>
+          )}
+          <button onClick={() => { LAST_REGISTERED.title = ""; setJustRegistered(""); setOpenNew((v) => !v); }} aria-expanded={openNew} data-testid="new-program-toggle" className="focus-ring tap w-full flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: openNew ? C.beige : C.green }}>
             <span className="f-display text-[17px] font-semibold" style={{ color: openNew ? C.green : "white" }}>{openNew ? tr("새 프로그램 등록 닫기") : tr("+ 새 프로그램 등록")}</span>
             <span className="f-body text-[15px] font-bold" style={{ color: openNew ? C.green : "white" }}>{openNew ? "▴" : "▾"}</span>
           </button>
@@ -12446,6 +12465,7 @@ function CarrotExplorer() {
       info: info || null,
     };
     PROGRAMS.push(newProgram);
+    LAST_REGISTERED.title = title; LAST_REGISTERED.at = Date.now();
     setProgramsVersion((v) => v + 1);
     sync(api.createProgram(newProgram));
   };

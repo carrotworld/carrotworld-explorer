@@ -8726,7 +8726,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z32"; // change with every delivery
+const APP_BUILD = "2026-10-13-z33"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9851,7 +9851,7 @@ function ProgramPayField({ value, rate, onSave }) {
 
 /** HQ: every student in one list: registration date, sign-up dates, family PIN, level, how often they took part. Search, sort, CSV. */
 const dayKst = (iso) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }); };
-function StudentRoster({ students, adventures }) {
+function StudentRoster({ students, adventures, onEditStudent }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("name");
   const [openId, setOpenId] = useState(null);
@@ -9906,6 +9906,7 @@ function StudentRoster({ students, adventures }) {
               </button>
               {open && (
                 <div className="px-3.5 pb-3 pl-14 space-y-1">
+                  {onEditStudent && <div className="pb-2"><StudentBasics student={r.st} onSave={(patch) => onEditStudent(r.st.id, patch)} /></div>}
                   {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
                   {r.advs.map((a) => (
                     <p key={a.programId} className="f-body text-[14px]" style={{ color: a.canceled ? "#B9AE99" : C.charcoal }}>
@@ -10220,7 +10221,7 @@ function TeacherDashboard({ adventures, canceledAdventures = [], students, lastS
         />
       )}
 
-      {tab === "roster" && <StudentRoster students={students} adventures={[...adventures, ...canceledAdventures]} />}
+      {tab === "roster" && <StudentRoster students={students} adventures={[...adventures, ...canceledAdventures]} onEditStudent={onEditStudent} />}
 
       {["approve", "register", "points"].includes(tab) && (
         <div className="space-y-4">

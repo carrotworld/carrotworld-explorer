@@ -970,6 +970,47 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "이름 없이 보여요 · 5점 만점": "Shown without names · out of 5",
+  "부모님 의견": "Parents' feedback",
+  "아직 등록한 아이가 없어요": "No children yet",
+  "현장 참여 {0}% · 복습 {1}%": "Came {0}% · Review {1}%",
+  "등록 {0}명": "{0} signed up",
+  "막대가 길수록 많이 한 거예요. 눌러서 자세히 볼 수 있어요.": "A longer bar means more done. Tap to see details.",
+  "프로그램별로 비교해요": "Compare programs",
+  "💡 가장 많이 줄어드는 곳은 \"{0}\" → \"{1}\" ({2}명 → {3}명)이에요.": "💡 Biggest drop: \"{0}\" → \"{1}\" ({2} → {3}).",
+  "리더 리포트 작성을 확인해 주세요.": "Please check that the leader reports are written.",
+  "복습 알림을 한 번 더 보내 보세요.": "Try sending the review reminder once more.",
+  "체험 전 안내를 한 번 더 보내 보세요.": "Try sending the pre-trip notice once more.",
+  "예습 알림을 한 번 더 보내 보세요.": "Try sending the prep reminder once more.",
+  "5점 만점 · {0}명": "out of 5 · {0}",
+  "5점 만점 · {0}건": "out of 5 · {0}",
+  "{0}명 끝냈어요": "{0} finished",
+  "{0}명 왔어요": "{0} came",
+  "잘 되는지, 신경 쓸 곳인지 알려 줘요.": "Shows what is going well and what needs attention.",
+  "지금 상태는?": "How are we doing?",
+  "신경 써 주세요": "Needs attention",
+  "잘 되고 있어요": "Going well",
+  "현장 참여": "Came",
+  "예습 완료": "Prep done",
+  "이에요.": ".",
+  "이 체험에 왔고, 복습까지 끝낸 아이는 ": " came to the trip, and the ones who finished review: ",
+  " 중 ": ", of whom ",
+  "등록한 아이 ": "Children signed up: ",
+  "이 프로그램": "This program",
+  "전체 프로그램": "All programs",
+  "한 줄 요약": "In one line",
+  "💡 가장 많이 줄어드는 단계: \"{0}\" → \"{1}\" ({2}명 → {3}명)": "💡 Biggest drop: \"{0}\" → \"{1}\" ({2} → {3})",
+  "별점 없음": "No ratings yet",
+  "설문 없음": "No survey yet",
+  "아이 별점": "Child star rating",
+  "부모 만족도": "Parent satisfaction",
+  "복습을 끝낸 아이": "Finished review",
+  "현장에 온 아이": "Came to the trip",
+  "예습을 끝낸 아이": "Finished prep",
+  "체험에 등록한 아이": "Children signed up",
+  "이 프로그램 기준이에요.": "For this program.",
+  "전체 프로그램 기준이에요.": "Across all programs.",
+  "한눈에 보기": "At a glance",
   "아직 들어온 장소 추천이 없어요.": "No place ideas yet.",
   "장소 추천": "Place ideas",
   "장소 추천 {0}": "Place ideas {0}",
@@ -4135,75 +4176,6 @@ function visitStats(suggestions) {
 }
 const wishesFor = (suggestions, programId) => suggestions.filter((sg) => isWish(sg) && !sg.resolved && sg.id.endsWith(`-${programId}`) && sg.id === wishId(sg.familyPin, programId));
 
-function SuggestionBox({ suggestions, familyPin, onAdd }) {
-  const [open, setOpen] = useState(false);
-  const [type, setType] = useState(SUGGESTION_TYPES[0]);
-  const [message, setMessage] = useState("");
-  const mine = suggestions.filter((s) => s.familyPin === familyPin && !isSystemRow(s)).slice().reverse();
-
-  const submit = () => {
-    if (!message.trim()) return;
-    onAdd({ type, message: message.trim(), familyPin });
-    setMessage("");
-    setOpen(false);
-  };
-
-  return (
-    <div className="bg-white rounded-2xl px-4 py-3">
-      <button onClick={() => setOpen((o) => !o)} className="focus-ring tap w-full flex items-center justify-between">
-        <span className="f-display text-[16px] font-bold" style={{ color: C.green }}>건의사항 · 장소 요청</span>
-        <ChevronRight size={16} color="#C9BFA8" className={`transition-transform ${open ? "rotate-90" : ""}`} />
-      </button>
-
-      {open && (
-        <div className="mt-3">
-          <div className="flex gap-2 mb-3">
-            {SUGGESTION_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => setType(t)}
-                aria-pressed={type === t}
-                className="focus-ring tap flex-1 text-[15px] f-body font-bold rounded-xl py-2"
-                style={{ background: type === t ? C.green : C.cream, color: type === t ? "white" : C.charcoal, border: `1px solid ${type === t ? C.green : C.beige}` }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={3}
-            placeholder="의견이나 가보고 싶은 장소를 남겨주세요..."
-            aria-label="건의사항 또는 장소 요청 내용"
-            className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
-            style={{ background: C.cream, border: `1px solid ${C.beige}` }}
-          />
-          <PrimaryButton onClick={submit} disabled={!message.trim()}>보내기</PrimaryButton>
-        </div>
-      )}
-
-      {mine.length > 0 && (
-        <div className="mt-4 space-y-2">
-          {mine.map((s) => (
-            <div key={s.id} className="rounded-xl p-3" style={{ background: C.cream }}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>{s.type}</span>
-                <span
-                  className="f-body text-[13px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: s.resolved ? "#DCF3E4" : C.beige, color: s.resolved ? "#1F7A44" : "#8A8060" }}
-                >
-                  {s.resolved ? "확인함" : "검토중"}
-                </span>
-              </div>
-              <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{s.message}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** In-app notices for a parent, worked out from what already exists (nothing extra is stored). */
 function parentNotices(children, adventures, suggestions) {
@@ -5443,8 +5415,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
             </>
           );
         })()}
-
-        <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
 
       </div>
       )}
@@ -8390,7 +8360,7 @@ function DataTools({ onCheck, onExport }) {
   const r = state.result;
   return (
     <div className="px-5 mt-3 pb-8">
-      <StatCard title={tr("데이터 관리")} hint={tr("서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.")}>
+      <StatCard fold title={tr("데이터 관리")} hint={tr("서버에 잘 저장되는지 확인하고, 전체 자료를 파일로 내려받아 보관할 수 있어요.")}>
         <button onClick={run} disabled={state.phase === "running"} className="focus-ring tap w-full f-body text-[16px] font-bold rounded-xl py-2.5 mb-2 text-white disabled:opacity-60" style={{ background: C.green }}>
           {state.phase === "running" ? tr("확인하는 중...") : tr("서버 저장 점검")}
         </button>
@@ -8546,17 +8516,24 @@ function programDetail(program, rows) {
   return { words, questions, missions, bigQ: Object.entries(bigQ).sort((x, y) => y[1] - x[1]), insightN: withInsights.length };
 }
 
-function StatCard({ title, hint, children, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+function StatCard({ title, hint, children, fold = false }) {
+  const [open, setOpen] = useState(!fold);
   return (
-    <div className="bg-white rounded-2xl">
-      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="stat-card" className="focus-ring tap w-full flex items-center justify-between gap-3 text-left p-4">
-        <span className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{title}</span>
-        <span className="shrink-0 f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? "▴" : "▾"}</span>
-      </button>
+    <div className="bg-white rounded-2xl" data-testid="stat-card">
+      {fold ? (
+        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="focus-ring tap w-full flex items-center justify-between gap-3 text-left p-4">
+          <span className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{title}</span>
+          <span className="shrink-0 f-body text-[14px] font-bold" style={{ color: C.green }}>{open ? "▴" : "▾"}</span>
+        </button>
+      ) : (
+        <div className="p-4 pb-2">
+          <p className="f-display font-bold text-[19px]" style={{ color: C.green }}>{title}</p>
+          {hint && <p className="f-body text-[14px] text-gray-500 mt-0.5">{hint}</p>}
+        </div>
+      )}
       {open && (
         <div className="px-4 pb-4 -mt-1">
-          {hint && <p className="f-body text-[14px] text-gray-400 mb-3">{hint}</p>}
+          {fold && hint && <p className="f-body text-[14px] text-gray-400 mb-3">{hint}</p>}
           {children}
         </div>
       )}
@@ -8652,6 +8629,59 @@ function StatsPanel({ adventures, students, suggestions }) {
         ))}
       </div>
 
+      {sum.total > 0 && (() => {
+        const f = sum.funnel; // 0 enrolled, 1 prep, 2 attended, 3 review
+        const surveyAvg = (() => { const xs = sum.survey.avg.filter((x) => x.n > 0); return xs.length ? xs.reduce((n, x) => n + x.avg, 0) / xs.length : null; })();
+        const tone = (v, good) => (v >= good ? "good" : "warn");
+        const tones = { good: { bg: "#EAF7EF", fg: "#1F7A44", msg: tr("잘 되고 있어요") }, warn: { bg: "#FFF1E2", fg: "#B25A0B", msg: tr("신경 써 주세요") }, none: { bg: "#F4F1EA", fg: "#8A8060", msg: tr("아직 없어요") } };
+        const attP = pctOf(f[2].value, sum.total), aftP = pctOf(f[3].value, sum.total);
+        const tiles = [
+          { e: "😊", label: tr("현장 참여"), value: `${attP}%`, t: tone(attP, 70), sub: tr("{0}명 왔어요", [f[2].value]) },
+          { e: "📖", label: tr("복습 완료"), value: `${aftP}%`, t: tone(aftP, 60), sub: tr("{0}명 끝냈어요", [f[3].value]) },
+          { e: "⭐", label: tr("부모 만족도"), value: surveyAvg === null ? "-" : oneDecimal(surveyAvg), t: surveyAvg === null ? "none" : tone(surveyAvg, 4), sub: surveyAvg === null ? "" : tr("5점 만점 · {0}건", [sum.survey.n]) },
+          { e: "🧒", label: tr("아이 별점"), value: sum.rating.n ? oneDecimal(sum.rating.avg) : "-", t: sum.rating.n ? tone(sum.rating.avg, 4) : "none", sub: sum.rating.n ? tr("5점 만점 · {0}명", [sum.rating.n]) : "" },
+        ];
+        const circles = [[tr("등록"), f[0].value, 100], [tr("예습 완료"), f[1].value, pctOf(f[1].value, sum.total)], [tr("현장 참여"), f[2].value, attP], [tr("복습 완료"), f[3].value, aftP]];
+        const ask = drop ? ({ prep: tr("예습 알림을 한 번 더 보내 보세요."), attended: tr("체험 전 안내를 한 번 더 보내 보세요."), after: tr("복습 알림을 한 번 더 보내 보세요."), report: tr("리더 리포트 작성을 확인해 주세요.") }[drop.to.key] || "") : "";
+        return (
+          <>
+            <div className="rounded-3xl p-5" style={{ background: C.green }} data-testid="stats-summary">
+              <p className="f-body text-[13px]" style={{ color: "#BFE0CF" }}>{tr("한 줄 요약")} · {sel === "all" ? tr("전체 프로그램") : tr("이 프로그램")}</p>
+              <p className="f-display text-[21px] font-bold text-white leading-snug mt-1.5">
+                {tr("등록한 아이 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [sum.total])}</span>{tr(" 중 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[2].value])}</span>{tr("이 체험에 왔고, 복습까지 끝낸 아이는 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[3].value])}</span>{tr("이에요.")}
+              </p>
+              <div className="flex items-start mt-4">
+                {circles.map(([label, n, p], i) => (
+                  <React.Fragment key={label}>
+                    {i > 0 && <span className="text-[18px] mt-5" style={{ color: "#7FA894" }}>›</span>}
+                    <div className="flex-1 text-center">
+                      <div className="mx-auto rounded-full flex items-center justify-center f-display text-[19px] font-bold" style={{ width: 58, height: 58, background: i === 3 ? "#FFB36B" : "#fff", color: C.green }}>{n}</div>
+                      <p className="f-body text-[12px] font-bold text-white mt-1.5">{label}</p>
+                      <p className="f-body text-[12px]" style={{ color: i === 3 ? "#FFB36B" : "#BFE0CF" }}>{p}%</p>
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-4" data-testid="stats-status">
+              <p className="f-display font-bold text-[19px]" style={{ color: C.green }}>{tr("지금 상태는?")}</p>
+              <p className="f-body text-[14px] text-gray-500 mt-0.5">{tr("잘 되는지, 신경 쓸 곳인지 알려 줘요.")}</p>
+              <div className="grid grid-cols-2 gap-2.5 mt-3">
+                {tiles.map((x) => (
+                  <div key={x.label} className="rounded-2xl px-3.5 py-3" style={{ background: tones[x.t].bg, color: tones[x.t].fg }}>
+                    <p className="text-[22px]">{x.e}</p>
+                    <p className="f-display text-[28px] font-bold leading-tight">{x.value}</p>
+                    <p className="f-body text-[14px] font-bold">{x.label}</p>
+                    <p className="f-body text-[12px] opacity-80">{x.sub || tones[x.t].msg}</p>
+                  </div>
+                ))}
+              </div>
+              {drop && <p className="f-body text-[14px] mt-3 rounded-xl p-3 leading-relaxed" style={{ background: "#FFF1E2", color: "#8A5A1F" }}>{tr("💡 가장 많이 줄어드는 곳은 \"{0}\" → \"{1}\" ({2}명 → {3}명)이에요.", [drop.from.label, drop.to.label, drop.from.value, drop.to.value])} {ask}</p>}
+            </div>
+          </>
+        );
+      })()}
+
       {sel === "all" && <VisitCard suggestions={suggestions} />}
 
       {sum.total === 0 ? (
@@ -8660,21 +8690,6 @@ function StatsPanel({ adventures, students, suggestions }) {
         </div>
       ) : (
         <>
-          <StatCard title={tr("아이들은 어디까지 오나요?")} hint={tr("신청한 아이 중 단계마다 몇 명이 다음으로 넘어갔는지 보여요.")}>
-            {sum.funnel.map((f) => (
-              <StatBar key={f.key} label={f.label} value={f.value} total={sum.total} />
-            ))}
-            {drop && (
-              <p className="f-body text-[14px] mt-3 rounded-xl p-2.5" style={{ background: "#FFF1E2", color: "#9C7A4A" }}>{tr("💡 \"{0}\" → \"{1}\" 단계에서 가장 많이 줄어요 ({2}명 → {3}명).", [drop.from.label, drop.to.label, drop.from.value, drop.to.value])}</p>
-            )}
-            {(sum.prepDays !== null || sum.afterDays !== null) && (
-              <p className="f-body text-[14px] text-gray-500 mt-2">
-                {sum.prepDays !== null && <>{tr("등록 후 예습을 끝내기까지 평균 {0}일 ", [oneDecimal(sum.prepDays)])}</>}
-                {sum.afterDays !== null && <>{tr("· 출석 후 복습까지 평균 {0}일", [oneDecimal(sum.afterDays)])}</>}
-              </p>
-            )}
-          </StatCard>
-
           <StatCard title={tr("예습에 얼마나 참여했나요?")} hint={tr("예습은 단어 카드만 나와요. 아이들이 단어마다 5칸을 체크한 기록이에요.")}>
             {sum.practice.counted === 0 ? (
               <NoDataYet />
@@ -8686,27 +8701,14 @@ function StatsPanel({ adventures, students, suggestions }) {
             )}
           </StatCard>
 
-          <StatCard title={tr("복습 퀴즈 점수")} hint={tr("체험 후 선생님이 만든 퀴즈를 아이들이 푼 결과예요.")}>
-            {sum.reviewPct === null ? (
-              <p className="f-body text-[15px] text-gray-400">{tr("아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.")}</p>
-            ) : (
-              <StatBar label={tr("평균 정답률")} value={sum.reviewPct} total={100} sub={tr("{0}% · {1}명", [sum.reviewPct, sum.reviewN])} />
-            )}
-          </StatCard>
-
-          <StatCard title={tr("체험 후 만족도")} hint={tr("체험을 마친 아이들이 직접 준 별점이에요 (5점 만점).")}>
-            {sum.rating.n ? (
-              <StatBar label={tr("체험 별점")} value={sum.rating.avg} total={5} sub={tr("{0} / 5 · {1}명", [oneDecimal(sum.rating.avg), sum.rating.n])} />
-            ) : (
-              <p className="f-body text-[15px] text-gray-400">{tr("아직 별점이 없어요.")}</p>
-            )}
-          </StatCard>
-
-          <StatCard title={tr("부모 만족도 설문")} hint={tr("체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.")}>
+          <StatCard title={tr("부모님 의견")} hint={tr("이름 없이 보여요 · 5점 만점")}>
             {sum.survey.n === 0 ? (
               <p className="f-body text-[15px] text-gray-400">{tr("아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.")}</p>
             ) : (
               <>
+                {(() => { const xs = sum.survey.avg.filter((x) => x.n > 0); const av = xs.length ? xs.reduce((n, x) => n + x.avg, 0) / xs.length : 0; return (
+                  <p className="mb-3 flex items-baseline gap-2" data-testid="survey-stars"><span style={{ fontSize: 26, color: "#F5A623", letterSpacing: 2 }}>{"★".repeat(Math.round(av))}<span style={{ color: "#E6DCC6" }}>{"★".repeat(5 - Math.round(av))}</span></span><span className="f-display text-[20px] font-bold" style={{ color: C.green }}>{oneDecimal(av)}</span></p>
+                ); })()}
                 <p className="f-body text-[15px] mb-3" style={{ color: C.charcoal }}>{tr("응답 ")}<b>{sum.survey.n}</b>{tr("건 · 출석한 {0}명 중 {1}%", [sum.survey.attended, pctOf(sum.survey.n, sum.survey.attended)])}</p>
                 {sum.survey.avg.filter((x) => x.n > 0).map((x) => (
                   <StatBar key={x.key} label={tr(x.label)} value={x.avg} total={5} sub={tr("{0} / 5 · {1}명", [oneDecimal(x.avg), x.n])} />
@@ -8725,7 +8727,7 @@ function StatsPanel({ adventures, students, suggestions }) {
                   { k: "wish", title: tr("가보고 싶은 체험·장소"), list: sum.survey.wish },
                 ].filter((g) => g.list.length > 0).map((g) => (
                   <div key={g.k} className="mt-4">
-                    <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.title} ({g.list.length})</p>
+                    <p className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mb-2" style={{ background: g.k === "good" ? "#EAF7EF" : g.k === "improve" ? "#FFF1E2" : C.beige, color: g.k === "good" ? "#1F7A44" : g.k === "improve" ? "#B25A0B" : C.green }}>{g.title} ({g.list.length})</p>
                     <div className="space-y-1.5">
                       {g.list.slice(0, 5).map((t, i) => (
                         <p key={i} className="f-body text-[15px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
@@ -8739,15 +8741,19 @@ function StatsPanel({ adventures, students, suggestions }) {
           </StatCard>
 
           {!program && (
-            <StatCard title={tr("프로그램별 비교")} hint={tr("어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.")}>
-              <div className="space-y-2">
+            <StatCard title={tr("프로그램별로 비교해요")} hint={tr("막대가 길수록 많이 한 거예요. 눌러서 자세히 볼 수 있어요.")}>
+              <div className="space-y-4">
                 {PROGRAMS.map((p) => {
-                  const r = valid.filter((a) => a.programId === p.id);
-                  const sm = summarizeRows(r);
+                  const sm = summarizeRows(valid.filter((a) => a.programId === p.id));
+                  const att = pctOf(sm.funnel[2].value, sm.total);
                   return (
-                    <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left rounded-xl p-3" style={{ background: C.cream }}>
-                      <p className="f-body text-[16px] font-bold truncate" style={{ color: C.green }}>{p.title}</p>
-                      <p className="f-body text-[14px] text-gray-500 mt-0.5">{tr("등록 {0}명 · 예습 {1}% · 출석 {2}% · 복습 {3}%{4}{5}", [sm.total, pctOf(sm.funnel[1].value, sm.total), pctOf(sm.funnel[2].value, sm.total), pctOf(sm.funnel[3].value, sm.total), sm.rating.n ? ` · ★${oneDecimal(sm.rating.avg)}` : "", wishCount(p) ? ` · ♥${wishCount(p)}` : ""])}</p>
+                    <button key={p.id} onClick={() => setSel(p.id)} className="focus-ring tap w-full text-left block" data-testid="program-compare">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="f-body text-[16px] font-bold min-w-0 truncate" style={{ color: C.charcoal }}>{p.emoji || ""} {p.title}</span>
+                        <span className="f-body text-[14px] text-gray-500 shrink-0">{tr("등록 {0}명", [sm.total])}</span>
+                      </span>
+                      <span className="block h-2.5 rounded-full overflow-hidden mt-1.5" style={{ background: C.beige }}><span className="block h-full rounded-full" style={{ width: `${sm.total ? att : 0}%`, background: C.orange }} /></span>
+                      <span className="block f-body text-[13px] text-gray-500 mt-1">{sm.total ? tr("현장 참여 {0}% · 복습 {1}%", [att, pctOf(sm.funnel[3].value, sm.total)]) : tr("아직 등록한 아이가 없어요")}</span>
                     </button>
                   );
                 })}
@@ -8970,7 +8976,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z84"; // change with every delivery
+const APP_BUILD = "2026-10-22-z86"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

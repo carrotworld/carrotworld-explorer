@@ -970,6 +970,8 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"모두 {0}에 추가": "Add all to {0}",
+"모두 추가": "Add all",
 "팀 · 리더": "Teams · leaders",
 "리더 활동비 (세전)": "Leader fee (before tax)",
 "비워 두면 체험 시간 × 시급({0})으로 계산해요. 리더 신청 화면에 이 금액이 보여요.": "If empty, calculated as activity hours × hourly rate ({0}). Leaders see this amount when signing up.",
@@ -8836,7 +8838,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z48"; // change with every delivery
+const APP_BUILD = "2026-10-22-z49"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10754,7 +10756,16 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
               <div className="px-5 mb-3 space-y-2.5" data-testid="add-students">
                 {applies.length > 0 && (
                   <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="apply-queue">
-                    <p className="f-display text-[17px] font-bold mb-2" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <p className="f-display text-[17px] font-bold" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
+                      {applies.length > 1 && (
+                        <span className="flex gap-1.5 flex-wrap" data-testid="apply-all">
+                          {(slots.length ? slots : [{ id: undefined, label: "" }]).map((x) => (
+                            <button key={x.id || "all"} onClick={() => { applies.forEach(({ st }) => onEnrollStudent(st.id, programId, undefined, x.id)); onResolveSuggestions(applies.map((a) => a.row.id)); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.green, minHeight: 40 }}>{x.label ? tr("모두 {0}에 추가", [x.label]) : tr("모두 추가")}</button>
+                          ))}
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {applies.map(({ st, row }) => (
                         <div key={st.id} className="flex items-center gap-3">

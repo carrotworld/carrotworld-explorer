@@ -8799,7 +8799,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z46"; // change with every delivery
+const APP_BUILD = "2026-10-22-z47"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9176,7 +9176,8 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
   // only what is coming up (or running now): finished programs live in the Programs tab
   const upcoming = programs
     .map((p) => ({ p, st: programStatus(p, adventures) }))
-    .filter((x) => x.st.stage !== "done")
+    .filter((x) => x.st.stage !== "done" && x.p.published !== false || x.p.published === false)
+    .filter((x) => !(["setup", "prep", "noticed"].includes(x.st.stage) && tripDayOf(x.p) && tripDayOf(x.p) < todayKst())) // a dated trip that has passed with nobody attending is not "upcoming"
     .sort((x, y) => (isLive(x.p) ? "" : tripDayOf(x.p) || "9999").localeCompare(isLive(y.p) ? "" : tripDayOf(y.p) || "9999"))
     .slice(0, 3);
   return (

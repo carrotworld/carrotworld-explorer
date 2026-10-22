@@ -1019,9 +1019,9 @@ const EN = {
   "🔒 비공개": "🔒 Private",
   "🌐 공개": "🌐 Public",
   "리더에게 공개": "Visible to leaders",
-  "체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.": "Moves into 'Pay to receive' above once the trip is done. Before tax.",
+  "팀이 정해지면 여기에 나타나요. 체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.": "Shows here once your team is set. Moves into 'Pay to receive' above once the trip is done. Before tax.",
   "합계 {0}": "Total {0}",
-  "예정 수당 (확정된 체험)": "Expected pay (confirmed trips)",
+  "예정 수당 (팀이 정해진 체험)": "Expected pay (teams set)",
   "비공개 · 지정한 리더에게만 보여요": "Private · only the picked leaders see it",
   "지정 리더에게만 보이기 (비공개)": "Show only to picked leaders (private)",
   "다른 리더에게도 공개하기": "Show to other leaders too",
@@ -8976,7 +8976,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z86"; // change with every delivery
+const APP_BUILD = "2026-10-22-z87"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12128,7 +12128,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && upcoming.some((u) => u.id === p.id)).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved").map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId) }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && upcoming.some((u) => u.id === p.id)).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "")).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId) }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -12522,7 +12522,7 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
       {expected.length > 0 && (
         <div data-testid="expected-pay">
           <div className="flex items-baseline justify-between mb-1.5">
-            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{tr("예정 수당 (확정된 체험)")}</p>
+            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{tr("예정 수당 (팀이 정해진 체험)")}</p>
             <p className="f-display text-[15px] font-bold" style={{ color: "#B25A0B" }}>{tr("합계 {0}", [won(expected.reduce((n, e) => n + (e.amount || 0), 0))])}</p>
           </div>
           <div className="rounded-2xl px-4" style={{ background: "#FFF8EC", border: "1.5px dashed #E9C98F" }}>
@@ -12536,7 +12536,7 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
               </div>
             ))}
           </div>
-          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.")}</p>
+          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("팀이 정해지면 여기에 나타나요. 체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.")}</p>
         </div>
       )}
       {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}

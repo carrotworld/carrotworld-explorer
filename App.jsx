@@ -970,6 +970,11 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"리더 비용 · per section (세전)": "Leader fee · per section (before tax)",
+"한 섹션(오전 또는 오후 1회)을 진행하는 리더 1명당 금액이에요. 리더 신청 화면에 그대로 보여요. 비워 둘 때만 체험 시간 × 시급({0})으로 계산돼요.": "Amount per leader for one section (morning or afternoon). Shown as-is when leaders sign up. Only if left empty is it calculated as trip hours × hourly rate ({0}).",
+"시급으로 계산": "Hourly rate",
+"시급 (금액을 안 넣은 프로그램에만 사용)": "Hourly rate (only for programs with no amount)",
+"프로그램별 비용은 per section(섹션 1회당) 금액이에요. 한 번 입력하면 그 프로그램의 모든 리더에게 적용돼요. 비우면 시급으로 돌아가요.": "A program's amount is per section. Type it once and it applies to every leader on that program. Empty falls back to the hourly rate.",
 "섞인 레벨 팀": "Mixed-level team",
 "팀 색": "Team color",
 "레벨이 달라요 · 팀 {0}": "Different level · team {0}",
@@ -8868,7 +8873,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z58"; // change with every delivery
+const APP_BUILD = "2026-10-22-z59"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10315,13 +10320,13 @@ function ProgramPayField({ value, rate, onSave }) {
   };
   return (
     <div className="mt-2 rounded-xl px-3 py-2.5" style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="program-pay">
-      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("리더 활동비 (세전)")}</p>
+      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("리더 비용 · per section (세전)")}</p>
       <div className="flex items-center gap-2 mt-1">
         <input value={text} onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ""))} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} inputMode="numeric" placeholder={tr("예: 45000")} aria-label={tr("프로그램 금액")} className="focus-ring rounded-lg px-2.5 py-2 f-body text-[16px] outline-none flex-1 min-w-0" style={{ background: "white", border: `1px solid ${C.beige}` }} />
         <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>원</span>
         {saved && <span className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("저장했어요 ✓")}</span>}
       </div>
-      <p className="f-body text-[12px] text-gray-500 mt-1">{tr("비워 두면 체험 시간 × 시급({0})으로 계산해요. 리더 신청 화면에 이 금액이 보여요.", [won(rate)])}</p>
+      <p className="f-body text-[12px] text-gray-500 mt-1">{tr("한 섹션(오전 또는 오후 1회)을 진행하는 리더 1명당 금액이에요. 리더 신청 화면에 그대로 보여요. 비워 둘 때만 체험 시간 × 시급({0})으로 계산돼요.", [won(rate)])}</p>
     </div>
   );
 }
@@ -11010,7 +11015,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                       {ls.map((n) => (
                         <div key={n} className="flex items-center justify-between gap-2 py-1.5" style={{ borderTop: `1px solid ${C.cream}` }}>
                           <span className="f-body text-[16px] font-semibold" style={{ color: C.charcoal }}>{n}</span>
-                          <span className="f-body text-[14px] text-gray-500">{amt === undefined || amt === "" ? tr("시급 기준") : `${won(amt)}${payData && payData.taxOn !== false ? ` → ${tr("실수령")} ${won(net(amt))}` : ""}`}</span>
+                          <span className="f-body text-[14px] text-gray-500">{amt === undefined || amt === "" ? tr("시급으로 계산") : `${won(amt)}${payData && payData.taxOn !== false ? ` → ${tr("실수령")} ${won(net(amt))}` : ""}`}</span>
                         </div>
                       ))}
                     </div>
@@ -11984,7 +11989,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                         {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
                         {(() => { const g = payPreview(p, x.id); return (
                           <p className="f-body text-[14px] font-bold mt-0.5" style={{ color: g === null ? "#9C927D" : C.green }} data-testid="slot-pay">
-                            {g === null ? tr("활동비 확인 중") : <>{tr("활동비")} {won(g)}{payInfo.taxOn !== false && <span className="font-normal text-gray-500"> · {tr("세전 (3.3% 공제 전)")}</span>}</>}
+                            {g === null ? tr("활동비 확인 중") : <>{tr("활동비")} {won(g)} <span className="font-normal text-gray-500">· per section</span>{payInfo.taxOn !== false && <span className="font-normal text-gray-500"> · {tr("세전 (3.3% 공제 전)")}</span>}</>}
                           </p>); })()}
                         {chip && <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>}
                       </div>
@@ -12171,7 +12176,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
   return (
     <div className="px-5 space-y-5" data-testid="pay-panel">
       <div className="bg-white rounded-2xl p-4">
-        <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("시급")}</p>
+        <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("시급 (금액을 안 넣은 프로그램에만 사용)")}</p>
         <p className="f-body text-[14px] text-gray-500 mb-2">{tr("체험 시간에 시급을 곱해서 자동으로 계산해요. 캠프처럼 금액이 다르면 아래에서 직접 입력하세요.")}</p>
         <div className="flex items-center gap-2">
           <input value={rateText} onChange={(e) => setRateText(e.target.value.replace(/[^\d]/g, ""))} inputMode="numeric" placeholder={String(pay.rate)} aria-label={tr("시급")} className={`${field} flex-1`} style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="pay-rate-input" />
@@ -12189,7 +12194,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
       {programsToPrice.length > 0 && (
         <div className="bg-white rounded-2xl p-4">
           <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("프로그램별 금액")}</p>
-          <p className="f-body text-[14px] text-gray-500 mb-2">{tr("캠프나 특별 체험은 한 번 입력하면 그 프로그램의 모든 선생님에게 적용돼요. 비우면 시급으로 돌아가요.")}</p>
+          <p className="f-body text-[14px] text-gray-500 mb-2">{tr("프로그램별 비용은 per section(섹션 1회당) 금액이에요. 한 번 입력하면 그 프로그램의 모든 리더에게 적용돼요. 비우면 시급으로 돌아가요.")}</p>
           <div className="space-y-2">
             {programsToPrice.map((i) => {
               const cur = pay.amounts[i.programId];

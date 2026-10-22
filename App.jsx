@@ -970,6 +970,15 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "소리가 안 나면 벨소리/무음 스위치와 미디어 볼륨을 확인해 주세요": "If there is no sound, check the silent switch and media volume",
+  "소리 테스트": "Sound test",
+  "한 번만 하면 돼요": "Just once",
+  "🛡️ 안전수칙 동의하기": "🛡️ Agree to safety rules",
+  "설문 남기기": "Leave a survey",
+  "선생님 리포트 보기": "See leader's report",
+  "복습하기": "Do Review",
+  "예습 시작하기": "Start Prep",
+  "지금 해야 할 일이에요": "This is what to do now",
 "진행": "Running",
 "팀이 확정된 체험이 여기에 나와요.": "Trips with confirmed teams show here.",
 "출석 {0}/{1}": "Present {0}/{1}",
@@ -1777,16 +1786,37 @@ const pickEnglishVoice = () => {
   const us = en.filter((v) => /^en[-_]US$/i.test(v.lang));
   return us.find((v) => /samantha|ava|allison|google us|enhanced|premium/i.test(v.name)) || us[0] || en[0] || null;
 };
-// last resort when the phone's own voice stays silent (no English voice installed): an online voice, played as plain audio
+// Online voice played as plain audio. On iPhone this is the main route: the phone's silent switch mutes speechSynthesis but not an <audio> tag,
+// and the play() call has to happen straight inside the tap. Samsung/Android use the phone voice first and fall back to this.
+const IS_IOS = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 let SPEAK_AUDIO = null;
-function speakFallback(word) {
+let SPEAK_LOG = "";
+function speakFallback(word, onFail) {
   try {
-    if (SPEAK_AUDIO) SPEAK_AUDIO.pause();
-    SPEAK_AUDIO = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(word)}`);
-    SPEAK_AUDIO.play().catch(() => {});
-  } catch (e) { /* silent */ }
+    if (!SPEAK_AUDIO) SPEAK_AUDIO = new Audio();
+    const a = SPEAK_AUDIO;
+    try { a.pause(); } catch (e) { /* ignore */ }
+    a.onerror = () => { SPEAK_LOG = "audio error"; if (onFail) onFail(); };
+    a.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(word)}`;
+    const p = a.play();
+    if (p && p.then) p.then(() => { SPEAK_LOG = "audio ok"; }).catch((e) => { SPEAK_LOG = "audio blocked: " + (e && e.name); if (onFail) onFail(); });
+  } catch (e) { SPEAK_LOG = "audio exception"; if (onFail) onFail(); }
 }
 function speak(word) {
+  try {
+    if (!word) return;
+    const ss = typeof window !== "undefined" ? window.speechSynthesis : null;
+    if (IS_IOS) { // iPhone / iPad: audio first (works with the silent switch on), phone voice only if the audio cannot play
+      speakFallback(word, () => speakVoice(word));
+      return;
+    }
+    if (!ss) { speakFallback(word); return; }
+    speakVoice(word);
+  } catch (e) {
+    /* sound unavailable — fail silently, it's a nice-to-have */
+  }
+}
+function speakVoice(word) {
   try {
     const ss = window.speechSynthesis;
     if (!ss || !word) return;
@@ -1801,14 +1831,32 @@ function speak(word) {
     if (busy) ss.cancel();
     if (ss.paused) ss.resume();
     let started = false;
-    u.onstart = () => { started = true; };
-    u.onerror = () => { if (!started) speakFallback(word); };
-    const go = () => { try { ss.speak(u); } catch (e) { speakFallback(word); return; } setTimeout(() => { if (!started && !ss.speaking) speakFallback(word); }, 900); };
+    u.onstart = () => { started = true; SPEAK_LOG = "voice ok"; };
+    u.onerror = (e) => { SPEAK_LOG = "voice error: " + (e && e.error); if (!started && !IS_IOS) speakFallback(word); };
+    const go = () => { try { ss.speak(u); } catch (e) { if (!IS_IOS) speakFallback(word); return; } setTimeout(() => { if (!started && !ss.speaking && !IS_IOS) speakFallback(word); }, 900); };
     if (busy && /Android/i.test(navigator.userAgent)) setTimeout(go, 80); // Android: a speak() right after cancel() is swallowed
-    else go(); // iPhone: must run inside the tap
+    else go();
   } catch (e) {
-    /* speech synthesis unavailable — fail silently, it's a nice-to-have */
+    /* speech synthesis unavailable */
   }
+}
+function SoundTest() {
+  const [msg, setMsg] = useState("");
+  const run = () => {
+    SPEAK_LOG = "";
+    speak("apple");
+    setTimeout(() => {
+      let n = 0; try { n = (window.speechSynthesis.getVoices() || []).length; } catch (e) { /* none */ }
+      setMsg(`${SPEAK_LOG || "no result"} · voices ${n} · ${IS_IOS ? "iOS" : /Android/i.test(navigator.userAgent) ? "Android" : "other"}`);
+    }, 1800);
+  };
+  return (
+    <div className="mt-3" data-testid="sound-test">
+      <button onClick={run} className="focus-ring tap w-full rounded-2xl bg-white f-display font-bold text-[17px]" style={{ minHeight: 56, border: `2px solid ${C.green}`, color: C.green }}>🔊 {tr("소리 테스트")}</button>
+      {msg && <p className="f-body text-[13px] text-center mt-2" style={{ color: "#6B7280" }}>{msg}</p>}
+      <p className="f-body text-[12px] text-center mt-1" style={{ color: "#9CA3AF" }}>{tr("소리가 안 나면 벨소리/무음 스위치와 미디어 볼륨을 확인해 주세요")}</p>
+    </div>
+  );
 }
 /* ================================================================== */
 /*  SHARED UI ATOMS                                                     */
@@ -5142,9 +5190,28 @@ function learningGrid(program, adv) {
 function LearningGrid({ program, adv, onAct }) {
   const { cells, next } = learningGrid(program, adv);
   const [hint, setHint] = useState("");
+  const NEXT_LABEL = { prep: "예습 시작하기", review: "복습하기", feedback: "선생님 리포트 보기", survey: "설문 남기기" };
+  const NEXT_ICON = { prep: "📖", review: "✏️", feedback: "💌", survey: "📝" };
   return (
     <div data-testid="learning-grid">
-      <div className="grid grid-cols-2 gap-2">
+      {next && (
+        <button
+          onClick={() => onAct(next)}
+          data-testid="big-next"
+          className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-5 mb-3 text-left text-white"
+          style={{ background: C.orange, minHeight: 72, boxShadow: "0 4px 12px rgba(245,124,32,0.3)" }}
+        >
+          <span className="flex items-center gap-3 min-w-0">
+            <span className="text-[30px]">{NEXT_ICON[next]}</span>
+            <span className="min-w-0">
+              <span className="block f-display text-[22px] font-bold leading-tight">{NEXT_LABEL[next]}</span>
+              <span className="block f-body text-[14px] opacity-90">{tr("지금 해야 할 일이에요")}</span>
+            </span>
+          </span>
+          <span className="f-display text-[28px] font-bold">›</span>
+        </button>
+      )}
+      <div className="grid grid-cols-2 gap-2.5">
         {LEARN_ITEMS.map(([k, ko, en]) => {
           const c = cells[k];
           const locked = c.state === "locked";
@@ -5156,11 +5223,11 @@ function LearningGrid({ program, adv, onAct }) {
               data-state={c.state}
               aria-disabled={locked}
               onClick={() => (locked ? setHint(c.hint || "") : (setHint(""), onAct(k)))}
-              className="focus-ring relative text-left rounded-xl px-3 py-2 min-h-[56px]"
-              style={{ background: locked ? "#F4F3F0" : done ? "#F1F8F4" : "#FFFFFF", border: `1px solid ${locked ? "#ECEAE5" : done ? "#D3E8DA" : "#E6DCC8"}`, color: locked ? "#A3A29C" : C.green }}
+              className="focus-ring relative text-left rounded-2xl px-3.5 py-3 min-h-[76px]"
+              style={{ background: locked ? "#F4F3F0" : done ? "#F1F8F4" : "#FFFFFF", border: `${next === k ? 2 : 1}px solid ${next === k ? C.orange : locked ? "#ECEAE5" : done ? "#D3E8DA" : "#E6DCC8"}`, color: locked ? "#A3A29C" : C.green }}
             >
-              <span className="block f-body text-[14px] font-semibold leading-tight">{ko} <span className="text-[12px] font-normal opacity-60">{en}</span></span>
-              <span className="block f-body text-[12px] mt-0.5" style={{ color: locked ? "#B5B4AE" : done ? "#1F7A44" : "#6B7280" }}>{done ? "✓ " : ""}{c.status}</span>
+              <span className="block f-body text-[18px] font-bold leading-tight">{ko} <span className="text-[13px] font-normal opacity-60">{en}</span></span>
+              <span className="block f-body text-[15px] mt-1 font-semibold" style={{ color: locked ? "#B5B4AE" : done ? "#1F7A44" : "#6B7280" }}>{done ? "✓ " : ""}{c.status}</span>
               {next === k && <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full" style={{ background: C.orange }} data-testid="learn-next" aria-label="다음 할 일" />}
             </button>
           );
@@ -5178,12 +5245,20 @@ function GuideLinks({ program, adv, onInfo }) {
   const sid = slot ? slot.id : null;
   const cls = "focus-ring tap f-body text-[14px] font-semibold flex items-center";
   return (
+    <>
+    {!agreed && (
+      <button onClick={() => onInfo(program.id, sid, true)} data-testid="safety-link" className="focus-ring tap w-full mt-3 flex items-center justify-between gap-3 rounded-2xl px-4 text-left" style={{ minHeight: 64, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }}>
+        <span><span className="block f-display text-[19px] font-bold">🛡️ 안전수칙 동의하기</span><span className="block f-body text-[13px]">한 번만 하면 돼요</span></span>
+        <span className="f-display text-[26px] font-bold">›</span>
+      </button>
+    )}
     <div className="flex items-center mt-1" style={{ gap: 24 }} data-testid="guide-links">
       <button onClick={() => onInfo(program.id, sid, false)} className={cls} style={{ color: C.green, minHeight: 44 }} data-testid="info-link">체험 안내 ›</button>
-      <button onClick={() => onInfo(program.id, sid, true)} className={cls} style={{ color: C.green, minHeight: 44 }} data-testid="safety-link">
-        안전수칙 ›{!agreed && <span className="ml-1 f-body text-[12px] font-normal" style={{ color: C.orange }}>동의 필요</span>}
-      </button>
+      {agreed ? (
+        <button onClick={() => onInfo(program.id, sid, true)} className={cls} style={{ color: C.green, minHeight: 44 }} data-testid="safety-link">안전수칙 ›</button>
+      ) : null}
     </div>
+    </>
   );
 }
 
@@ -5355,6 +5430,22 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const myBalance = pointsBalance(myPoints);
   const newlyApproved = reviewRecords(suggestions).filter((r) => r.familyPin === familyPin && r.status === "approved" && !r.seen)[0] || null;
   const canReview = notices.some((n) => n.kind === "points");
+  const addChildBlock = myChildren.length > 0 && onAddChild ? (
+    addingChild ? (
+      <RegisterStudentPanel
+        mode="sibling"
+        fixedPin={familyPin}
+        students={students}
+        onCancel={() => setAddingChild(false)}
+        onRegister={(info) => { onAddChild(info); setAddingChild(false); }}
+      />
+    ) : (
+      <button onClick={() => setAddingChild(true)} data-testid="add-child" className="focus-ring tap w-full flex items-center justify-center gap-2 rounded-2xl f-display text-[19px] font-semibold" style={{ minHeight: 60, background: "white", color: C.orange, border: `2px solid ${C.orange}` }}>
+        <span className="text-[26px] leading-none">+</span> 자녀 추가
+      </button>
+    )
+  ) : null;
+
   const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
   return (
     <div className="pb-24">
@@ -5411,6 +5502,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 {myChildren.length === 1 && <p className="f-display text-[22px] font-semibold leading-tight" style={{ color: C.green }}>{c.name}</p>}
                 <p className="f-body text-[13px] text-gray-500 mt-0.5">Level {c.level} · {rank.label}{nextRank ? ` · 다음 단계까지 ${nextRank.min - n}회` : ""}</p>
               </div>
+              {addChildBlock}
               <ChildHomeCard
                 key={c.id}
                 child={c}
@@ -5428,21 +5520,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
         })()}
 
         <SuggestionBox suggestions={suggestions} familyPin={familyPin} onAdd={onAddSuggestion} />
-        {myChildren.length > 0 && onAddChild && (
-          addingChild ? (
-            <RegisterStudentPanel
-              mode="sibling"
-              fixedPin={familyPin}
-              students={students}
-              onCancel={() => setAddingChild(false)}
-              onRegister={(info) => { onAddChild(info); setAddingChild(false); }}
-            />
-          ) : (
-            <button onClick={() => setAddingChild(true)} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-1" style={{ color: C.orange }}>
-              + 자녀 추가
-            </button>
-          )
-        )}
 
       </div>
       )}
@@ -5459,6 +5536,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
           <SafetySection programId="all" kids={myKids} familyPin={familyPin} defaultOpen={myKids.some((k) => !agreementOf(SAFETY_ROWS, familyPin, "all", k.id))} />
+          <SoundTest />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -8970,7 +9048,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z70"; // change with every delivery
+const APP_BUILD = "2026-10-22-z73"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

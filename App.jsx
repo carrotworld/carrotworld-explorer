@@ -970,6 +970,16 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"팀 세팅 끝 · 리더에게 알리기": "Teams done · notify leaders",
+"팀 세팅 완료 · 리더에게 알렸어요": "Teams set · leaders notified",
+"리더 신청은 마감됐어요": "Leader sign-up is closed",
+"신청 마감": "Sign-up closed",
+"팀 확정": "Teams confirmed",
+"본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.": "HQ has finished the teams. Check your team and children.",
+"도장 {0}번째": "Stamp #{0}",
+"도장 1개": "1 stamp",
+"현금 출금 불가": "no cash withdrawal",
+"도장·포인트": "Stamps & points",
 "리더 비용 · per section (세전)": "Leader fee · per section (before tax)",
 "한 섹션(오전 또는 오후 1회)을 진행하는 리더 1명당 금액이에요. 리더 신청 화면에 그대로 보여요. 비워 둘 때만 체험 시간 × 시급({0})으로 계산돼요.": "Amount per leader for one section (morning or afternoon). Shown as-is when leaders sign up. Only if left empty is it calculated as trip hours × hourly rate ({0}).",
 "시급으로 계산": "Hourly rate",
@@ -2494,7 +2504,7 @@ function NavPointsIcon({ size = 20, color = "currentColor" }) {
 }
 
 /** Bottom tabs that stay on screen for every role (parent, teacher, HQ); a spacer keeps content clear of them. */
-const PARENT_TABS = [["home", "홈"], ["points", "포인트"], ["badges", "뱃지"], ["help", "안내"]];
+const PARENT_TABS = [["home", "홈"], ["stamps", "도장·포인트"], ["help", "안내"]];
 const parentUi = { tab: "home" };
 function FixedTabs({ items, active, onSelect, label = "메뉴" }) {
   return (
@@ -2874,7 +2884,7 @@ function Journey({ adventures, studentId, points = 0 }) {
 /* ================================================================== */
 /*  STUDENT: BADGE COLLECTION                                           */
 /* ================================================================== */
-function BadgeCollection({ adventures, studentId }) {
+function BadgeCollection({ adventures, studentId, balance, middle }) {
   const [showLadder, setShowLadder] = useState(false);
   const badges = computeBadges(adventures, studentId);
   const earned = badges.filter((b) => b.earned);
@@ -2884,7 +2894,7 @@ function BadgeCollection({ adventures, studentId }) {
   const left = STAMP_CARD_SIZE - (n % STAMP_CARD_SIZE);
   return (
     <div className="pb-6">
-      <ScreenHeader title="내 뱃지" />
+      <ScreenHeader title="도장 · 포인트" />
       <div className="px-5">
         <div className="rounded-2xl p-5 mb-5" style={{ background: C.green }} data-testid="stamp-board">
           <div className="flex items-center gap-3.5 mb-4">
@@ -2897,8 +2907,18 @@ function BadgeCollection({ adventures, studentId }) {
             </div>
           </div>
           <StampCard count={n} fillColor={C.orange} emptyColor="#3F7358" perRow={5} size={52} />
-          <p className="f-body text-[13px] mt-3" style={{ color: "#9FD1B8" }}>도장 {n}개 · 다음 뱃지까지 {left}개 · 체험을 마치면 도장 1개{POINT_RULES.trip > 0 ? ` + ${POINT_RULES.trip.toLocaleString("en-US")}P` : ""}</p>
+          <p className="f-body text-[13px] mt-3" style={{ color: "#9FD1B8" }}>{`도장 ${n}개 · 다음 뱃지까지 ${left}개`}</p>
+          {balance !== undefined && (
+            <div className="mt-3 pt-3 flex items-end justify-between gap-3" style={{ borderTop: "1px solid #3F7358" }} data-testid="stamp-points">
+              <div>
+                <p className="f-body text-[12px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</p>
+                <p className="f-display text-[30px] font-bold text-white leading-tight" data-testid="points-balance">{fmtBalance(balance)}</p>
+              </div>
+              <p className="f-body text-[13px] text-right" style={{ color: "#C9E6D6" }}>{POINT_RULES.trip > 0 ? `🥕 ${tr("도장 1개")} = +${POINT_RULES.trip.toLocaleString("en-US")}P` : ""}<span className="block" style={{ color: "#9FD1B8" }}>1P = 1원 · {tr("현금 출금 불가")}</span></p>
+            </div>
+          )}
         </div>
+        {middle}
 
         <SectionBar>받은 뱃지 ({earned.length})</SectionBar>
         {earned.length === 0 ? (
@@ -3717,7 +3737,7 @@ const isVisit = (sg) => sg.type === VISIT_TYPE;
  *  HQ can change their names and amounts and add items of its own that staff give by hand. */
 const BUILT_IN_POINT_IDS = ["trip", "survey", "review", "referral"];
 const DEFAULT_POINT_ITEMS = [
-  { id: "trip", name: "체험 프로그램 완료", title: "Experience Completed", amount: 1000, note: "" },
+  { id: "trip", name: "체험 도장 (체험 1회 완료)", title: "Experience Stamp", amount: 1000, note: "도장이 찍히면 자동 적립" },
   { id: "survey", name: "부모 설문 완료", title: "Parent Survey", amount: 100, note: "" },
   { id: "review", name: "외부 후기 작성", title: "External Review", amount: 300, note: "후기 링크 확인 후 적립" },
   { id: "referral", name: "친구 추천", title: "Friend Referral", amount: 2000, note: "추천받은 친구가 첫 결제를 완료하면 적립" },
@@ -3834,12 +3854,13 @@ function pointEntries(pin, students, adventures, suggestions) {
   const versions = pointVersions(suggestions);
   const itemAt = (id, at) => pointItemsAt(versions, at).find((i) => i.id === id) || DEFAULT_POINT_ITEMS.find((i) => i.id === id);
   const out = [];
+  const stampNo = (a) => adventures.filter((x) => x.studentId === a.studentId && x.attended && !x.canceled && String(x.attendedAt || x.enrolledAt || "") <= String(a.attendedAt || a.enrolledAt || "")).length;
   adventures.filter((a) => ids.has(a.studentId) && !a.canceled).forEach((a) => {
     const detail = `${progTitle(a.programId)} · ${nameOf(a.studentId)}`;
     if (a.attended) {
       const at = a.attendedAt || a.enrolledAt || "";
       const it = itemAt("trip", at);
-      if (it.amount > 0) out.push({ key: `trip:${a.studentId}:${a.programId}`, kind: "trip", delta: it.amount, at, title: it.title, detail });
+      if (it.amount > 0) out.push({ key: `trip:${a.studentId}:${a.programId}`, kind: "trip", delta: it.amount, at, title: `🥕 ${tr("도장 {0}번째", [stampNo(a)])}`, detail });
     }
     if (a.parentSurvey) {
       const at = a.parentSurvey.at || "";
@@ -4202,8 +4223,8 @@ function parentNotices(children, adventures, suggestions) {
           const when = [program.date, shown.time].filter(Boolean).join(" ");
           list.push({ key: `${infoKey}-info`, icon: "📍", title: "체험 안내가 도착했어요", text: `${splitTitle(program.title)[0] || program.title} · ${slot ? `${slot.label} · ` : ""}${when}`, action: "확인하기", kind: "info", childId: child.id, programId: program.id, sessionId: slot ? slot.id : null });
         }
-        if (suggestions && !a.attended && !a.canceled && !infoShown.has(`safety-${program.id}`) && !agreementOf(suggestions, child.familyPin, program.id, child.id)) {
-          infoShown.add(`safety-${program.id}`);
+        if (suggestions && !a.attended && !a.canceled && !infoShown.has(`safety-${child.id}`) && !agreementOf(suggestions, child.familyPin, program.id, child.id)) {
+          infoShown.add(`safety-${child.id}`);
           list.push({ key: `${program.id}-safety`, icon: "🛡️", title: "안전수칙 동의가 필요해요", text: `${splitTitle(program.title)[0] || program.title} · 자녀와 함께 읽고 동의해 주세요`, action: "확인하기", kind: "info", childId: child.id, programId: program.id, sessionId: sessionOf(program, a) ? sessionOf(program, a).id : null });
         }
         if (FEATURES.parentAdvice && a.advice?.sent && Date.now() - Date.parse(a.advice.sent.sentAt) < 14 * 86400000) {
@@ -4882,7 +4903,7 @@ function ReviewCard({ program, record, onSubmit }) {
 }
 
 /** The parents' points page: balance, how points are earned, external review, history. */
-function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose, embedded = false, inline = false }) {
+function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitReview, onClose, embedded = false, inline = false, compact = false }) {
   applyPointItems(currentPointItems(suggestions));
   const reviewOn = POINT_RULES.review > 0 && !embedded; // the review link is for parents; the child tab only explains and shows the balance
   const entries = pointEntries(familyPin, students, adventures, suggestions);
@@ -4900,19 +4921,37 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
   );
   return (
     <div className={embedded || inline ? "" : "fixed inset-0 z-50 overflow-y-auto"} style={embedded || inline ? undefined : { background: C.cream }} role={embedded || inline ? undefined : "dialog"} aria-modal={embedded || inline ? undefined : "true"} aria-label="포인트">
-      <div className={embedded || inline ? "px-5 pt-2 pb-6" : "max-w-md mx-auto px-5 pt-6 pb-12"}>
-        <div className="flex items-center justify-between mb-4">
+      <div className={compact ? "" : embedded || inline ? "px-5 pt-2 pb-6" : "max-w-md mx-auto px-5 pt-6 pb-12"}>
+        {!compact && <div className="flex items-center justify-between mb-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>포인트</h2>
           {!embedded && !inline && <button onClick={onClose} className="focus-ring tap f-body text-[16px] font-bold px-4 py-2 rounded-full" style={{ background: C.beige, color: C.green }}>닫기</button>}
-        </div>
+        </div>}
 
-        <div className="rounded-2xl p-5 mb-4" style={{ background: C.green, boxShadow: "0 4px 14px rgba(23,76,53,0.18)" }}>
+        {!compact && <div className="rounded-2xl p-5 mb-4" style={{ background: C.green, boxShadow: "0 4px 14px rgba(23,76,53,0.18)" }}>
           <p className="f-body text-[13px] font-bold tracking-[0.12em] uppercase" style={{ color: "#9FD1B8" }}>Carrot Points</p>
           <p className="f-display text-[40px] font-bold text-white leading-tight mt-1" data-testid="points-balance">{fmtBalance(balance)}</p>
           <p className="f-body text-[15px] mt-1" style={{ color: "#C9E6D6" }}>1P = 1원 · 다음 프로그램 결제에 사용할 수 있어요</p>
           <p className="f-body text-[13px] mt-2" style={{ color: "#9FD1B8" }}>포인트는 현금으로 출금할 수 없어요.</p>
+        </div>}
+
+        {compact ? (
+          <div className="mb-4"><FoldBar title="포인트 적립 기준 · 사용법" defaultOpen={false}>
+        <SectionBar>포인트 적립 기준</SectionBar>
+        <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
+          {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
         </div>
 
+        <SectionBar>이렇게 쓰여요</SectionBar>
+        <div className="bg-white rounded-2xl px-4 py-3 mb-5 space-y-1.5" style={{ border: `1px solid ${C.beige}` }} data-testid="points-how">
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>① 체험을 마치면 도장이 찍히고, 도장 1개마다 포인트가 자동으로 쌓여요. 설문을 남기면 더해져요.</p>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>② 1P는 1원이에요. 다음 프로그램 결제 금액에서 빼 드려요.</p>
+          <p className="f-body text-[15px]" style={{ color: C.charcoal }}>③ 쓰고 싶을 때는 신청하면서 카카오톡으로 알려 주세요.</p>
+          <p className="f-body text-[13px] text-gray-400">현금으로 돌려받을 수는 없어요.</p>
+        </div>
+
+          </FoldBar></div>
+        ) : (
+          <>
         <SectionBar>포인트 적립 기준</SectionBar>
         <div className="bg-white rounded-2xl px-4 mb-5" style={{ border: `1px solid ${C.beige}` }}>
           {POINT_ITEMS.filter((i) => i.amount > 0).map((i) => <React.Fragment key={i.id}>{rule(i.name, i.amount, i.note)}</React.Fragment>)}
@@ -4926,6 +4965,8 @@ function PointsSheet({ familyPin, students, adventures, suggestions, onSubmitRev
           <p className="f-body text-[13px] text-gray-400">현금으로 돌려받을 수는 없어요.</p>
         </div>
 
+          </>
+        )}
         {reviewOn && (
           <>
         <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>외부 후기 작성하고 {POINT_RULES.review}P 받기 🥕</p>
@@ -4980,7 +5021,7 @@ function PointsCard({ balance, canReview, onOpen }) {
 }
 
 /** Badges tab: child switcher on top (only with several children), then the stamp board and badges. */
-function BadgesPane({ kids, adventures }) {
+function BadgesPane({ kids, adventures, balance, middle }) {
   const [i, setI] = useState(0);
   const k = kids[Math.min(i, kids.length - 1)];
   return (
@@ -4992,7 +5033,7 @@ function BadgesPane({ kids, adventures }) {
           ))}
         </div>
       )}
-      {k && <BadgeCollection adventures={adventures} studentId={k.id} />}
+      {k && <BadgeCollection adventures={adventures} studentId={k.id} balance={balance} middle={middle} />}
     </div>
   );
 }
@@ -5004,7 +5045,7 @@ function parentAction(program, adv) {
   const surveyOpen = !!adv.attended && !adv.parentSurvey;
   const survey = { label: POINT_RULES.survey > 0 ? `설문 남기기 (+${POINT_RULES.survey}P)` : "설문 남기기", act: "survey" };
   const info = { label: "체험 안내 보기", act: "info", programId: program.id, sessionId: slot ? slot.id : null };
-  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.programId === program.id && r.studentIds.includes(adv.studentId));
+  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.studentIds.includes(adv.studentId)); // one agreement covers every trip
   const safety = { label: "안전수칙 확인하고 동의하기", act: "info", programId: program.id, sessionId: slot ? slot.id : null, safety: true };
   const R = (score, key, status, cta, links = []) => ({ score, key, status, cta, links });
   if (adv.absent && !adv.attended) return R(8, "absent", "이번 체험에는 참여하지 못했어요.", { label: "다음 예정 체험 보기", act: "browse" });
@@ -5091,7 +5132,7 @@ function LearningGrid({ program, adv, onAct }) {
 /** Two small text links under the buttons: trip information and safety rules. */
 function GuideLinks({ program, adv, onInfo }) {
   const slot = sessionOf(program, adv);
-  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.programId === program.id && r.studentIds.includes(adv.studentId));
+  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.studentIds.includes(adv.studentId)); // one agreement covers every trip
   const sid = slot ? slot.id : null;
   const cls = "focus-ring tap f-body text-[14px] font-semibold flex items-center";
   return (
@@ -5244,8 +5285,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
   const [showGuide, setShowGuide] = useState(() => !guideSeen());
   const [showSheet, setShowSheet] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
-  const [ptab, setPtabState] = useState(parentUi.tab);
-  const setPtab = (k) => { parentUi.tab = k; setPtabState(k); };
+  const [ptab, setPtabState] = useState(parentUi.tab === "points" || parentUi.tab === "badges" ? "stamps" : parentUi.tab);
+  const setPtab = (k) => { k = k === "points" || k === "badges" ? "stamps" : k; parentUi.tab = k; setPtabState(k); };
   const [activeChildId, setActiveChildId] = useState(null);
   const myKids = students.filter((st) => st.familyPin === familyPin);
   const [infoId, setInfoId] = useState(null);
@@ -5334,7 +5375,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 adventures={adventures}
                 points={myBalance}
                 onStart={onStartAdventure}
-                onInfo={(programId, sessionId, safety) => { setInfoId(programId); setInfoSessionId(sessionId || null); setInfoSafety(!!safety); }}
+                onInfo={(programId, sessionId, safety) => { if (safety) { setPtab("help"); window.scrollTo({ top: 0 }); return; } setInfoId(programId); setInfoSessionId(sessionId || null); setInfoSafety(!!safety); }}
                 onReport={onViewReport}
                 onSurvey={onOpenSurvey}
                 onPoints={() => { setPtab("points"); window.scrollTo({ top: 0 }); }}
@@ -5363,13 +5404,19 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
 
       </div>
       )}
-      {ptab === "points" && <PointsSheet inline familyPin={familyPin} students={students} adventures={adventures} suggestions={suggestions} onSubmitReview={onSubmitReview} onClose={() => setPtab("home")} />}
-      {ptab === "badges" && <BadgesPane kids={myKids} adventures={adventures} />}
+      {ptab === "stamps" && (
+        <BadgesPane
+          kids={myKids}
+          adventures={adventures}
+          balance={myBalance}
+          middle={<div className="mb-5"><PointsSheet inline compact familyPin={familyPin} students={students} adventures={adventures} suggestions={suggestions} onSubmitReview={onSubmitReview} onClose={() => setPtab("home")} /></div>}
+        />
+      )}
       {ptab === "help" && (
         <div className="px-5 pt-2 space-y-4">
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
-          <SafetySection readOnly programId="" />
+          <SafetySection programId="all" kids={myKids} familyPin={familyPin} defaultOpen={myKids.some((k) => !agreementOf(SAFETY_ROWS, familyPin, "all", k.id))} />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -7141,7 +7188,7 @@ function extraSafetyRules(rows, programId) {
 function safetyAgreements(rows) {
   return (rows || []).filter((sg) => sg.type === SAFETY_AGREE_TYPE).map((sg) => ({ ...readRow(sg), familyPin: sg.familyPin })).filter((r) => r.programId && Array.isArray(r.studentIds)).sort(byAt);
 }
-const agreementOf = (rows, familyPin, programId, studentId) => safetyAgreements(rows).filter((r) => r.familyPin === familyPin && r.programId === programId && r.studentIds.includes(studentId)).pop() || null;
+const agreementOf = (rows, familyPin, programId, studentId) => safetyAgreements(rows).filter((r) => r.familyPin === familyPin && r.studentIds.includes(studentId)).pop() || null;
 function safetyWarnings(rows) {
   const all = (rows || []).filter((sg) => sg.type === SAFETY_WARN_TYPE).map(readRow);
   const voided = new Set(all.filter((r) => r.kind === "void").map((r) => r.id));
@@ -7220,7 +7267,7 @@ function SafetyAgreement({ programId, kids, familyPin, rows }) {
   }
   const agree = () => {
     if (!checked || !stopOk) return;
-    SAFETY_SAVE(SAFETY_AGREE_TYPE, familyPin, { kind: "agree", programId, studentIds: pending.map((k) => k.id), names: pending.map((k) => k.name), stopAgree: true }, `agree-${programId}`);
+    SAFETY_SAVE(SAFETY_AGREE_TYPE, familyPin, { kind: "agree", programId, studentIds: pending.map((k) => k.id), names: pending.map((k) => k.name), stopAgree: true }, `agree-${programId}-${pending.map((k) => k.id).join("+")}`);
     setChecked(false); setStopOk(false);
   };
   return (
@@ -7682,7 +7729,7 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
           {rows.slice(3).map((r) => (
             <InfoRow key={r.label} {...r} />
           ))}
-          <SafetySection programId={program.id} kids={kids} familyPin={familyPin} defaultOpen={openSafety} autoScroll={openSafety} />
+          <SafetySection readOnly programId={program.id} />
         </div>
         <div className="mt-5"><PrimaryButton onClick={onClose}>확인했어요</PrimaryButton></div>
         <p className="f-body text-[14px] text-gray-400 text-center mt-4">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
@@ -8873,7 +8920,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z59"; // change with every delivery
+const APP_BUILD = "2026-10-22-z62"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9444,6 +9491,7 @@ function MyTeamsCard({ program, adventures, students, name, signups, onOpenMater
     <div className="bg-white rounded-2xl p-4" data-testid="my-teams">
       <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{splitTitle(program.title)[0]}</p>
       <p className="f-body text-[13px] text-gray-500 mb-2">{[program.date, mySlots.join(" · ")].filter(Boolean).join(" · ")}</p>
+      {program.teamsDone && <p className="f-body text-[14px] font-bold rounded-xl px-3 py-2.5 mb-2.5" style={{ background: "#EAF7EF", color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
       {mine.length === 0 ? (
         <p className="f-body text-[14px] rounded-xl px-3 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("아직 팀이 정해지지 않았어요. 본사가 정하면 여기에 아이들 명단이 나와요.")}</p>
       ) : (
@@ -9500,7 +9548,7 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
-function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
   const [matId, setMatId] = useState(null);
   const [prepOpen, setPrepOpen] = useState(false);
   const [levelId, setLevelId] = useState(null);
@@ -9700,6 +9748,14 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           </div>
         )}
         {slotId !== "none" && rows.length > 0 && loose.length === 0 && <p className="f-body text-[15px] font-bold mt-3" style={{ color: "#1F7A44" }} data-testid="match-done">✓ {tr("배정 완료")}</p>}
+        {onTeamsDone && (teamsDone ? (
+          <div className="mt-3 rounded-xl px-3.5 py-3 flex items-center justify-between gap-2" style={{ background: "#EAF7EF" }} data-testid="teams-done">
+            <p className="f-body text-[14px] font-bold" style={{ color: "#1F7A44" }}>✓ {tr("팀 세팅 완료 · 리더에게 알렸어요")}<span className="block font-normal text-[12px]">{tr("리더 신청은 마감됐어요")}</span></p>
+            <button onClick={() => onTeamsDone(false)} className="focus-ring tap f-body text-[14px] font-bold shrink-0" style={{ color: C.green, minHeight: 40 }}>{tr("다시 열기")}</button>
+          </div>
+        ) : (
+          <button onClick={() => onTeamsDone(true)} data-testid="teams-done-btn" className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: loose.length === 0 && rows.length > 0 ? C.green : "#9C927D" }}>{tr("팀 세팅 끝 · 리더에게 알리기")}</button>
+        ))}
         {rows.length === 0 && <p className="f-body text-[14px] text-gray-500 mt-3">{tr("아직 신청한 아이가 없어요.")}</p>}
 
         <div className="mt-2" data-testid="match-list">
@@ -10466,7 +10522,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -10904,6 +10960,8 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
                 onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 recruitClosed={!!program.teacherClosed}
+                teamsDone={!!program.teamsDone}
+                onTeamsDone={onSetTeamsDone ? (done) => onSetTeamsDone(programId, done) : undefined}
                 onLevel={onEditStudent ? (r, level) => { onEditStudent(r.student.id, { level }); const t = teamOf(program, r.adv); if (t && t.level !== level) updateAdventure(r.student.id, programId, { teamId: "" }); } : undefined}
                 onMaterial={onEditStudent ? (r, level) => { updateAdventure(r.student.id, programId, { materialLevel: level, missionsCompleted: programForLevel(program, level).missions.map((m) => ({ missionId: m.id, done: false, photo: null })) }); } : undefined}
                 onRemove={onCancelEnrollment ? (studentId) => onCancelEnrollment(studentId, programId) : undefined}
@@ -11993,7 +12051,11 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                           </p>); })()}
                         {chip && <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>}
                       </div>
-                      {!teacherId ? null : !j || j.status === "declined" ? (
+                      {!teacherId ? null : (p.teamsDone || p.teacherClosed) && (!j || j.status === "declined") ? (
+                        <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
+                      ) : p.teamsDone ? (
+                        <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
+                      ) : !j || j.status === "declined" ? (
                         <button onClick={() => setAsking({ program: p, slot: x })} className="focus-ring tap shrink-0 f-display text-[15px] font-semibold rounded-xl px-4 py-2 text-white" style={{ background: C.green }}>{tr("참여 신청")}</button>
                       ) : (
                         <button onClick={() => onWithdraw(p.id, x.id)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>
@@ -13136,6 +13198,14 @@ function CarrotExplorer() {
     sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at, reviewHold }));
   };
 
+  const setProgramTeamsDone = (programId, done) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    const patch = { teamsDone: !!done, teamsDoneAt: done ? new Date().toISOString() : "", teacherClosed: !!done }; // finishing the teams also closes leader sign-up
+    PROGRAMS[idx] = { ...PROGRAMS[idx], ...patch };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, patch));
+  };
   const setProgramRecruit = (programId, closed) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -13259,6 +13329,7 @@ function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onSetProgramRecruit={setProgramRecruit}
+              onSetTeamsDone={setProgramTeamsDone}
               onCheckSave={checkServerSave}
               onSaveTeams={setProgramTeams}
               lastSyncAt={lastSyncAt}

@@ -970,6 +970,7 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"섞인 레벨 팀": "Mixed-level team",
 "팀 색": "Team color",
 "레벨이 달라요 · 팀 {0}": "Different level · team {0}",
 "예습 자료": "Prep material",
@@ -5160,7 +5161,7 @@ function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, o
               <p className="f-headline text-[21px] leading-snug mt-0.5 min-w-0" style={{ color: C.green }}>{splitTitle(current.program.title)[0] || current.program.title}</p>
               {teamsForAdv(current.program, current.a).length > 0 && (() => { const tm = teamOf(current.program, current.a); return (
                 <span className="shrink-0 text-right rounded-xl px-3 py-1.5" data-testid="child-team" style={{ background: tm ? "#EAF7EF" : C.cream }}>
-                  {tm ? (<><span className="block f-body text-[13px] font-bold leading-tight" style={{ color: "#1F7A44" }}>{tm.level} {tr("팀")}</span><span className="block f-body text-[12px] leading-tight" style={{ color: "#1F7A44" }}>{teachersCall(tm.teacher)}</span></>) : <span className="block f-body text-[12px] font-bold" style={{ color: "#9C927D" }}>{tr("팀 배정 예정")}</span>}
+                  {tm ? (<><span className="flex items-center justify-end gap-1.5 f-body text-[13px] font-bold leading-tight" style={{ color: "#1F7A44" }}>{tm.color && <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: tm.color }} />}{teamTag(tm)} {tr("팀")}</span><span className="block f-body text-[12px] leading-tight" style={{ color: "#1F7A44" }}>{teachersCall(tm.teacher)}</span></>) : <span className="block f-body text-[12px] font-bold" style={{ color: "#9C927D" }}>{tr("팀 배정 예정")}</span>}
                 </span>
               ); })()}
             </div>
@@ -8848,9 +8849,16 @@ function ApprovalPanel({ students, onAccept, onReject }) {
 const teachersCall = (name) => (/선생/.test(name) ? name : `${name} 선생님`);
 const teamsOf = (program) => (program && Array.isArray(program.teams) ? program.teams : []);
 const teamOf = (program, adv) => teamsOf(program).find((t) => t.id === adv?.teamId) || null;
-const teamLabel = (t) => `${t.level} · ${t.teacher}`;
+/** Teams are named by colour ("Red team"): the colour is the team's name for the children and parents. */
+const TEAM_PALETTE = [["Red", "#D9534F"], ["Blue", "#3B7DD8"], ["Green", "#2F8F5B"], ["Yellow", "#E5B217"], ["Purple", "#B05BC4"], ["Orange", "#E9822B"], ["Pink", "#E86A9A"], ["Teal", "#1FA2A6"]];
+const TEAM_COLORS = TEAM_PALETTE.map((x) => x[1]);
+/** A random colour no team of this program has yet (any colour once all are used). */
+const randomTeamColor = (used) => { const free = TEAM_COLORS.filter((c) => !used.includes(c)); const pool = free.length ? free : TEAM_COLORS; return pool[Math.floor(Math.random() * pool.length)]; };
+const teamColorName = (t) => { const p = t && TEAM_PALETTE.find((x) => x[1] === t.color); return p ? p[0] : ""; };
+const teamTag = (t) => teamColorName(t) || (t && t.level) || "";
+const teamLabel = (t) => `${teamTag(t)} · ${t.teacher}`;
 /** What a parent reads: "A1 팀 · Anna 선생님" */
-const teamForParent = (t) => `${t.level} 팀 · ${teachersCall(t.teacher)}`;
+const teamForParent = (t) => `${teamTag(t)} 팀 · ${teachersCall(t.teacher)}`;
 const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf(p).map((t) => t.teacher)).filter(Boolean))];
 
 /* ================================================================== */
@@ -8859,7 +8867,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z55"; // change with every delivery
+const APP_BUILD = "2026-10-22-z57"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9438,7 +9446,7 @@ function MyTeamsCard({ program, adventures, students, name, signups, onOpenMater
             const kids = kidsOf(t);
             return (
               <div key={t.id} className="rounded-xl p-3" style={{ background: C.cream }}>
-                <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("내 팀")} · Level {t.level}{t.sessionId ? ` · ${slotLabel(t.sessionId)}` : ""} · {tr("{0}명", [kids.length])}</p>
+                <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("내 팀")} · {teamColorName(t) ? `${teamColorName(t)} ${tr("팀")} · ` : ""}Level {t.level}{t.sessionId ? ` · ${slotLabel(t.sessionId)}` : ""} · {tr("{0}명", [kids.length])}</p>
                 {kids.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 배정된 아이가 없어요.")}</p>}
                 <div className="space-y-1">
                   {kids.map((st) => (
@@ -9454,7 +9462,7 @@ function MyTeamsCard({ program, adventures, students, name, signups, onOpenMater
         </div>
       )}
       {others.length > 0 && (
-        <p className="f-body text-[13px] text-gray-500 mt-2">{tr("다른 팀")}: {others.map((t) => `${t.teacher} (Level ${t.level} · ${tr("{0}명", [kidsOf(t).length])})`).join(", ")}</p>
+        <p className="f-body text-[13px] text-gray-500 mt-2">{tr("다른 팀")}: {others.map((t) => `${t.teacher} (${teamTag(t)} · ${tr("{0}명", [kidsOf(t).length])})`).join(", ")}</p>
       )}
       <button onClick={() => onOpenMaterials(program.id)} data-testid="my-teams-materials" className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("Level {0} 수업 자료 보기", [levels.join(" · ")])}</button>
     </div>
@@ -9482,7 +9490,6 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
   );
 }
 
-const TEAM_COLORS = ["#2F8F5B", "#E9822B", "#3B7DD8", "#B05BC4", "#D9534F", "#C9A227"];
 /** A team's colour: the one HQ chose, else a steady one from its place among the program's teams. */
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
@@ -9512,27 +9519,44 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
   const loose = rows.filter((r) => !teamOfRow(r));
   const done = rows.length - loose.length;
   const byName = (x, y) => byKoName(x.student.name, y.student.name);
+  const freeColor = (extra = []) => randomTeamColor([...allTeams.map((t) => t.color), ...extra]);
   const assignTeam = (r, t) => { setOpenId(null); if (r.adv.teamId !== t.id) onAssign(r.student.id, t.id); };
   const assign = (r, leader) => {
     setOpenId(null);
     if (!leader) { onAssign(r.student.id, ""); return; }
-    let t = teams.find((x) => x.level === r.student.level && same(x.teacher, leader));
+    let t = teams.find((x) => same(x.teacher, leader));
     if (!t) {
-      t = { id: `t-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, level: r.student.level, teacher: leader, ...(hasSlots ? { sessionId: slotId } : {}) };
+      t = { id: `t-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, level: r.student.level, teacher: leader, color: freeColor(), ...(hasSlots ? { sessionId: slotId } : {}) };
       onSaveTeams([...allTeams, t]);
     }
     if (r.adv.teamId !== t.id) onAssign(r.student.id, t.id);
   };
-  // automatic: leaders without a team here take the levels that have none, existing teams fill up first
-  const counts = Object.fromEntries(teams.map((t) => [t.id, rows.filter((r) => r.adv.teamId === t.id).length]));
-  const freeLeaders = [...names.filter((n) => !teams.some((t) => same(t.teacher, n))), ...names.filter((n) => teams.some((t) => same(t.teacher, n)))]; // idle leaders first; a leader may also take a second level
-  const plan = auto ? planTeams({ loose: loose.map((r) => ({ id: r.student.id, name: r.student.name, level: r.student.level })), teams, counts, free: freeLeaders, max: auto.max }) : null;
+  // automatic: every leader gets one team (a colour); children are placed by level, evenly
+  const plan = auto ? (() => {
+    const leadersAll = names;
+    const target = leadersAll.length ? Math.ceil(rows.length / leadersAll.length) : 0;
+    const room = Object.fromEntries(leadersAll.map((n) => [n, Math.max(0, target - countOf(n))]));
+    const add = Object.fromEntries(leadersAll.map((n) => [n, []]));
+    const sorted = loose.slice().sort((x, y) => String(x.student.level).localeCompare(String(y.student.level)) || byName(x, y));
+    let at = 0;
+    sorted.forEach((r) => {
+      while (at < leadersAll.length - 1 && room[leadersAll[at]] <= 0) at++;
+      const pick = room[leadersAll[at]] > 0 ? leadersAll[at] : leadersAll.slice().sort((p, q) => countOf(p) + add[p].length - countOf(q) - add[q].length)[0];
+      add[pick].push(r); room[pick]--;
+    });
+    return { add, empty: leadersAll.length === 0 };
+  })() : null;
   const applyPlan = () => {
-    const stamp = Date.now().toString(36);
-    const created = plan.teams.map((t, i) => ({ id: `t-${stamp}${i}`, level: t.level, teacher: t.teacher, ...(hasSlots ? { sessionId: slotId } : {}) }));
+    const created = [];
+    names.forEach((n) => {
+      if (!plan.add[n].length || teams.some((t) => same(t.teacher, n))) return;
+      created.push({ id: `t-${Date.now().toString(36)}${created.length}`, level: plan.add[n][0].student.level, teacher: n, color: freeColor(created.map((t) => t.color)), ...(hasSlots ? { sessionId: slotId } : {}) });
+    });
     if (created.length) onSaveTeams([...allTeams, ...created]);
-    plan.fills.forEach((f) => f.kids.forEach((k) => onAssign(k.id, f.teamId)));
-    plan.teams.forEach((t, i) => t.kids.forEach((k) => onAssign(k.id, created[i].id)));
+    names.forEach((n) => {
+      const t = [...teams, ...created].find((x) => same(x.teacher, n));
+      if (t) plan.add[n].forEach((r) => onAssign(r.student.id, t.id));
+    });
     setAuto(null);
   };
   const chip = (on) => ({ background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` });
@@ -9559,9 +9583,9 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           )}
           {onRemove && <button onClick={() => setConfirmId(confirmId === r.student.id ? null : r.student.id)} aria-label={tr("체험에서 빼기")} data-testid="remove-student" className="focus-ring tap shrink-0 w-9 h-10 f-body text-[18px]" style={{ color: "#B7AC93" }}>✕</button>}
         </div>
-        {teamOfRow(r) && teamOfRow(r).level !== r.student.level && (
+        {teamOfRow(r) && onMaterial && materialLevels(program).length > 0 && rows.some((x) => x.adv.teamId === r.adv.teamId && x.student.level !== r.student.level) && (
           <div className="flex items-center gap-2 mt-1 pl-8 flex-wrap" data-testid="level-mix">
-            <span className="f-body text-[13px] font-bold" style={{ color: "#B25A0B" }}>⚠ {tr("레벨이 달라요 · 팀 {0}", [teamOfRow(r).level])}</span>
+            <span className="f-body text-[13px] font-bold" style={{ color: "#B25A0B" }}>{tr("섞인 레벨 팀")}</span>
             {onMaterial && materialLevels(program).length > 0 && (
               <button onClick={() => setMatId(matId === r.student.id ? null : r.student.id)} aria-expanded={matId === r.student.id} className="focus-ring tap f-body text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B", minHeight: 36 }}>{tr("예습 자료")} {levelFor(program, r.student, r.adv)} ▾</button>
             )}
@@ -9595,9 +9619,6 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
               <button key={n} onClick={() => assign(r, n)} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(same(lead, n)), minHeight: 40 }}>
                 {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}{countOf(n) >= 6 ? " ⚠" : ""}</span>
               </button>
-            ))}
-            {teams.filter((t) => t.level !== r.student.level).map((t) => (
-              <button key={t.id} onClick={() => assignTeam(r, t)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5" style={{ ...chip(r.adv.teamId === t.id), minHeight: 40 }}><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: teamColor(program, t) }} />{t.teacher} · {t.level}</button>
             ))}
             {lead && <button onClick={() => assign(r, "")} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ color: "#B03A2E", minHeight: 40 }}>{tr("배정 해제")}</button>}
             {hasSlots && onSetSlot && slots.filter((x) => x.id !== slotId).map((x) => (
@@ -9646,7 +9667,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
             </div>
           ) : <span />}
           <div className="flex items-center gap-1.5 relative">
-            {loose.length > 0 && slotId !== "none" && !auto && <button onClick={() => setAuto({ max: 6 })} data-testid="auto-assign" className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-1.5 text-white" style={{ background: C.green, minHeight: 40 }}>{tr("자동 배정")}</button>}
+            {loose.length > 0 && slotId !== "none" && !auto && <button onClick={() => setAuto({})} data-testid="auto-assign" className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-1.5 text-white" style={{ background: C.green, minHeight: 40 }}>{tr("자동 배정")}</button>}
             <button onClick={() => setMenu((v) => !v)} aria-label={tr("더보기")} aria-expanded={menu} data-testid="match-menu" className="focus-ring tap w-10 h-10 rounded-full f-body text-[20px] font-bold" style={{ background: C.beige, color: C.green }}>⋯</button>
           </div>
         </div>
@@ -9659,25 +9680,16 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
         )}
         {auto && plan && (
           <div className="mt-3 rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }} data-testid="auto-teams">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("리더당 최대 {0}명", [auto.max])}</p>
-              <div className="flex gap-1.5">
-                <button onClick={() => setAuto((a) => ({ ...a, max: Math.max(2, a.max - 1) }))} aria-label={tr("한 명 줄이기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>−</button>
-                <button onClick={() => setAuto((a) => ({ ...a, max: Math.min(12, a.max + 1) }))} aria-label={tr("한 명 늘리기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>+</button>
-              </div>
-            </div>
-            {names.length === 0 ? (
+            {plan.empty ? (
               <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정하면 자동으로 나눌 수 있어요.")}</p>
             ) : (
               <div className="space-y-1.5">
-                {plan.fills.map((f) => <p key={f.teamId} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{f.teacher} · {f.level}</b> + {f.kids.map((k) => k.name).join(", ")}</p>)}
-                {plan.teams.map((t, i) => <p key={`${t.level}-${t.teacher}-${i}`} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{t.teacher} · {t.level}</b> + {t.kids.map((k) => k.name).join(", ")}</p>)}
-                {plan.leftover.length > 0 && <p className="f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("리더가 모자라 {0}명은 남아요: {1}", [plan.leftover.length, plan.leftover.map((k) => k.name).join(", ")])}</p>}
+                {names.filter((n) => plan.add[n].length).map((n) => <p key={n} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{n}</b> + {plan.add[n].map((r) => r.student.name).join(", ")}</p>)}
               </div>
             )}
             <div className="flex gap-2 mt-3">
               <button onClick={() => setAuto(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
-              <button onClick={applyPlan} disabled={plan.fills.length + plan.teams.length === 0} data-testid="auto-apply" className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("이대로 배정")}</button>
+              <button onClick={applyPlan} disabled={plan.empty} data-testid="auto-apply" className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("이대로 배정")}</button>
             </div>
           </div>
         )}
@@ -9697,7 +9709,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
                 const mine = rows.filter((r) => same(leaderOf(r), n)).sort(byName);
                 return (
                   <div key={n} className="mb-2" data-testid="leader-group">
-                    <p className="f-body text-[16px] font-bold pt-2 flex items-center gap-1.5 flex-wrap" style={{ color: C.green }}>{teams.filter((t) => same(t.teacher, n)).map((t) => <span key={t.id} className="inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full text-white" style={{ background: teamColor(program, t) }}>{t.level}</span>)}{n} <span className="font-normal text-gray-500">· {tr("{0}명", [mine.length])}{mine.length > 6 ? ` ⚠ ${tr("6명이 넘어요")}` : ""}</span></p>
+                    <p className="f-body text-[16px] font-bold pt-2 flex items-center gap-1.5 flex-wrap" style={{ color: C.green }}>{teams.filter((t) => same(t.teacher, n)).map((t) => <span key={t.id} className="inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full text-white" style={{ background: teamColor(program, t) }}>{teamTag(t) || t.level}</span>)}{n} <span className="font-normal text-gray-500">· {tr("{0}명", [mine.length])}{mine.length > 6 ? ` ⚠ ${tr("6명이 넘어요")}` : ""}</span></p>
                     {mine.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 배정된 아이가 없어요.")}</p>}
                     {mine.map((r) => renderRow(r, false))}
                   </div>
@@ -9766,7 +9778,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
     if (!teacher) return;
     const id = form.id || `t-${Date.now().toString(36)}`;
     const before = form.id ? members(teams.find((t) => t.id === form.id)).map((st) => st.id) : [];
-    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher, color: form.color || t.color || "" } : t)) : [...teams, { id, level: form.level, teacher, ...(form.color ? { color: form.color } : {}), ...(session ? { sessionId: session.id } : {}) }]);
+    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher, color: form.color || t.color || "" } : t)) : [...teams, { id, level: form.level, teacher, color: form.color || randomTeamColor(allTeams.map((t) => t.color)), ...(session ? { sessionId: session.id } : {}) }]);
     form.picked.forEach((sid) => { if (teamIdOf(sid) !== id) onAssign(sid, id); }); // includes children moved over from another team
     before.filter((sid) => !form.picked.includes(sid)).forEach((sid) => onAssign(sid, ""));
     setForm(null);
@@ -9896,7 +9908,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
             <div className="flex gap-2" data-testid="team-colors">
               {TEAM_COLORS.map((c) => {
                 const cur = form.color || (form.id ? teamColor(program, teams.find((t) => t.id === form.id)) : "");
-                return <button key={c} onClick={() => setForm({ ...form, color: c })} aria-label={c} aria-pressed={cur === c} className="focus-ring tap w-9 h-9 rounded-full" style={{ background: c, border: cur === c ? `3px solid ${C.charcoal}` : "3px solid white", boxShadow: `0 0 0 1px ${C.beige}` }} />;
+                return <button key={c} title={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} onClick={() => setForm({ ...form, color: c })} aria-label={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} aria-pressed={cur === c} className="focus-ring tap w-9 h-9 rounded-full" style={{ background: c, border: cur === c ? `3px solid ${C.charcoal}` : "3px solid white", boxShadow: `0 0 0 1px ${C.beige}` }} />;
               })}
             </div>
             {teacherSuggestions.length > 0 && (

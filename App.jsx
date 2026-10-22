@@ -970,6 +970,9 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"체험에서 빼기": "Remove from this trip",
+"{0}을(를) 이 체험에서 뺄까요?": "Remove {0} from this trip?",
+"빼기": "Remove",
 "학생 추가 닫기": "Close",
 "모두 {0}에 추가": "Add all to {0}",
 "모두 추가": "Add all",
@@ -8839,7 +8842,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z50"; // change with every delivery
+const APP_BUILD = "2026-10-22-z51"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9463,7 +9466,8 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 }
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
-function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamAdmin, addStudent }) {
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, onRemove, teamAdmin, addStudent }) {
+  const [confirmId, setConfirmId] = useState(null);
   const [view, setView] = useState("student"); // student | leader
   const [openId, setOpenId] = useState(null);
   const [menu, setMenu] = useState(false);
@@ -9527,7 +9531,15 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           ) : (
             <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} data-testid="pick-leader" className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.orange, minHeight: 40 }}>{tr("리더 선택")} ▾</button>
           )}
+          {onRemove && <button onClick={() => setConfirmId(confirmId === r.student.id ? null : r.student.id)} aria-label={tr("체험에서 빼기")} data-testid="remove-student" className="focus-ring tap shrink-0 w-9 h-10 f-body text-[18px]" style={{ color: "#B7AC93" }}>✕</button>}
         </div>
+        {confirmId === r.student.id && (
+          <div className="flex items-center gap-2 mt-2 pl-8 flex-wrap" data-testid="remove-confirm">
+            <span className="f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("{0}을(를) 이 체험에서 뺄까요?", [r.student.name])}</span>
+            <button onClick={() => { setConfirmId(null); onRemove(r.student.id); }} data-testid="remove-yes" className="focus-ring tap f-body text-[14px] font-bold px-3.5 py-1.5 rounded-full text-white" style={{ background: "#B03A2E", minHeight: 40 }}>{tr("빼기")}</button>
+            <button onClick={() => setConfirmId(null)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: C.charcoal, minHeight: 40 }}>{tr("취소")}</button>
+          </div>
+        )}
         {open && (
           <div className="flex flex-wrap gap-1.5 mt-2 pl-8" data-testid="leader-choices">
             {names.length === 0 && <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정해 주세요.")}</p>}
@@ -10792,6 +10804,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
                 onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 recruitClosed={!!program.teacherClosed}
+                onRemove={onCancelEnrollment ? (studentId) => onCancelEnrollment(studentId, programId) : undefined}
                 onRecruit={onSetProgramRecruit ? (open) => onSetProgramRecruit(programId, open) : undefined}
                 teamAdmin={slots.length && matchSlot === "none" ? <p className="px-5 f-body text-[14px] text-gray-500">{tr("시간대를 먼저 정해 주세요.")}</p> : (
                   <TeamPanel

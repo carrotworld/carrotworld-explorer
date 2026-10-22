@@ -970,6 +970,9 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"진행": "Running",
+"팀이 확정된 체험이 여기에 나와요.": "Trips with confirmed teams show here.",
+"출석 {0}/{1}": "Present {0}/{1}",
 "내 담당 팀": "My teams",
 "다른 리더 팀 {0}": "Other leaders' teams {0}",
 "수업 자료 보기": "Lesson materials",
@@ -1761,13 +1764,36 @@ function computeBadges(adventures, studentId) {
   return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) })).filter((b) => !b.retired); // only the stamp badges are shown, for every child alike
 }
 
+// Word sounds on every phone: the browser's voice list fills in late (Samsung / Chrome), so it is read again when it changes and an English voice
+// is chosen by hand; iPhone needs the call to stay inside the tap, Android needs a short pause after cancel, and the utterance must be kept alive.
+let SPEECH_VOICES = [];
+const loadSpeechVoices = () => { try { SPEECH_VOICES = window.speechSynthesis.getVoices() || []; } catch (e) { /* no speech */ } };
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  loadSpeechVoices();
+  try { window.speechSynthesis.addEventListener("voiceschanged", loadSpeechVoices); } catch (e) { window.speechSynthesis.onvoiceschanged = loadSpeechVoices; }
+}
+const pickEnglishVoice = () => {
+  const en = SPEECH_VOICES.filter((v) => /^en[-_]/i.test(v.lang));
+  const us = en.filter((v) => /^en[-_]US$/i.test(v.lang));
+  return us.find((v) => /samantha|ava|allison|google us|enhanced|premium/i.test(v.name)) || us[0] || en[0] || null;
+};
 function speak(word) {
   try {
+    const ss = window.speechSynthesis;
+    if (!ss || !word) return;
+    if (!SPEECH_VOICES.length) loadSpeechVoices();
     const u = new SpeechSynthesisUtterance(word);
-    u.lang = "en-US";
+    const v = pickEnglishVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-US";
     u.rate = 0.85;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    u.volume = 1;
+    window.__lastUtterance = u; // Chrome can drop an utterance nobody holds on to
+    const busy = ss.speaking || ss.pending;
+    if (busy) ss.cancel();
+    if (ss.paused) ss.resume();
+    const go = () => { try { ss.speak(u); } catch (e) { /* ignore */ } };
+    if (busy && /Android/i.test(navigator.userAgent)) setTimeout(go, 80); // Android: a speak() right after cancel() is swallowed
+    else go(); // iPhone: must run inside the tap
   } catch (e) {
     /* speech synthesis unavailable — fail silently, it's a nice-to-have */
   }
@@ -3020,9 +3046,9 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
           </div>
         </div>
         <ExpressionList items={program.expressions} />
-        <GhostButton icon={RotateCcw} onClick={() => setIsReplay(true)}>
-          Practice Again
-        </GhostButton>
+        <button onClick={() => setIsReplay(true)} data-testid="practice-again" className="focus-ring tap w-full flex items-center justify-center gap-2.5 rounded-2xl f-display text-[20px] font-semibold" style={{ minHeight: 64, background: "white", color: C.green, border: `2px solid ${C.green}` }}>
+          <RotateCcw size={22} />Practice Again
+        </button>
       </div>
     );
   }
@@ -8932,7 +8958,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z65"; // change with every delivery
+const APP_BUILD = "2026-10-22-z68"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9491,13 +9517,13 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
 /** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
  *  the other leaders' teams folded, the lesson-material button once at the bottom. */
 const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
-function MyTeamsCard({ program, slot, adventures, students, name, status, onOpenMaterials }) {
+function MyTeamsCard({ program, slot, adventures, students, name, status, onOpenMaterials, onMark }) {
   const [showOthers, setShowOthers] = useState(false);
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
   const slotId = slot ? slot.id : "";
   const time = infoForSession(infoFrom(program), slot || null).time;
   const inSlot = (t) => !slotId || !t.sessionId || t.sessionId === slotId;
-  const kidsOf = (t) => adventures.filter((a) => a.programId === program.id && !a.canceled && a.teamId === t.id && (!slotId || !a.sessionId || a.sessionId === slotId)).map((a) => students.find((st) => st.id === a.studentId)).filter((st) => st && !isPendingStudent(st)).sort((x, y) => byKoName(x.name, y.name));
+  const kidsOf = (t) => adventures.filter((a) => a.programId === program.id && !a.canceled && a.teamId === t.id && (!slotId || !a.sessionId || a.sessionId === slotId)).map((a) => { const st = students.find((x) => x.id === a.studentId); return st ? { ...st, adv: a } : null; }).filter((st) => st && !isPendingStudent(st)).sort((x, y) => byKoName(x.name, y.name));
   const teams = teamsOf(program).filter(inSlot);
   // one leader = one team (one colour) in a time slot: older data may hold several, they read as one
   const group = (list) => { const m = new Map(); list.forEach((t) => { const k = String(t.teacher || "").trim().toLowerCase(); const g = m.get(k) || { ...t, kids: [] }; kidsOf(t).forEach((x) => { if (!g.kids.some((y) => y.id === x.id)) g.kids.push(x); }); m.set(k, g); }); return [...m.values()].map((g) => ({ ...g, kids: g.kids.sort((x, y) => byKoName(x.name, y.name)) })); };
@@ -9506,6 +9532,9 @@ function MyTeamsCard({ program, slot, adventures, students, name, status, onOpen
   const levels = [...new Set((mine.length ? mine.flatMap((t) => t.kids.map((k) => k.level)) : programLevels(program)).filter(Boolean))].sort(sortLevelsCmp);
   const dot = (t) => <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color || "#C9BFA8" }} />;
   const kidLine = (t) => t.kids.map((k) => `${k.name} ${k.level}`).join(" · ");
+  const canMark = !!onMark && (isLive(program) || tripDayPassed(program) || mine.some((t) => t.kids.some((k) => k.adv.attended)));
+  const markedN = mine.reduce((n, t) => n + t.kids.filter((k) => k.adv.attended).length, 0);
+  const kidsN = mine.reduce((n, t) => n + t.kids.length, 0);
   return (
     <div className="bg-white rounded-2xl p-4" data-testid="my-teams">
       <div className="flex items-start justify-between gap-2">
@@ -9514,7 +9543,7 @@ function MyTeamsCard({ program, slot, adventures, students, name, status, onOpen
       </div>
       <p className="f-body text-[14px] text-gray-500" data-testid="my-teams-when">{[program.date, slot && slot.label, time].filter(Boolean).join(" · ")}</p>
       {program.teamsDone && <p className="f-body text-[13px] font-bold mt-2" style={{ color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
-      <p className="f-body text-[12px] font-bold tracking-[0.08em] uppercase mt-3 mb-1.5" style={{ color: C.orange }}>{tr("내 담당 팀")}</p>
+      <div className="flex items-center justify-between mt-3 mb-1.5"><p className="f-body text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: C.orange }}>{tr("내 담당 팀")}</p>{canMark && kidsN > 0 && <p className="f-body text-[13px] font-bold" style={{ color: markedN === kidsN ? "#1F7A44" : "#8A8060" }} data-testid="mark-count">{tr("출석 {0}/{1}", [markedN, kidsN])}</p>}</div>
       {mine.length === 0 ? (
         <p className="f-body text-[14px] rounded-xl px-3 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("아직 팀이 정해지지 않았어요. 본사가 정하면 여기에 나와요.")}</p>
       ) : (
@@ -9522,7 +9551,28 @@ function MyTeamsCard({ program, slot, adventures, students, name, status, onOpen
           {mine.map((t) => (
             <div key={t.id} className="rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
               <p className="f-body text-[16px] font-bold flex items-center gap-2" style={{ color: C.charcoal }}>{dot(t)}{teamTag(t)} {tr("팀")}</p>
-              <p className="f-body text-[15px] mt-0.5" style={{ color: C.charcoal }}>{kidLine(t) || <span className="text-gray-400">{tr("아직 배정된 아이가 없어요.")}</span>}</p>
+              {t.kids.length === 0 && <p className="f-body text-[14px] text-gray-400 mt-0.5">{tr("아직 배정된 아이가 없어요.")}</p>}
+              <div className="mt-1" data-testid="team-list">
+                {t.kids.map((k) => {
+                  const st = k.adv.attended ? "in" : k.adv.absent ? "out" : "";
+                  return (
+                    <div key={k.id} className="flex items-center gap-2 py-1.5" style={{ borderTop: `1px solid ${C.beige}` }} data-testid="team-kid">
+                      <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{k.name}</span>
+                      <span className="f-body text-[14px] shrink-0" style={{ color: "#8A8060" }}>{k.level}</span>
+                      {canMark && (
+                        <button
+                          onClick={() => onMark(k.id, st === "" ? "in" : st === "in" ? "out" : "")}
+                          aria-label={`${k.name} ${tr("출석")}`}
+                          data-testid="mark"
+                          data-state={st || "none"}
+                          className="focus-ring tap shrink-0 w-11 h-11 rounded-full f-body text-[20px] font-bold flex items-center justify-center"
+                          style={{ background: st === "in" ? C.green : st === "out" ? "#F6DAD5" : "white", color: st === "in" ? "white" : "#B03A2E", border: `2px solid ${st === "in" ? C.green : st === "out" ? "#E4B3AB" : C.beige}` }}
+                        >{st === "in" ? "✓" : st === "out" ? "✕" : ""}</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
@@ -12005,10 +12055,20 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const payReady = payItems.filter((i) => !i.paid && !i.needsAmount).reduce((n, i) => n + i.amount, 0);
   const TABS = [
     { key: "programs", label: toSignUp ? tr("예정 {0}", [toSignUp]) : tr("예정") },
+    ...(teacherId ? [{ key: "running", label: tr("진행") }] : []),
     { key: "materials", label: tr("수업자료") },
     { key: "feedback", label: allFeedbackLeft ? tr("피드백 {0}", [allFeedbackLeft]) : tr("피드백") },
     ...(teacherId ? [{ key: "pay", label: tr("수당") }] : []),
   ];
+  // trips whose teams HQ has finished go to their own tab ("진행"); the others stay under "예정"
+  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && !!p.teamsDone === done && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
+            const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
+            const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
+            return slotIds.map((sid) => {
+              const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
+              return <MyTeamsCard key={`${p.id}-${sid}`} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />;
+            });
+          });
   const chipFor = (j) =>
     j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("정원이 차서 대기 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
@@ -12040,14 +12100,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               <button onClick={() => { setProgramId(nextP.id); setTab("materials"); }} className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }}>{tr("수업자료 열기")}</button>
             </div>
           )}
-          {teacherId && PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
-            const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
-            const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
-            return slotIds.map((sid) => {
-              const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
-              return <MyTeamsCard key={`${p.id}-${sid}`} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />;
-            });
-          })}
+          {teacherId && teamCards(false)}
           {teacherId && (feedbackTotal > 0 || payReady > 0) && (
             <div className="grid grid-cols-2 gap-2.5" data-testid="home-todo">
               <button onClick={() => setTab("feedback")} className="focus-ring tap text-left bg-white rounded-2xl px-4 py-3">
@@ -12105,8 +12158,14 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
         </div>
       )}
 
-      {tab !== "programs" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>}
-      {tab !== "programs" && program && (
+      {tab === "running" && (
+        <div className="px-5 pb-8 space-y-3" data-testid="running-tab">
+          {teamCards(true).length === 0 ? <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("팀이 확정된 체험이 여기에 나와요.")}</p></div> : teamCards(true)}
+        </div>
+      )}
+
+      {tab !== "programs" && tab !== "running" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>}
+      {tab !== "programs" && tab !== "running" && program && (
         <>
           {tab !== "pay" && (
             <div className="px-5 mb-3">

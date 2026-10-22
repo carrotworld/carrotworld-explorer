@@ -970,6 +970,13 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"팀 색": "Team color",
+"레벨이 달라요 · 팀 {0}": "Different level · team {0}",
+"예습 자료": "Prep material",
+"레벨별 예습 자료 체크": "Prep material check by level",
+"자료 있음": "Ready",
+"자료 비어 있음": "Empty",
+"이 자료를 쓰는 아이 없음": "No children use this",
 "팀": "Team",
 "팀 배정 예정": "Team to be assigned",
 "체험에서 빼기": "Remove from this trip",
@@ -3389,7 +3396,7 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
           </div>
           {!mine && (
             <p className="f-body text-[15px] mt-2" style={{ color: "#9A4F0B" }}>
-              Just looking! This is the {viewing} set. Your level is {myLevel}.{" "}
+              Extra practice! This is the {viewing} set. Your level is {myLevel}.{" "}
               <button onClick={() => setViewLevel(myLevel)} className="focus-ring tap font-bold underline">Back to {myLevel}</button>
             </p>
           )}
@@ -3415,11 +3422,12 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
 
       {section === "before" && (
         <BeforeAdventure
-          program={program}
-          readOnly={!mine}
+          key={viewing || "one"}
+          program={mine ? program : { ...program, vocabulary: (program.vocabulary || []).map((v) => ({ ...v, id: `${viewing}:${v.id}` })) }}
           adv={adv}
           onSaveInsights={(insights) => update({ insights })}
           onComplete={(patch) => {
+            if (!mine) { update({ insights: patch && patch.insights }); return; } // another level's set: practice counts are kept, the child's own prep stays as it was
             const updated = update({ beforeCompleted: true, ...patch });
             setCelebration({ title: "You're ready for your adventure!", subtitle: "You practiced your new words!", badge: newlyEarned(updated)[0] || null });
           }}
@@ -8851,7 +8859,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z53"; // change with every delivery
+const APP_BUILD = "2026-10-22-z55"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9474,8 +9482,14 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
   );
 }
 
+const TEAM_COLORS = ["#2F8F5B", "#E9822B", "#3B7DD8", "#B05BC4", "#D9534F", "#C9A227"];
+/** A team's colour: the one HQ chose, else a steady one from its place among the program's teams. */
+const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
+
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
-function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, onRemove, onLevel, teamAdmin, addStudent }) {
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
+  const [matId, setMatId] = useState(null);
+  const [prepOpen, setPrepOpen] = useState(false);
   const [levelId, setLevelId] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [view, setView] = useState("student"); // student | leader
@@ -9498,6 +9512,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
   const loose = rows.filter((r) => !teamOfRow(r));
   const done = rows.length - loose.length;
   const byName = (x, y) => byKoName(x.student.name, y.student.name);
+  const assignTeam = (r, t) => { setOpenId(null); if (r.adv.teamId !== t.id) onAssign(r.student.id, t.id); };
   const assign = (r, leader) => {
     setOpenId(null);
     if (!leader) { onAssign(r.student.id, ""); return; }
@@ -9530,7 +9545,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           <span className="text-[22px] shrink-0">{r.student.avatar}</span>
           <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{r.student.name}</span>
           {onLevel ? <button onClick={() => { setLevelId(levelId === r.student.id ? null : r.student.id); setOpenId(null); setConfirmId(null); }} aria-expanded={levelId === r.student.id} data-testid="level-btn" className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-2.5 py-1 rounded-full" style={{ background: C.cream, color: "#8A8060", minHeight: 36 }}>{r.student.level} ▾</button> : <span className="f-body text-[14px] text-gray-500 shrink-0">{r.student.level}</span>}
-          {showLeader && lead && <span className="f-body text-[15px] font-bold truncate max-w-[34%]" style={{ color: C.green }}>{lead}</span>}
+          {showLeader && lead && <span className="f-body text-[15px] font-bold truncate max-w-[34%] flex items-center gap-1.5" style={{ color: C.green }}><span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: teamColor(program, teamOfRow(r)) }} />{lead}</span>}
           {slotId === "none" ? (
             <span className="flex gap-1.5 shrink-0">
               {slots.map((x) => (
@@ -9544,6 +9559,21 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           )}
           {onRemove && <button onClick={() => setConfirmId(confirmId === r.student.id ? null : r.student.id)} aria-label={tr("체험에서 빼기")} data-testid="remove-student" className="focus-ring tap shrink-0 w-9 h-10 f-body text-[18px]" style={{ color: "#B7AC93" }}>✕</button>}
         </div>
+        {teamOfRow(r) && teamOfRow(r).level !== r.student.level && (
+          <div className="flex items-center gap-2 mt-1 pl-8 flex-wrap" data-testid="level-mix">
+            <span className="f-body text-[13px] font-bold" style={{ color: "#B25A0B" }}>⚠ {tr("레벨이 달라요 · 팀 {0}", [teamOfRow(r).level])}</span>
+            {onMaterial && materialLevels(program).length > 0 && (
+              <button onClick={() => setMatId(matId === r.student.id ? null : r.student.id)} aria-expanded={matId === r.student.id} className="focus-ring tap f-body text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B", minHeight: 36 }}>{tr("예습 자료")} {levelFor(program, r.student, r.adv)} ▾</button>
+            )}
+          </div>
+        )}
+        {matId === r.student.id && (
+          <div className="flex flex-wrap gap-1.5 mt-2 pl-8" data-testid="material-choices">
+            {materialLevels(program).map((l) => (
+              <button key={l} onClick={() => { setMatId(null); onMaterial(r, l); }} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(levelFor(program, r.student, r.adv) === l), minHeight: 40 }}>{l}</button>
+            ))}
+          </div>
+        )}
         {levelId === r.student.id && (
           <div className="flex flex-wrap gap-1.5 mt-2 pl-8" data-testid="level-choices">
             {LEVEL_CHOICES.map((l) => (
@@ -9565,6 +9595,9 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
               <button key={n} onClick={() => assign(r, n)} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(same(lead, n)), minHeight: 40 }}>
                 {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}{countOf(n) >= 6 ? " ⚠" : ""}</span>
               </button>
+            ))}
+            {teams.filter((t) => t.level !== r.student.level).map((t) => (
+              <button key={t.id} onClick={() => assignTeam(r, t)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5" style={{ ...chip(r.adv.teamId === t.id), minHeight: 40 }}><span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: teamColor(program, t) }} />{t.teacher} · {t.level}</button>
             ))}
             {lead && <button onClick={() => assign(r, "")} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ color: "#B03A2E", minHeight: 40 }}>{tr("배정 해제")}</button>}
             {hasSlots && onSetSlot && slots.filter((x) => x.id !== slotId).map((x) => (
@@ -9664,7 +9697,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
                 const mine = rows.filter((r) => same(leaderOf(r), n)).sort(byName);
                 return (
                   <div key={n} className="mb-2" data-testid="leader-group">
-                    <p className="f-body text-[16px] font-bold pt-2" style={{ color: C.green }}>{n} <span className="font-normal text-gray-500">· {tr("{0}명", [mine.length])}{mine.length > 6 ? ` ⚠ ${tr("6명이 넘어요")}` : ""}</span></p>
+                    <p className="f-body text-[16px] font-bold pt-2 flex items-center gap-1.5 flex-wrap" style={{ color: C.green }}>{teams.filter((t) => same(t.teacher, n)).map((t) => <span key={t.id} className="inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full text-white" style={{ background: teamColor(program, t) }}>{t.level}</span>)}{n} <span className="font-normal text-gray-500">· {tr("{0}명", [mine.length])}{mine.length > 6 ? ` ⚠ ${tr("6명이 넘어요")}` : ""}</span></p>
                     {mine.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 배정된 아이가 없어요.")}</p>}
                     {mine.map((r) => renderRow(r, false))}
                   </div>
@@ -9674,6 +9707,30 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           )}
         </div>
       </div>
+      {materialLevels(program).length > 0 && (
+        <div className="bg-white rounded-2xl mt-3 p-4" data-testid="prep-check">
+          <button onClick={() => setPrepOpen((v) => !v)} aria-expanded={prepOpen} className="focus-ring tap w-full flex items-center justify-between">
+            <span className="f-display text-[16px] font-bold" style={{ color: C.green }}>{tr("레벨별 예습 자료 체크")}</span>
+            <span className="f-body text-[14px] font-bold" style={{ color: C.orange }}>{prepOpen ? "▴" : "▾"}</span>
+          </button>
+          {prepOpen && (
+            <div className="mt-2">
+              {materialLevels(program).map((l) => {
+                const m = program.levelMaterials[l] || {};
+                const ready = (m.vocabulary || []).length > 0 || (m.missions || []).length > 0;
+                const kids = roster.filter((r) => levelFor(program, r.student, r.adv) === l);
+                return (
+                  <div key={l} className="flex items-start gap-2 py-2" style={{ borderTop: `1px solid ${C.cream}` }} data-testid="prep-level">
+                    <span className="f-body text-[15px] font-bold w-10 shrink-0" style={{ color: C.charcoal }}>{l}</span>
+                    <span className="f-body text-[13px] font-bold shrink-0 rounded-full px-2 py-0.5" style={{ background: ready ? "#EAF7EF" : "#FFE9D2", color: ready ? "#1F7A44" : "#B25A0B" }}>{ready ? `✓ ${tr("자료 있음")}` : `⚠ ${tr("자료 비어 있음")}`}</span>
+                    <span className="f-body text-[13px] text-gray-500 min-w-0">{kids.length ? tr("{0}명 · {1}", [kids.length, kids.map((r) => r.student.name).join(", ")]) : tr("이 자료를 쓰는 아이 없음")}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       {panel === "teams" && <div className="-mx-5 mt-3">{teamAdmin}</div>}
     </div>
   );
@@ -9698,9 +9755,9 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
 
   const startAdd = () => {
     const level = loose[0]?.level || LEVEL_CHOICES[1];
-    setForm({ id: null, level, teacher: "", picked: preselect(level), touched: false });
+    setForm({ id: null, level, teacher: "", color: "", picked: preselect(level), touched: false });
   };
-  const startEdit = (t) => setForm({ id: t.id, level: t.level, teacher: t.teacher, picked: members(t).map((st) => st.id), touched: true });
+  const startEdit = (t) => setForm({ id: t.id, level: t.level, teacher: t.teacher, color: t.color || "", picked: members(t).map((st) => st.id), touched: true });
   const pickLevel = (l) => setForm((f) => ({ ...f, level: l, picked: !f.touched && !f.id ? preselect(l) : f.picked }));
   const toggle = (sid) => setForm((f) => ({ ...f, touched: true, picked: f.picked.includes(sid) ? f.picked.filter((x) => x !== sid) : [...f.picked, sid] }));
 
@@ -9709,7 +9766,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
     if (!teacher) return;
     const id = form.id || `t-${Date.now().toString(36)}`;
     const before = form.id ? members(teams.find((t) => t.id === form.id)).map((st) => st.id) : [];
-    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher } : t)) : [...teams, { id, level: form.level, teacher, ...(session ? { sessionId: session.id } : {}) }]);
+    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher, color: form.color || t.color || "" } : t)) : [...teams, { id, level: form.level, teacher, ...(form.color ? { color: form.color } : {}), ...(session ? { sessionId: session.id } : {}) }]);
     form.picked.forEach((sid) => { if (teamIdOf(sid) !== id) onAssign(sid, id); }); // includes children moved over from another team
     before.filter((sid) => !form.picked.includes(sid)).forEach((sid) => onAssign(sid, ""));
     setForm(null);
@@ -9835,8 +9892,15 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
             </div>
             <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("선생님 이름")}</p>
             <input value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} placeholder={tr("예: Anna")} aria-label={tr("선생님 이름")} className={field} style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+            <p className="f-body text-[14px] font-bold mt-3 mb-1.5" style={{ color: C.charcoal }}>{tr("팀 색")}</p>
+            <div className="flex gap-2" data-testid="team-colors">
+              {TEAM_COLORS.map((c) => {
+                const cur = form.color || (form.id ? teamColor(program, teams.find((t) => t.id === form.id)) : "");
+                return <button key={c} onClick={() => setForm({ ...form, color: c })} aria-label={c} aria-pressed={cur === c} className="focus-ring tap w-9 h-9 rounded-full" style={{ background: c, border: cur === c ? `3px solid ${C.charcoal}` : "3px solid white", boxShadow: `0 0 0 1px ${C.beige}` }} />;
+              })}
+            </div>
             {teacherSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-2 mt-2">
                 {teacherSuggestions.map((n) => (
                   <button key={n} onClick={() => setForm({ ...form, teacher: n })} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: "white", color: C.green, border: `1px solid ${C.beige}` }}>{n}</button>
                 ))}
@@ -10823,6 +10887,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 recruitClosed={!!program.teacherClosed}
                 onLevel={onEditStudent ? (r, level) => { onEditStudent(r.student.id, { level }); const t = teamOf(program, r.adv); if (t && t.level !== level) updateAdventure(r.student.id, programId, { teamId: "" }); } : undefined}
+                onMaterial={onEditStudent ? (r, level) => { updateAdventure(r.student.id, programId, { materialLevel: level, missionsCompleted: programForLevel(program, level).missions.map((m) => ({ missionId: m.id, done: false, photo: null })) }); } : undefined}
                 onRemove={onCancelEnrollment ? (studentId) => onCancelEnrollment(studentId, programId) : undefined}
                 onRecruit={onSetProgramRecruit ? (open) => onSetProgramRecruit(programId, open) : undefined}
                 teamAdmin={slots.length && matchSlot === "none" ? <p className="px-5 f-body text-[14px] text-gray-500">{tr("시간대를 먼저 정해 주세요.")}</p> : (

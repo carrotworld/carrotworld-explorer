@@ -106,6 +106,10 @@ const EN = {
 "생년월일": "Birth date",
 "생년월일 없음": "No birth date",
 "이 학생 삭제": "Delete this student",
+"다가오는 프로그램": "Upcoming programs",
+"신청 {0}명": "{0} applied",
+"전체 프로그램 보기": "All programs",
+"예정된 프로그램이 없어요.": "No upcoming programs.",
 "선생님 체험 신청 {0}건": "{0} teacher sign-up(s)",
 "학생 고르기": "Choose a student",
 "학생을 골라 주세요": "Choose a student",
@@ -134,7 +138,6 @@ const EN = {
 "부모 노출": "Visible to parents",
 "부모 비노출": "Hidden from parents",
 "오늘 진행 중": "Live today",
-"지난 체험": "Past trip",
 "모든 아이가 신청함": "All children applied",
 "아이 {0}명에게 보여요": "Shown to {0} children",
 "{0} 등록했어요. 부모님 앱의 '예정 체험'에 바로 올라가요.": "{0} is registered. It now shows under 'Upcoming trips' in the parent app.",
@@ -8796,7 +8799,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-13-z45"; // change with every delivery
+const APP_BUILD = "2026-10-22-z46"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9169,122 +9172,60 @@ function OverviewPanel({ programs, adventures, students, lastSyncAt, onGo, onRef
     }
     setBusy(false);
   };
-  const [openCards, setOpenCards] = useState({});
   const feed = recentActivity(programs, adventures, students);
-  const cell = (label, value, tone) => (
-    <div className="rounded-xl px-3 py-2" style={{ background: tone === "warn" ? "#FFF1E2" : tone === "ok" ? "#EAF7EF" : C.cream }}>
-      <p className="f-body text-[13px]" style={{ color: "#9C927D" }}>{label}</p>
-      <p className="f-body text-[15px] font-bold" style={{ color: tone === "warn" ? "#B25A0B" : tone === "ok" ? "#1F7A44" : C.charcoal }}>{value}</p>
-    </div>
-  );
-  const chip = (label, value, tone) => (
-    <span className="f-body text-[12px] rounded-full px-2.5 py-1" style={{ background: tone === "warn" ? "#FFF1E2" : tone === "ok" ? "#EAF7EF" : C.cream, color: tone === "warn" ? "#B25A0B" : tone === "ok" ? "#1F7A44" : C.charcoal }}>
-      <span style={{ opacity: 0.65 }}>{label} </span><b>{value}</b>
-    </span>
-  );
+  // only what is coming up (or running now): finished programs live in the Programs tab
+  const upcoming = programs
+    .map((p) => ({ p, st: programStatus(p, adventures) }))
+    .filter((x) => x.st.stage !== "done")
+    .sort((x, y) => (isLive(x.p) ? "" : tripDayOf(x.p) || "9999").localeCompare(isLive(y.p) ? "" : tripDayOf(y.p) || "9999"))
+    .slice(0, 3);
   return (
-    <div className="px-5 space-y-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <p className="f-body text-[13px] text-gray-500">{tr("마지막 확인 {0}", [timeAgoKo(new Date(lastSyncAt).toISOString())])}</p>
-        <button onClick={refresh} disabled={busy} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5 disabled:opacity-60" style={{ background: C.beige, color: C.green }}>
-          {busy ? tr("확인 중...") : tr("새로고침")}
-        </button>
-      </div>
-
+    <div className="px-5 space-y-3">
+      <p className="f-body text-[14px] font-bold pt-1" style={{ color: "#9C927D" }}>{tr("다가오는 프로그램")}</p>
       {programs.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("등록된 프로그램이 아직 없어요.")}</p></div>}
-
-      {programs.slice().sort((x, y) => Number(programStatus(x, adventures).stage === "done") - Number(programStatus(y, adventures).stage === "done")).map((p) => {
-        const st = programStatus(p, adventures);
-        const next = nextStep(p, st);
-        const look = STAGE_LOOK[st.stage];
-        const idle = !next.go; // nothing to do for this program: it folds by itself
-        if (idle && !openCards[p.id]) {
+      {upcoming.length === 0 && programs.length > 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("예정된 프로그램이 없어요.")}</p></div>}
+      <div className="space-y-2" data-testid="home-programs">
+        {upcoming.map(({ p, st }) => {
+          const next = nextStep(p, st);
+          const draft = p.published === false;
+          const look = STAGE_LOOK[st.stage];
           return (
-            <button key={p.id} onClick={() => setOpenCards((o) => ({ ...o, [p.id]: true }))} aria-expanded="false" data-testid="program-folded" className="focus-ring tap w-full bg-white rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left">
+            <button key={p.id} onClick={() => onGo(next.go === "info" || next.go === "materials" || !next.go ? "manage" : next.go, p)} data-testid="home-program" className="focus-ring tap w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 text-left">
               <TitleBar program={p} />
               <span className="flex-1 min-w-0">
-                <span className="block f-body text-[16px] font-bold truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
-                <span className="block f-body text-[12px] text-gray-400">{p.date}</span>
+                <span className="block f-body text-[17px] font-bold truncate" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                <span className="block f-body text-[13px] text-gray-500 truncate">{p.date} · {tr("신청 {0}명", [st.enrolled])}</span>
               </span>
-              <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
-              <span className="f-body text-[13px]" style={{ color: "#9C927D" }}>▾</span>
+              <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0" style={{ background: draft ? "transparent" : look.bg, color: draft ? "#8A8060" : look.color, border: draft ? `1px solid ${C.beige}` : "none" }}>{draft ? tr("임시 저장") : tr(look.label)}</span>
+              <ChevronRight size={16} color="#C9BFA8" className="shrink-0" />
             </button>
           );
-        }
-        return (
-          <div key={p.id} className="bg-white rounded-2xl p-3.5">
-            <div className="flex items-stretch gap-3">
-              <TitleBar program={p} />
-              <div className="flex-1 min-w-0 py-0.5">
-                <ProgramTitle program={p} size={19} />
-                <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date}{(p.locationKo || p.location) && ` · ${p.locationKo || p.location}`}</p>
-              </div>
-              <span className="self-start f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
-              {idle && <button onClick={() => setOpenCards((o) => ({ ...o, [p.id]: false }))} aria-label={tr("접기")} className="focus-ring tap self-start f-body text-[13px] px-1" style={{ color: "#9C927D" }}>▴</button>}
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-3" data-testid="program-chips">
-              {chip(
-                tr("안내"),
-                st.sessionInfo.length
-                  ? st.sessionInfo.filter((x) => x.count > 0).map((x) => `${x.label} ${x.published ? "✓" : tr("아직")}`).join(" · ") || "—"
-                  : st.infoSent ? tr("보냄 ✓") : st.stage === "done" ? "—" : tr("아직 안 보냄"),
-                st.infoSent ? "ok" : st.stage === "done" ? "" : "warn"
-              )}
-              {chip(tr("신청·출석"), tr("{0}명 · {1}명", [st.enrolled, st.attended]), "")}
-              {chip(tr("복습"), isReviewOpen(p) ? tr("열림 ✓") : tr("닫힘"), isReviewOpen(p) ? "ok" : "")}
-              {chip(tr("피드백"), st.attended === 0 ? "—" : st.reportsLeft > 0 ? tr("{0}명 남음", [st.reportsLeft]) : tr("모두 작성 ✓"), st.attended === 0 ? "" : st.reportsLeft > 0 ? "warn" : "ok")}
-              {FEATURES.parentAdvice && st.attended > 0 && chip(tr("학부모 조언"), tr("{0}명 보냄 · {1}명 확인 대기", [st.adviceSent, st.adviceDrafts]), st.adviceDrafts > 0 ? "warn" : st.adviceSent > 0 ? "ok" : "")}
-              {st.sessionInfo.length > 0 && chip(tr("시간대"), st.sessionInfo.map((x) => tr("{0} {1}명", [x.label, x.count])).join(" · ") + (st.sessionUnset > 0 ? ` · ${tr("미정 {0}명", [st.sessionUnset])}` : ""), st.sessionUnset > 0 ? "warn" : "")}
-              {st.teamCount > 0 && chip(tr("팀"), tr("{0}팀 · {1}{2}", [st.teamCount, teamsOf(p).map((t) => `${t.level} ${t.teacher}`).join(", "), st.unassigned > 0 ? tr(" · 미배정 {0}명", [st.unassigned]) : ""]), st.unassigned > 0 ? "warn" : "ok")}
-            </div>
-            {st.enrolled > 0 && onSetToday && (
-              <div className="mt-3 pt-3 border-t" style={{ borderColor: C.beige }} data-testid="quick-actions">
-                <p className="f-body text-[13px] text-gray-500 mb-2">{tr("체험 당일 빠른 처리 — ① 오늘 진행 켜기 → ② 출석 확정 → ③ 복습 열기")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { n: "①", on: isLive(p), label: tr("오늘 진행"), onL: tr("진행 중"), click: () => onSetToday(p.id, !isLive(p)) },
-                    { n: "③", on: isReviewOpen(p), label: tr("복습"), onL: tr("열림"), click: () => onSetReview(p.id, !isReviewOpen(p)) },
-                  ].map((sw) => (
-                    <button key={sw.label} onClick={sw.click} aria-pressed={sw.on} className="focus-ring tap flex items-center gap-2 rounded-xl px-3 py-2.5 text-left" style={{ background: sw.on ? "#DCF3E4" : C.cream, border: `1px solid ${sw.on ? "#9FD6B2" : C.beige}` }}>
-                      {sw.on ? <CheckCircle2 size={18} color="#1F7A44" /> : <Circle size={18} color="#D8CEB8" />}
-                      <span className="min-w-0">
-                        <span className="block f-body text-[15px] font-bold" style={{ color: sw.on ? "#1F7A44" : C.charcoal }}>{sw.n} {sw.label}</span>
-                        <span className="block f-body text-[13px]" style={{ color: sw.on ? "#1F7A44" : "#9C927D" }}>{sw.on ? sw.onL : tr("꺼짐")}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                {!isLive(p) && !tripDayPassed(p) && st.attended === 0 && <p className="f-body text-[13px] text-gray-400 mt-2">{tr("② 출석은 '오늘 진행'을 켜면 나타나요.")}</p>}
-                <AttendanceStrip program={p} roster={adventures.filter((a) => a.programId === p.id).map((adv) => ({ student: students.find((x) => x.id === adv.studentId), adv })).filter((r) => r.student)} onSave={(studentId, patch) => onSaveAttendance(studentId, p.id, patch)} />
-              </div>
-            )}
-            {next.go ? (
-              <button onClick={() => onGo(next.go, p)} className="focus-ring tap w-full mt-2.5 flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-left" style={{ background: "#FFF1E2" }}>
-                <span className="f-body text-[14px] font-bold" style={{ color: "#B25A0B" }}>👉 {next.text}</span>
-                <ChevronRight size={18} color="#B25A0B" className="shrink-0" />
-              </button>
-            ) : (
-              <p className="f-body text-[15px] font-bold mt-3 px-1" style={{ color: "#1F7A44" }}>{next.text}</p>
-            )}
-          </div>
-        );
-      })}
+        })}
+      </div>
+      <button onClick={() => onGo("programs", null)} data-testid="home-all-programs" className="focus-ring tap w-full f-body text-[15px] font-bold py-2.5 rounded-xl" style={{ color: C.green }}>{tr("전체 프로그램 보기")} ›</button>
 
-      <div className="bg-white rounded-2xl p-4">
-        <p className="f-display font-semibold text-[17px] mb-1" style={{ color: C.green }}>{tr("최근 활동")}</p>
-        <p className="f-body text-[13px] text-gray-400 mb-3">{tr("다른 선생님이 한 일도 여기에 보여요. (누가 했는지는 기록되지 않아요)")}</p>
-        {feed.length === 0 ? (
-          <p className="f-body text-[15px] text-gray-400">{tr("아직 기록이 없어요.")}</p>
-        ) : (
-          <div className="space-y-2">
-            {feed.map((e, i) => (
-              <div key={i} className="flex items-start justify-between gap-3">
-                <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{e.text}</p>
-                <p className="f-body text-[13px] text-gray-400 shrink-0 mt-0.5">{timeAgoKo(new Date(e.at).toISOString())}</p>
-              </div>
-            ))}
-          </div>
-        )}
+      <FoldBar title={tr("최근 활동")} summary={feed.length ? tr("{0}건", [feed.length]) : tr("아직 기록이 없어요.")} defaultOpen={false}>
+        <div className="bg-white rounded-2xl p-4">
+          {feed.length === 0 ? (
+            <p className="f-body text-[15px] text-gray-400">{tr("아직 기록이 없어요.")}</p>
+          ) : (
+            <div className="space-y-2">
+              {feed.map((e, i) => (
+                <div key={i} className="flex items-start justify-between gap-3">
+                  <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{e.text}</p>
+                  <p className="f-body text-[13px] text-gray-400 shrink-0 mt-0.5">{timeAgoKo(new Date(e.at).toISOString())}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </FoldBar>
+
+      <div className="flex items-center justify-center gap-3 pt-1">
+        <p className="f-body text-[12px] text-gray-400">{tr("마지막 확인 {0}", [timeAgoKo(new Date(lastSyncAt).toISOString())])}</p>
+        <button onClick={refresh} disabled={busy} className="focus-ring tap f-body text-[13px] font-bold rounded-full px-3 py-1 disabled:opacity-60" style={{ color: C.green }}>
+          {busy ? tr("확인 중...") : tr("새로고침")}
+        </button>
       </div>
     </div>
   );
@@ -10455,7 +10396,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
             return (<>
           <p className="f-body text-[14px] font-bold mb-1.5" data-testid="notices-title" style={{ color: C.orange }}>{tr("🔔 지금 처리할 일 {0}", [teacherNotices.length])}</p>
           {showNotices && <div className="space-y-1.5">
-            {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 3).map((n) => (
+            {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 5).map((n) => (
               <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
                 <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
                   <span className="text-[20px]">{n.icon}</span>
@@ -10470,9 +10411,9 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 )}
               </div>
             ))}
-            {teacherNotices.length > 3 && (
+            {teacherNotices.length > 5 && (
                 <button onClick={() => setMoreReminders((v) => !v)} aria-expanded={moreReminders} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
-                  {moreReminders ? tr("접기 ▴") : tr("외 {0}건 더 보기 ▾", [teacherNotices.length - 3])}
+                  {moreReminders ? tr("접기 ▴") : tr("외 {0}건 더 보기 ▾", [teacherNotices.length - 5])}
                 </button>
               )}
           </div>}
@@ -10495,6 +10436,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
               if (where === "manage") { setProgramId(p.id); setTab("manage"); }
               else if (where === "info") { setInfoFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); }
               else if (where === "materials") { setMaterialsFocusId(p.id); setEditingProgramId(p.id); setTab("programs"); }
+              else if (where === "programs") { setTab("programs"); }
             })
           }
         />
@@ -10548,6 +10490,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                       <span className="font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#FFE3E0", color: "#C0392B" }}>{tr("♥ 관심 {0}가족", [wishesFor(suggestions, programId).length])}</span>
                     )}
                   </p>
+                  {(() => { const v = parentVisibility(program, adventures, students); return <p className="f-body text-[13px] font-bold mt-0.5" style={{ color: v.on ? "#1F7A44" : "#8A8060" }} data-testid="parent-visibility">{v.on ? `👪 ${tr("부모 노출")} · ${tr(v.why, [v.n])}` : `${tr("부모 비노출")} · ${tr(v.why)}`}</p>; })()}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -10762,7 +10705,16 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                     </div>
                     <ChevronRight size={16} color="#C9BFA8" className="shrink-0" style={{ marginTop: 10 }} />
                   </div>
-                  <div className="mt-2"><StatusPills status={programStatus(p, adventures)} parent={parentVisibility(p, adventures, students)} /></div>
+                  {(() => {
+                    const st = programStatus(p, adventures); const look = STAGE_LOOK[st.stage]; const draft = p.published === false;
+                    return (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="status-pills">
+                        <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
+                        {draft && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ color: "#8A8060", border: `1px solid ${C.beige}` }}>{tr("임시 저장")}</span>}
+                        <span className="f-body text-[13px] text-gray-500">{tr("신청 {0}명", [st.enrolled])}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </button>
             )

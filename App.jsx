@@ -3095,16 +3095,6 @@ function FieldTripMode({ program, adv, onFinish }) {
   const extra = extraSafetyRules(SAFETY_ROWS, program.id);
   return (
     <div className="px-5 pb-10 space-y-3" data-testid="trip-rules">
-      {(program.focus || []).length > 0 && (
-        <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-          <p className="f-display text-[18px] font-bold mb-1.5" style={{ color: C.orange }}>Today's Focus</p>
-          <ul className="space-y-1">
-            {program.focus.map((f, i) => (
-              <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
-            ))}
-          </ul>
-        </div>
-      )}
       <FoldBar title="Field Trip Rules" summary="8 rules · 3 Warnings">
         <div className="space-y-3 mb-2"><div className="bg-white rounded-2xl p-4"><SafetyRuleList rules={rules} extra={extra} /></div>
         <ThreeWarningsCard /></div>
@@ -3551,10 +3541,6 @@ function StudyRecap({ a, program, defaultOpen = false }) {
                 </div>
               ))}
             </div>
-          </>}
-          {focus.length > 0 && <>
-            {h("핵심 포인트")}
-            <ul className="space-y-1">{focus.map((f, i) => <li key={i} className="f-body text-[16px]" style={{ color: C.charcoal }}>• {f}</li>)}</ul>
           </>}
           {quiz.length > 0 && <>
             {h("퀴즈 복습")}
@@ -7581,7 +7567,6 @@ function buildInfoMessage(program, info, session) {
   if (bring.length) lines.push(`🎒 준비물: ${bring.join(", ")}`);
   const fee = feeText(info);
   if (fee) lines.push(`💰 ${fee}`);
-  focusSets(program).forEach((f) => lines.push(`🔍 오늘의 집중 포인트${f.level ? ` (${f.level})` : ""}: ${f.items.join(" / ")}`));
   if (info.note) lines.push(`📝 안내: ${info.note}`);
   lines.push("", `👉 예습은 앱에서 해 주세요: https://${APP_ADDRESS}`, "(카톡 안에서 열면 일부 기능이 제한돼요. 크롬이나 사파리로 열어 주세요)");
   return lines.join("\n");
@@ -7734,9 +7719,9 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
   const fee = feeText(info);
   const rows = [
     { icon: "📅", label: "일시", value: [program.date, info.time].filter(Boolean).join(" · ") },
+    { icon: "💰", label: "입장료", value: fee, tone: info.feeType === "parent" ? "pay" : "ok" },
     { icon: "🧭", label: "모이는 곳", value: [info.meetingPoint, info.meetingTime && `${info.meetingTime}까지 모여 주세요`].filter(Boolean).join("\n") },
     { icon: "📍", label: "장소", value: [program.locationKo || program.location, info.venue].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join("\n") || place, href: info.venue ? mapLink(info.venue) : "" },
-    { icon: "💰", label: "입장료", value: fee, tone: info.feeType === "parent" ? "pay" : "ok" },
     { icon: "📝", label: "안내", value: info.note },
   ].filter((r) => r.value && (noticeOut || r.label === "일시"));
   return (
@@ -7755,9 +7740,11 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
               <p className="f-body text-[15px] mt-1" style={{ color: C.charcoal }}>체험 전에 안내가 도착하면 이곳에 나타나요.</p>
             </div>
           )}
-          {rows.slice(0, 3).map((r) => (
-            <InfoRow key={r.label} {...r} />
-          ))}
+          {rows.length > 0 && (
+            <div className="bg-white rounded-2xl px-4" data-testid="info-card">
+              {rows.map((r) => <InfoLine key={r.label} {...r} />)}
+            </div>
+          )}
           {noticeOut && teamRows.length > 0 && (
             <div className="rounded-2xl p-4" style={{ background: "#EAF7EF", border: "1px solid #CFE9D8" }}>
               <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: "#1F7A44" }}>🧑‍🏫 우리 아이 팀과 선생님</p>
@@ -7782,24 +7769,21 @@ function ProgramInfoSheet({ program, teamRows = [], sessionId, noticeOut = true,
               <ObjectiveTable program={program} />
             </div>
           )}
-          {focusSets(program).map((fs) => (
-            <div key={fs.level || "all"} className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-              <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.orange }}>🔍 오늘의 집중 포인트{fs.level ? ` · ${fs.level}` : ""}</p>
-              <ul className="space-y-1">
-                {fs.items.map((f, i) => (
-                  <li key={i} className="f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>• {f}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          {rows.slice(3).map((r) => (
-            <InfoRow key={r.label} {...r} />
-          ))}
           <SafetySection readOnly programId={program.id} />
         </div>
         <div className="mt-5"><PrimaryButton onClick={onClose}>확인했어요</PrimaryButton></div>
         <p className="f-body text-[14px] text-gray-400 text-center mt-4">궁금한 점은 카카오톡으로 편하게 문의해 주세요.</p>
       </div>
+    </div>
+  );
+}
+function InfoLine({ icon, label, value, tone, href }) {
+  const pay = tone === "pay";
+  return (
+    <div className="py-3.5 border-b last:border-b-0" style={{ borderColor: C.beige }}>
+      <p className="f-body text-[13px] font-bold mb-0.5" style={{ color: C.orange }}>{icon} {label}</p>
+      <p className="f-body text-[17px] font-semibold whitespace-pre-line" style={{ color: pay ? "#B25A0B" : C.charcoal }}>{value}</p>
+      {href && <a href={href} target="_blank" rel="noopener noreferrer" className="focus-ring tap inline-block mt-1.5 f-body text-[14px] font-bold" style={{ color: C.orange }}>지도 열기 ›</a>}
     </div>
   );
 }
@@ -8986,7 +8970,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z82"; // change with every delivery
+const APP_BUILD = "2026-10-22-z83"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

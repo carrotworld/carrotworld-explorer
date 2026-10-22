@@ -970,6 +970,7 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"학생 추가 닫기": "Close",
 "모두 {0}에 추가": "Add all to {0}",
 "모두 추가": "Add all",
 "팀 · 리더": "Teams · leaders",
@@ -8838,7 +8839,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z49"; // change with every delivery
+const APP_BUILD = "2026-10-22-z50"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9547,7 +9548,6 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
   const tabs = hasSlots ? [...slots.map((x) => ({ id: x.id, label: x.label, n: roster.filter((r) => r.adv.sessionId === x.id).length })), ...(unset.length > 0 ? [{ id: "none", label: tr("시간대 미정"), n: unset.length }] : [])] : [];
   const menuItems = [
     { k: "teams", label: tr("팀 추가·수정·삭제"), on: () => setPanel(panel === "teams" ? "" : "teams") },
-    { k: "add", label: tr("학생 직접 추가"), on: () => setPanel(panel === "add" ? "" : "add") },
     ...(onRecruit ? [{ k: "recruit", label: recruitClosed ? tr("리더 모집 다시 열기") : tr("리더 모집 마감"), on: () => onRecruit(!recruitClosed) }] : []),
   ];
   const sortedRows = [...rows].sort((x, y) => Number(!!teamOfRow(x)) - Number(!!teamOfRow(y)) || byName(x, y));
@@ -9571,6 +9571,8 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
             ))}
           </div>
         )}
+        <button onClick={() => setPanel(panel === "add" ? "" : "add")} aria-expanded={panel === "add"} data-testid="add-student-btn" className="focus-ring tap w-full mb-3 f-body text-[16px] font-bold rounded-xl py-2.5 border-2 border-dashed" style={{ borderColor: C.beige, color: C.orange }}>{panel === "add" ? tr("학생 추가 닫기") : tr("+ 학생 직접 추가")}</button>
+        {panel === "add" && <div className="mb-3" data-testid="add-student-panel">{addStudent}</div>}
         {slotId === "none" && <p className="f-body text-[14px] mb-2" style={{ color: "#B25A0B" }}>{tr("시간대를 먼저 정해 주세요. 정하면 그 시간대에서 리더를 고를 수 있어요.")}</p>}
         <div className="flex items-center justify-between gap-2">
           {slotId !== "none" ? (
@@ -9643,7 +9645,6 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
         </div>
       </div>
       {panel === "teams" && <div className="-mx-5 mt-3">{teamAdmin}</div>}
-      {panel === "add" && <div className="mt-3">{addStudent}</div>}
     </div>
   );
 }

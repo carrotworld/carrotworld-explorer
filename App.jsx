@@ -5427,7 +5427,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 {myChildren.length === 1 && <p className="f-display text-[22px] font-semibold leading-tight" style={{ color: C.green }}>{c.name}</p>}
                 <p className="f-body text-[13px] text-gray-500 mt-0.5">Level {c.level} · {rank.label}{nextRank ? ` · 다음 단계까지 ${nextRank.min - n}회` : ""}</p>
               </div>
-              {addChildBlock}
               <ChildHomeCard
                 key={c.id}
                 child={c}
@@ -5440,6 +5439,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
                 onPoints={() => { setPtab("points"); window.scrollTo({ top: 0 }); }}
                 browse={<ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} onApply={onApply} />}
               />
+              <div className="mt-4">{addChildBlock}</div>
             </>
           );
         })()}
@@ -8970,7 +8970,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z83"; // change with every delivery
+const APP_BUILD = "2026-10-22-z84"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

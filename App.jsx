@@ -970,6 +970,9 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.": "Moves into 'Pay to receive' above once the trip is done. Before tax.",
+  "합계 {0}": "Total {0}",
+  "예정 수당 (확정된 체험)": "Expected pay (confirmed trips)",
   "비공개 · 지정한 리더에게만 보여요": "Private · only the picked leaders see it",
   "지정 리더에게만 보이기 (비공개)": "Show only to picked leaders (private)",
   "다른 리더에게도 공개하기": "Show to other leaders too",
@@ -9053,7 +9056,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z76"; // change with every delivery
+const APP_BUILD = "2026-10-22-z77"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12192,7 +12195,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && upcoming.some((u) => u.id === p.id)).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved").map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId) }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -12568,7 +12571,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
 }
 
 /** Teacher: my own earnings since the last payout, and what was paid before. */
-function MyPay({ items, payouts, taxOn = true, rate = DEFAULT_PAY_RATE, name = "" }) {
+function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY_RATE, name = "" }) {
   const [stmt, setStmt] = useState(null);
   const open = items.filter((i) => !i.paid);
   const ready = open.filter((i) => !i.needsAmount);
@@ -12583,6 +12586,26 @@ function MyPay({ items, payouts, taxOn = true, rate = DEFAULT_PAY_RATE, name = "
         <p className="f-body text-[14px] mt-1" style={{ color: "#C9E6D6" }}>{tr("본사에서 정산하면 0원으로 돌아가요.")}</p>
         {ready.length > 0 && <button onClick={() => setStmt({ teacherName: name, lines: ready.map(lineOf), taxOn, rate, date: new Date().toISOString().slice(0, 10) })} className="focus-ring tap mt-3 f-body text-[14px] font-bold rounded-full px-4 py-2" style={{ background: "rgba(255,255,255,0.16)", color: "white" }} data-testid="my-pay-statement">{tr("정산서 보기")}</button>}
       </div>
+      {expected.length > 0 && (
+        <div data-testid="expected-pay">
+          <div className="flex items-baseline justify-between mb-1.5">
+            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{tr("예정 수당 (확정된 체험)")}</p>
+            <p className="f-display text-[15px] font-bold" style={{ color: "#B25A0B" }}>{tr("합계 {0}", [won(expected.reduce((n, e) => n + (e.amount || 0), 0))])}</p>
+          </div>
+          <div className="rounded-2xl px-4" style={{ background: "#FFF8EC", border: "1.5px dashed #E9C98F" }}>
+            {expected.map((e) => (
+              <div key={e.key} className="flex items-center justify-between gap-2 py-3 border-b last:border-b-0" style={{ borderColor: "#F0E3C8" }}>
+                <div className="min-w-0">
+                  <p className="f-body text-[15px] font-bold truncate" style={{ color: C.charcoal }}>{e.title}{e.slotLabel ? ` · ${e.slotLabel}` : ""}</p>
+                  <p className="f-body text-[13px] text-gray-400">{e.date}</p>
+                </div>
+                <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: e.amount ? "#B25A0B" : "#9C927D" }}>{e.amount ? won(e.amount) : tr("금액 확인 중")}</p>
+              </div>
+            ))}
+          </div>
+          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.")}</p>
+        </div>
+      )}
       {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}
       {open.length > 0 && (
         <div className="bg-white rounded-2xl px-4">

@@ -1777,6 +1777,15 @@ const pickEnglishVoice = () => {
   const us = en.filter((v) => /^en[-_]US$/i.test(v.lang));
   return us.find((v) => /samantha|ava|allison|google us|enhanced|premium/i.test(v.name)) || us[0] || en[0] || null;
 };
+// last resort when the phone's own voice stays silent (no English voice installed): an online voice, played as plain audio
+let SPEAK_AUDIO = null;
+function speakFallback(word) {
+  try {
+    if (SPEAK_AUDIO) SPEAK_AUDIO.pause();
+    SPEAK_AUDIO = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(word)}`);
+    SPEAK_AUDIO.play().catch(() => {});
+  } catch (e) { /* silent */ }
+}
 function speak(word) {
   try {
     const ss = window.speechSynthesis;
@@ -1791,7 +1800,10 @@ function speak(word) {
     const busy = ss.speaking || ss.pending;
     if (busy) ss.cancel();
     if (ss.paused) ss.resume();
-    const go = () => { try { ss.speak(u); } catch (e) { /* ignore */ } };
+    let started = false;
+    u.onstart = () => { started = true; };
+    u.onerror = () => { if (!started) speakFallback(word); };
+    const go = () => { try { ss.speak(u); } catch (e) { speakFallback(word); return; } setTimeout(() => { if (!started && !ss.speaking) speakFallback(word); }, 900); };
     if (busy && /Android/i.test(navigator.userAgent)) setTimeout(go, 80); // Android: a speak() right after cancel() is swallowed
     else go(); // iPhone: must run inside the tap
   } catch (e) {
@@ -8958,7 +8970,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z68"; // change with every delivery
+const APP_BUILD = "2026-10-22-z70"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9694,9 +9706,12 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
       <div key={r.student.id} data-testid="match-row" className="py-2" style={{ borderTop: `1px solid ${C.cream}` }}>
         <div className="flex items-center gap-2">
           <span className="text-[22px] shrink-0">{r.student.avatar}</span>
-          <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{r.student.name}</span>
+          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold" style={{ color: C.charcoal }}>{r.student.name}</span>
           {onLevel ? <button onClick={() => { setLevelId(levelId === r.student.id ? null : r.student.id); setOpenId(null); setConfirmId(null); }} aria-expanded={levelId === r.student.id} data-testid="level-btn" className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-2.5 py-1 rounded-full" style={{ background: C.cream, color: "#8A8060", minHeight: 36 }}>{r.student.level} ▾</button> : <span className="f-body text-[14px] text-gray-500 shrink-0">{r.student.level}</span>}
-          {showLeader && lead && <span className="f-body text-[15px] font-bold truncate max-w-[34%] flex items-center gap-1.5" style={{ color: C.green }}><span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: teamColor(program, teamOfRow(r)) }} />{lead}</span>}
+          {onRemove && <button onClick={() => setConfirmId(confirmId === r.student.id ? null : r.student.id)} aria-label={tr("체험에서 빼기")} data-testid="remove-student" className="focus-ring tap shrink-0 w-9 h-10 f-body text-[18px]" style={{ color: "#B7AC93" }}>✕</button>}
+        </div>
+        <div className="flex items-center gap-2 mt-1.5 pl-10">
+          {showLeader && lead && <span className="f-body text-[16px] font-bold flex-1 min-w-0 flex items-center gap-1.5" style={{ color: C.green }}><span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: teamColor(program, teamOfRow(r)) }} />{lead}</span>}
           {slotId === "none" ? (
             <span className="flex gap-1.5 shrink-0">
               {slots.map((x) => (
@@ -9706,9 +9721,8 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
           ) : lead ? (
             <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("변경")} ▾</button>
           ) : (
-            <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} data-testid="pick-leader" className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.orange, minHeight: 40 }}>{tr("리더 선택")} ▾</button>
+            <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} data-testid="pick-leader" className="focus-ring tap flex-1 f-body text-[15px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.orange, minHeight: 40 }}>{tr("리더 선택")} ▾</button>
           )}
-          {onRemove && <button onClick={() => setConfirmId(confirmId === r.student.id ? null : r.student.id)} aria-label={tr("체험에서 빼기")} data-testid="remove-student" className="focus-ring tap shrink-0 w-9 h-10 f-body text-[18px]" style={{ color: "#B7AC93" }}>✕</button>}
         </div>
         {teamOfRow(r) && onMaterial && materialLevels(program).length > 0 && rows.some((x) => x.adv.teamId === r.adv.teamId && x.student.level !== r.student.level) && (
           <div className="flex items-center gap-2 mt-1 pl-8 flex-wrap" data-testid="level-mix">
@@ -9794,7 +9808,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
             </div>
           ) : <span />}
           <div className="flex items-center gap-1.5 relative">
-            {loose.length > 0 && slotId !== "none" && !auto && <button onClick={() => setAuto({})} data-testid="auto-assign" className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-1.5 text-white" style={{ background: C.green, minHeight: 40 }}>{tr("자동 배정")}</button>}
+            {loose.length > 0 && slotId !== "none" && !auto && <button onClick={() => setAuto({})} data-testid="auto-assign" className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3 py-1.5 text-white whitespace-nowrap" style={{ background: C.green, minHeight: 40 }}>{tr("자동 배정")}</button>}
             <button onClick={() => setMenu((v) => !v)} aria-label={tr("더보기")} aria-expanded={menu} data-testid="match-menu" className="focus-ring tap w-10 h-10 rounded-full f-body text-[20px] font-bold" style={{ background: C.beige, color: C.green }}>⋯</button>
           </div>
         </div>
@@ -12061,10 +12075,12 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
     ...(teacherId ? [{ key: "pay", label: tr("수당") }] : []),
   ];
   // trips whose teams HQ has finished go to their own tab ("진행"); the others stay under "예정"
-  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && !!p.teamsDone === done && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
+  // a slot counts as set (and moves to "진행") as soon as HQ has given me a team in it, or finished the teams for the trip
+  const teamSet = (p, sid) => !!p.teamsDone || teamsOf(p).some((t) => !!name && String(t.teacher || "").trim().toLowerCase() === name.trim().toLowerCase() && (!sid || !t.sessionId || t.sessionId === sid));
+  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
             const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
             const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
-            return slotIds.map((sid) => {
+            return slotIds.filter((sid) => teamSet(p, sid) === done).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
               return <MyTeamsCard key={`${p.id}-${sid}`} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />;
             });

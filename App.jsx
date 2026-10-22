@@ -970,6 +970,9 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "아직 들어온 장소 추천이 없어요.": "No place ideas yet.",
+  "장소 추천": "Place ideas",
+  "장소 추천 {0}": "Place ideas {0}",
   "지정한 리더에게만 보여요": "Only picked leaders see it",
   "모든 리더가 신청할 수 있어요": "Any leader can sign up",
   "🔒 비공개": "🔒 Private",
@@ -5274,10 +5277,19 @@ function GuideLinks({ program, adv, onInfo }) {
         <span className="f-display text-[26px] font-bold">›</span>
       </button>
     )}
-    <div className="flex items-center mt-1" style={{ gap: 24 }} data-testid="guide-links">
-      <button onClick={() => onInfo(program.id, sid, false)} className={cls} style={{ color: C.green, minHeight: 44 }} data-testid="info-link">체험 안내 ›</button>
+    <div className="mt-3" data-testid="guide-links">
+      <button onClick={() => onInfo(program.id, sid, false)} className="focus-ring tap w-full flex items-center justify-between gap-3 rounded-2xl px-4 text-left text-white" style={{ minHeight: 72, background: C.green, boxShadow: "0 4px 12px rgba(31,92,62,0.25)" }} data-testid="info-link">
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="text-[28px]">📋</span>
+          <span className="min-w-0">
+            <span className="block f-display text-[20px] font-bold leading-tight">체험 안내 보기</span>
+            <span className="block f-body text-[14px] opacity-90">시간 · 모이는 곳 · 준비물을 확인하세요</span>
+          </span>
+        </span>
+        <span className="f-display text-[28px] font-bold">›</span>
+      </button>
       {agreed ? (
-        <button onClick={() => onInfo(program.id, sid, true)} className={cls} style={{ color: C.green, minHeight: 44 }} data-testid="safety-link">안전수칙 ›</button>
+        <button onClick={() => onInfo(program.id, sid, true)} className="focus-ring tap w-full mt-2 flex items-center justify-center rounded-2xl f-display text-[16px] font-bold" style={{ minHeight: 52, background: "#F6F1E6", color: C.green }} data-testid="safety-link">🛡️ 안전수칙 보기 ›</button>
       ) : null}
     </div>
     </>
@@ -9070,7 +9082,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z79"; // change with every delivery
+const APP_BUILD = "2026-10-22-z81"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10826,7 +10838,7 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
       text: pendingInquiries.slice(-2).map((x) => x.message).join(" / "),
       onClick: () => {
         const hit = PROGRAMS.find((pp) => pendingInquiries.some((x) => students.some((st) => x.id === applyId(st.id, pp.id))));
-        if (hit) { setProgramId(hit.id); setTab("manage"); } else setTab("suggestions");
+        setProgramId((hit || PROGRAMS[0] || {}).id); setTab("manage");
       },
       onDone: () => onResolveSuggestions(pendingInquiries.map((x) => x.id)),
     });
@@ -10924,22 +10936,22 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
   if (pendingReviews.length) {
     teacherNotices.push({ key: "ext-reviews", icon: "🥕", title: tr("외부 후기 확인 {0}건", [pendingReviews.length]), text: tr("링크를 확인하고 승인하면 {0}P가 적립돼요", [POINT_RULES.review]), onClick: () => setTab("points") });
   }
-  const unresolvedCount = pendingInquiries.length + pendingOther.length;
+  const unresolvedCount = pendingOther.length; // place recommendations & notes; enrollment inquiries live in each program's 신청·팀 tab
 
   const pendingCount = pendingFamilies(students).length;
   const pendingReviewCount = reviewRecords(suggestions).filter((r) => r.status === "pending").length;
   // four sections; the ones that hold several screens show a small second row (the screens keep their own keys)
   const GROUPS = [
     { key: "g-overview", label: (teacherNotices.length) ? tr("오늘 {0}", [teacherNotices.length]) : tr("오늘"), subs: [{ key: "overview", label: tr("오늘") }] },
-    { key: "g-program", label: needReport.length ? tr("프로그램 {0}", [needReport.length]) : tr("프로그램"), subs: [
+    { key: "g-program", label: (needReport.length + pendingInquiries.length) ? tr("프로그램 {0}", [needReport.length + pendingInquiries.length]) : tr("프로그램"), subs: [
       { key: "programs", label: tr("프로그램·자료") },
-      { key: "manage", label: (needReport.length + needReview.length) ? tr("학생·출석 {0}", [needReport.length + needReview.length]) : tr("학생·출석") },
+      { key: "manage", label: (needReport.length + needReview.length + pendingInquiries.length) ? tr("학생·출석 {0}", [needReport.length + needReview.length + pendingInquiries.length]) : tr("학생·출석") },
     ] },
     { key: "g-people", label: (pendingCount + teacherTodo + unresolvedCount + pendingReviewCount) ? tr("사람 {0}", [pendingCount + teacherTodo + unresolvedCount + pendingReviewCount]) : tr("사람"), subs: [
       { key: "roster", label: tr("학생 명단") },
       { key: "approve", keys: ["approve", "register", "points"], label: (pendingCount + pendingReviewCount) ? tr("가족·학생 {0}", [pendingCount + pendingReviewCount]) : tr("가족·학생") },
       { key: "teachers", keys: ["teachers", "pay"], label: teacherTodo ? tr("선생님·수당 {0}", [teacherTodo]) : tr("선생님·수당") },
-      { key: "suggestions", label: unresolvedCount ? tr("의견 {0}", [unresolvedCount]) : tr("의견") },
+      { key: "suggestions", label: unresolvedCount ? tr("장소 추천 {0}", [unresolvedCount]) : tr("장소 추천") },
     ] },
     { key: "g-settings", label: tr("설정"), subs: [{ key: "safety", label: tr("안전수칙") }, { key: "stats", label: tr("통계·데이터") }] },
   ];
@@ -11414,15 +11426,15 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
 
       {tab === "suggestions" && (
         <div className="px-5 space-y-3">
-          {suggestions.filter((x) => !isSystemRow(x)).length === 0 && <p className="f-body text-[17px] text-gray-400 text-center pt-8">{tr("아직 들어온 의견이 없어요.")}</p>}
+          {suggestions.filter((x) => !isSystemRow(x) && x.type !== "신청 문의").length === 0 && <p className="f-body text-[17px] text-gray-400 text-center pt-8">{tr("아직 들어온 장소 추천이 없어요.")}</p>}
           {unresolvedCount > 0 && (
             <button
-              onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isSystemRow(x)).map((x) => x.id))}
+              onClick={() => onResolveSuggestions(suggestions.filter((x) => !x.resolved && !isSystemRow(x) && x.type !== "신청 문의").map((x) => x.id))}
               className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-2.5 text-white"
               style={{ background: C.green }}
             >{tr("✓ 모두 확인함으로 표시 ({0}건)", [unresolvedCount])}</button>
           )}
-          {suggestions.filter((x) => !isSystemRow(x)).reverse().map((s) => {
+          {suggestions.filter((x) => !isSystemRow(x) && x.type !== "신청 문의").reverse().map((s) => {
             const family = students.filter((st) => st.familyPin === s.familyPin).map((st) => st.name).join(", ");
             return (
               <div key={s.id} className="bg-white rounded-2xl p-4">

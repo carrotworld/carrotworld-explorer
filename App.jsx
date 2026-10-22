@@ -113,11 +113,11 @@ const EN = {
 "선생님 체험 신청 {0}건": "{0} teacher sign-up(s)",
 "학생 고르기": "Choose a student",
 "학생을 골라 주세요": "Choose a student",
-"🧑‍🏫 샘 신청": "🧑‍🏫 Teacher sign-ups",
-"🧑‍🏫 샘 신청 · 팀": "🧑‍🏫 Teacher sign-ups · Teams",
-"아직 신청한 샘이 없어요.": "No teacher has signed up yet.",
-"이 시간대에 신청한 샘이 없어요.": "No teacher signed up for this slot.",
-"샘 {0}명 확정": "{0} teacher(s) confirmed",
+"🧑‍🏫 리더 신청": "🧑‍🏫 Teacher sign-ups",
+"🧑‍🏫 리더 신청": "🧑‍🏫 Teacher sign-ups · Teams",
+"아직 신청한 리더가 없어요.": "No teacher has signed up yet.",
+"이 시간대에 신청한 리더가 없어요.": "No teacher signed up for this slot.",
+"리더 {0}명 확정": "{0} teacher(s) confirmed",
 "팀 {0}개": "{0} team(s)",
 "아이 {0}명 중 {1}명 배정": "{1} of {0} children placed",
 "팀 만들기 → (아이 {0}명 남음)": "Set up teams → ({0} children left)",
@@ -970,6 +970,43 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"팀 · 리더": "Teams · leaders",
+"리더 활동비 (세전)": "Leader fee (before tax)",
+"비워 두면 체험 시간 × 시급({0})으로 계산해요. 리더 신청 화면에 이 금액이 보여요.": "If empty, calculated as activity hours × hourly rate ({0}). Leaders see this amount when signing up.",
+"변경": "Change",
+"리더 선택": "Choose leader",
+"확정된 리더가 없어요. 아래 '리더 신청'에서 확정해 주세요.": "No confirmed leaders yet. Confirm one under 'Leader sign-ups' below.",
+"배정 해제": "Unassign",
+"{0}(으)로 이동": "Move to {0}",
+"시간대 미정": "No slot yet",
+"팀 추가·수정·삭제": "Add / edit / delete teams",
+"학생 직접 추가": "Add a student",
+"리더 모집 다시 열기": "Reopen leader sign-ups",
+"리더 모집 마감": "Close leader sign-ups",
+"전체 신청자": "All applicants",
+"배정 완료": "Assigned",
+"미배정": "Unassigned",
+"시간대를 먼저 정해 주세요. 정하면 그 시간대에서 리더를 고를 수 있어요.": "Set a time slot first, then you can pick a leader.",
+"더보기": "More",
+"리더당 최대 {0}명": "Up to {0} per leader",
+"확정된 리더가 없어요. 아래 '리더 신청'에서 확정하면 자동으로 나눌 수 있어요.": "No confirmed leaders. Confirm one below and the split can be automatic.",
+"리더가 모자라 {0}명은 남아요: {1}": "Not enough leaders; {0} left over: {1}",
+"이대로 배정": "Assign like this",
+"자동 배정": "Auto-assign",
+"학생별": "By student",
+"리더별": "By leader",
+"미배정 {0}명": "{0} unassigned",
+"6명이 넘어요": "over 6",
+"신청·팀": "Sign-ups & teams",
+"출석·피드백": "Attendance & feedback",
+"리더 정산": "Leader pay",
+"시간대를 먼저 정해 주세요.": "Set a time slot first.",
+"추가할 수 있는 학생이 없어요.": "No students to add.",
+"확정된 리더 {0}명": "{0} confirmed leaders",
+"아직 확정된 리더가 없어요.": "No confirmed leaders yet.",
+"시급 기준": "Hourly rate",
+"실수령": "Net",
+"리더 정산 전체 보기": "See all leader pay",
 "팀당 최대 {0}명": "Up to {0} per team",
 "한 명 줄이기": "One fewer",
 "한 명 늘리기": "One more",
@@ -8799,7 +8836,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z47"; // change with every delivery
+const APP_BUILD = "2026-10-22-z48"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9308,15 +9345,15 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
   if (mineJoins.length === 0) return (
     <div className="px-5 mb-3" data-testid="teachers-bar">
       <div className="rounded-2xl px-4 py-3" style={{ background: "white", border: `1px solid ${C.beige}` }}>
-        <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🧑‍🏫 샘 신청")}</p>
-        <p className="f-body text-[14px] text-gray-500">{tr("아직 신청한 샘이 없어요.")}</p>
+        <p className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("🧑‍🏫 리더 신청")}</p>
+        <p className="f-body text-[14px] text-gray-500">{tr("아직 신청한 리더가 없어요.")}</p>
       </div>
     </div>
   );
   return (
     <div className="px-5 mb-3" data-testid="teachers-bar">
       <div className="rounded-2xl p-4 space-y-3" style={{ background: "white", border: `1px solid ${C.beige}` }}>
-        <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>{tr("🧑‍🏫 샘 신청 · 팀")}</p>
+        <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>{tr("🧑‍🏫 리더 신청")}</p>
         {rows.map((x) => {
           const js = mineJoins.filter((j) => (j.slotId || "") === (x.id || "") || (!x.id && !j.slotId));
           const kids = roster.filter((r) => !x.id || r.adv.sessionId === x.id);
@@ -9327,9 +9364,9 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
             <div key={x.id || "all"} className="rounded-xl p-3" style={{ background: C.cream }} data-testid="teachers-slot">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <p className="f-body text-[16px] font-bold" style={{ color: C.charcoal }}>{x.label || tr("전체")}</p>
-                <p className="f-body text-[13px] text-gray-500">{tr("샘 {0}명 확정", [confirmed])} · {tr("팀 {0}개", [teams.length])} · {tr("아이 {0}명 중 {1}명 배정", [kids.length, placed])}</p>
+                <p className="f-body text-[13px] text-gray-500">{tr("리더 {0}명 확정", [confirmed])}</p>
               </div>
-              {js.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("이 시간대에 신청한 샘이 없어요.")}</p>}
+              {js.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("이 시간대에 신청한 리더가 없어요.")}</p>}
               <div className="space-y-1.5">
                 {js.map((j) => (
                   <div key={j.key} className="flex items-center gap-2">
@@ -9344,7 +9381,7 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
                   </div>
                 ))}
               </div>
-              {x.id && confirmed > 0 && (
+              {x.id && confirmed > 0 && onPickSlot && (
                 <button onClick={() => onPickSlot(x.id)} data-testid="teachers-bar-teams" className="focus-ring tap w-full mt-2.5 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: kids.length > placed ? C.orange : C.beige, color: kids.length > placed ? "white" : C.green, minHeight: 44 }}>{kids.length > placed ? tr("팀 만들기 → (아이 {0}명 남음)", [kids.length - placed]) : tr("팀 보기 · 고치기")}</button>
               )}
             </div>
@@ -9422,6 +9459,193 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
   );
 }
 
+/** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamAdmin, addStudent }) {
+  const [view, setView] = useState("student"); // student | leader
+  const [openId, setOpenId] = useState(null);
+  const [menu, setMenu] = useState(false);
+  const [panel, setPanel] = useState(""); // "" | teams | add
+  const [auto, setAuto] = useState(null);
+  const hasSlots = slots.length > 0;
+  const unset = hasSlots ? roster.filter((r) => !sessionOf(program, r.adv)) : [];
+  const rows = hasSlots ? (slotId === "none" ? unset : roster.filter((r) => r.adv.sessionId === slotId)) : roster;
+  const allTeams = teamsOf(program);
+  const teams = hasSlots && slotId !== "none" ? allTeams.filter((t) => !t.sessionId || t.sessionId === slotId) : hasSlots ? [] : allTeams;
+  const teamOfRow = (r) => teams.find((t) => t.id === r.adv.teamId) || null;
+  const leaderOf = (r) => (teamOfRow(r) || {}).teacher || "";
+  const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const names = [];
+  [...leaders, ...teams.map((t) => t.teacher)].filter(Boolean).forEach((n) => { if (!names.some((x) => same(x, n))) names.push(n); });
+  names.sort(byKoName);
+  const countOf = (n) => rows.filter((r) => same(leaderOf(r), n)).length;
+  const loose = rows.filter((r) => !teamOfRow(r));
+  const done = rows.length - loose.length;
+  const byName = (x, y) => byKoName(x.student.name, y.student.name);
+  const assign = (r, leader) => {
+    setOpenId(null);
+    if (!leader) { onAssign(r.student.id, ""); return; }
+    let t = teams.find((x) => x.level === r.student.level && same(x.teacher, leader));
+    if (!t) {
+      t = { id: `t-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, level: r.student.level, teacher: leader, ...(hasSlots ? { sessionId: slotId } : {}) };
+      onSaveTeams([...allTeams, t]);
+    }
+    if (r.adv.teamId !== t.id) onAssign(r.student.id, t.id);
+  };
+  // automatic: leaders without a team here take the levels that have none, existing teams fill up first
+  const counts = Object.fromEntries(teams.map((t) => [t.id, rows.filter((r) => r.adv.teamId === t.id).length]));
+  const freeLeaders = [...names.filter((n) => !teams.some((t) => same(t.teacher, n))), ...names.filter((n) => teams.some((t) => same(t.teacher, n)))]; // idle leaders first; a leader may also take a second level
+  const plan = auto ? planTeams({ loose: loose.map((r) => ({ id: r.student.id, name: r.student.name, level: r.student.level })), teams, counts, free: freeLeaders, max: auto.max }) : null;
+  const applyPlan = () => {
+    const stamp = Date.now().toString(36);
+    const created = plan.teams.map((t, i) => ({ id: `t-${stamp}${i}`, level: t.level, teacher: t.teacher, ...(hasSlots ? { sessionId: slotId } : {}) }));
+    if (created.length) onSaveTeams([...allTeams, ...created]);
+    plan.fills.forEach((f) => f.kids.forEach((k) => onAssign(k.id, f.teamId)));
+    plan.teams.forEach((t, i) => t.kids.forEach((k) => onAssign(k.id, created[i].id)));
+    setAuto(null);
+  };
+  const chip = (on) => ({ background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` });
+  const renderRow = (r, showLeader) => {
+    const lead = leaderOf(r);
+    const open = openId === r.student.id;
+    return (
+      <div key={r.student.id} data-testid="match-row" className="py-2" style={{ borderTop: `1px solid ${C.cream}` }}>
+        <div className="flex items-center gap-2">
+          <span className="text-[22px] shrink-0">{r.student.avatar}</span>
+          <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{r.student.name}<span className="font-normal text-gray-500"> · {r.student.level}</span></span>
+          {showLeader && lead && <span className="f-body text-[15px] font-bold truncate max-w-[34%]" style={{ color: C.green }}>{lead}</span>}
+          {slotId === "none" ? (
+            <span className="flex gap-1.5 shrink-0">
+              {slots.map((x) => (
+                <button key={x.id} onClick={() => onSetSlot(r.student.id, x.id)} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{x.label}</button>
+              ))}
+            </span>
+          ) : lead ? (
+            <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("변경")} ▾</button>
+          ) : (
+            <button onClick={() => setOpenId(open ? null : r.student.id)} aria-expanded={open} data-testid="pick-leader" className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.orange, minHeight: 40 }}>{tr("리더 선택")} ▾</button>
+          )}
+        </div>
+        {open && (
+          <div className="flex flex-wrap gap-1.5 mt-2 pl-8" data-testid="leader-choices">
+            {names.length === 0 && <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정해 주세요.")}</p>}
+            {names.map((n) => (
+              <button key={n} onClick={() => assign(r, n)} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(same(lead, n)), minHeight: 40 }}>
+                {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}{countOf(n) >= 6 ? " ⚠" : ""}</span>
+              </button>
+            ))}
+            {lead && <button onClick={() => assign(r, "")} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ color: "#B03A2E", minHeight: 40 }}>{tr("배정 해제")}</button>}
+            {hasSlots && onSetSlot && slots.filter((x) => x.id !== slotId).map((x) => (
+              <button key={x.id} onClick={() => { setOpenId(null); onSetSlot(r.student.id, x.id); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: "#8A8060", minHeight: 40 }}>{tr("{0}(으)로 이동", [x.label])}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+  const tabs = hasSlots ? [...slots.map((x) => ({ id: x.id, label: x.label, n: roster.filter((r) => r.adv.sessionId === x.id).length })), ...(unset.length > 0 ? [{ id: "none", label: tr("시간대 미정"), n: unset.length }] : [])] : [];
+  const menuItems = [
+    { k: "teams", label: tr("팀 추가·수정·삭제"), on: () => setPanel(panel === "teams" ? "" : "teams") },
+    { k: "add", label: tr("학생 직접 추가"), on: () => setPanel(panel === "add" ? "" : "add") },
+    ...(onRecruit ? [{ k: "recruit", label: recruitClosed ? tr("리더 모집 다시 열기") : tr("리더 모집 마감"), on: () => onRecruit(!recruitClosed) }] : []),
+  ];
+  const sortedRows = [...rows].sort((x, y) => Number(!!teamOfRow(x)) - Number(!!teamOfRow(y)) || byName(x, y));
+  return (
+    <div className="px-5 mb-3" data-testid="matching">
+      {tabs.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Time slots">
+          {tabs.map((c) => (
+            <button key={c.id} role="tab" aria-selected={slotId === c.id} onClick={() => { setOpenId(null); setAuto(null); onSlot(c.id); }} className="focus-ring tap shrink-0 f-body text-[16px] font-bold px-4 py-2 rounded-full whitespace-nowrap" style={chip(slotId === c.id)}>{c.label} {c.n}</button>
+          ))}
+        </div>
+      )}
+      <div className="bg-white rounded-2xl p-4">
+        {slotId !== "none" && (
+          <div className="grid grid-cols-3 gap-2 text-center mb-3" data-testid="match-summary">
+            {[[tr("전체 신청자"), rows.length, C.charcoal], [tr("배정 완료"), done, "#1F7A44"], [tr("미배정"), loose.length, loose.length ? C.orange : "#9C927D"]].map(([l, n, c]) => (
+              <div key={l} className="rounded-xl py-2" style={{ background: C.cream }}>
+                <p className="f-display text-[24px] font-bold leading-none" style={{ color: c }}>{n}</p>
+                <p className="f-body text-[13px] text-gray-500 mt-1">{l}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {slotId === "none" && <p className="f-body text-[14px] mb-2" style={{ color: "#B25A0B" }}>{tr("시간대를 먼저 정해 주세요. 정하면 그 시간대에서 리더를 고를 수 있어요.")}</p>}
+        <div className="flex items-center justify-between gap-2">
+          {slotId !== "none" ? (
+            <div className="flex rounded-full p-0.5" style={{ background: C.cream }} role="tablist" aria-label="View">
+              {[["student", tr("학생별")], ["leader", tr("리더별")]].map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)} className="focus-ring tap f-body text-[15px] font-bold px-4 py-1.5 rounded-full" style={{ background: view === k ? C.green : "transparent", color: view === k ? "white" : C.charcoal, minHeight: 40 }}>{l}</button>
+              ))}
+            </div>
+          ) : <span />}
+          <div className="flex items-center gap-1.5 relative">
+            {loose.length > 0 && slotId !== "none" && !auto && <button onClick={() => setAuto({ max: 6 })} data-testid="auto-assign" className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-1.5 text-white" style={{ background: C.green, minHeight: 40 }}>{tr("자동 배정")}</button>}
+            <button onClick={() => setMenu((v) => !v)} aria-label={tr("더보기")} aria-expanded={menu} data-testid="match-menu" className="focus-ring tap w-10 h-10 rounded-full f-body text-[20px] font-bold" style={{ background: C.beige, color: C.green }}>⋯</button>
+          </div>
+        </div>
+        {menu && (
+          <div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${C.beige}` }}>
+            {menuItems.map((m) => (
+              <button key={m.k} onClick={() => { setMenu(false); m.on(); }} className="focus-ring tap w-full text-left f-body text-[15px] font-semibold px-4 py-3" style={{ color: C.charcoal, borderTop: m.k === "teams" ? "none" : `1px solid ${C.cream}` }}>{m.label}</button>
+            ))}
+          </div>
+        )}
+        {auto && plan && (
+          <div className="mt-3 rounded-xl p-3" style={{ border: `1px solid ${C.beige}` }} data-testid="auto-teams">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{tr("리더당 최대 {0}명", [auto.max])}</p>
+              <div className="flex gap-1.5">
+                <button onClick={() => setAuto((a) => ({ ...a, max: Math.max(2, a.max - 1) }))} aria-label={tr("한 명 줄이기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>−</button>
+                <button onClick={() => setAuto((a) => ({ ...a, max: Math.min(12, a.max + 1) }))} aria-label={tr("한 명 늘리기")} className="focus-ring tap w-9 h-9 rounded-full f-body text-[18px] font-bold" style={{ background: C.beige, color: C.green }}>+</button>
+              </div>
+            </div>
+            {names.length === 0 ? (
+              <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정하면 자동으로 나눌 수 있어요.")}</p>
+            ) : (
+              <div className="space-y-1.5">
+                {plan.fills.map((f) => <p key={f.teamId} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{f.teacher} · {f.level}</b> + {f.kids.map((k) => k.name).join(", ")}</p>)}
+                {plan.teams.map((t, i) => <p key={`${t.level}-${t.teacher}-${i}`} className="f-body text-[14px]" style={{ color: C.charcoal }}><b>{t.teacher} · {t.level}</b> + {t.kids.map((k) => k.name).join(", ")}</p>)}
+                {plan.leftover.length > 0 && <p className="f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("리더가 모자라 {0}명은 남아요: {1}", [plan.leftover.length, plan.leftover.map((k) => k.name).join(", ")])}</p>}
+              </div>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setAuto(null)} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: C.charcoal }}>{tr("취소")}</button>
+              <button onClick={applyPlan} disabled={plan.fills.length + plan.teams.length === 0} data-testid="auto-apply" className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white disabled:opacity-50" style={{ background: C.green }}>{tr("이대로 배정")}</button>
+            </div>
+          </div>
+        )}
+        {slotId !== "none" && rows.length > 0 && loose.length === 0 && <p className="f-body text-[15px] font-bold mt-3" style={{ color: "#1F7A44" }} data-testid="match-done">✓ {tr("배정 완료")}</p>}
+        {rows.length === 0 && <p className="f-body text-[14px] text-gray-500 mt-3">{tr("아직 신청한 아이가 없어요.")}</p>}
+
+        <div className="mt-2" data-testid="match-list">
+          {slotId === "none" || view === "student" ? sortedRows.map((r) => renderRow(r, true)) : (
+            <>
+              {loose.length > 0 && (
+                <div className="mb-2">
+                  <p className="f-body text-[14px] font-bold pt-2" style={{ color: C.orange }}>{tr("미배정 {0}명", [loose.length])}</p>
+                  {loose.slice().sort(byName).map((r) => renderRow(r, false))}
+                </div>
+              )}
+              {names.map((n) => {
+                const mine = rows.filter((r) => same(leaderOf(r), n)).sort(byName);
+                return (
+                  <div key={n} className="mb-2" data-testid="leader-group">
+                    <p className="f-body text-[16px] font-bold pt-2" style={{ color: C.green }}>{n} <span className="font-normal text-gray-500">· {tr("{0}명", [mine.length])}{mine.length > 6 ? ` ⚠ ${tr("6명이 넘어요")}` : ""}</span></p>
+                    {mine.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 배정된 아이가 없어요.")}</p>}
+                    {mine.map((r) => renderRow(r, false))}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+      {panel === "teams" && <div className="-mx-5 mt-3">{teamAdmin}</div>}
+      {panel === "add" && <div className="mt-3">{addStudent}</div>}
+    </div>
+  );
+}
+
 function TeamPanel({ program, roster, session, teacherSuggestions, confirmedNames = [], onSaveTeams: saveAllTeams, onAssign }) {
   // with time slots a team belongs to one slot: this panel shows and changes only the slot it is opened for
   const allTeams = teamsOf(program);
@@ -9485,7 +9709,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
     <div className="px-5 mb-3">
       <div className="bg-white rounded-2xl p-4">
         <div className="flex items-center justify-between gap-2 mb-1">
-          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 선생님")}{session ? ` · ${session.label}` : ""}</p>
+          <p className="f-display font-semibold text-[18px]" style={{ color: C.green }}>{tr("팀 · 리더")}{session ? ` · ${session.label}` : ""}</p>
           {!form && !auto && (
             <div className="flex gap-1.5">
               {loose.length > 0 && <button onClick={() => setAuto({ max: 6 })} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-1.5 text-white" style={{ background: C.green }}>{tr("팀 자동 만들기")}</button>}
@@ -9981,13 +10205,13 @@ function ProgramPayField({ value, rate, onSave }) {
   };
   return (
     <div className="mt-2 rounded-xl px-3 py-2.5" style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="program-pay">
-      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("선생님 활동비 (세전)")}</p>
+      <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("리더 활동비 (세전)")}</p>
       <div className="flex items-center gap-2 mt-1">
         <input value={text} onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ""))} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} inputMode="numeric" placeholder={tr("예: 45000")} aria-label={tr("프로그램 금액")} className="focus-ring rounded-lg px-2.5 py-2 f-body text-[16px] outline-none flex-1 min-w-0" style={{ background: "white", border: `1px solid ${C.beige}` }} />
         <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>원</span>
         {saved && <span className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("저장했어요 ✓")}</span>}
       </div>
-      <p className="f-body text-[12px] text-gray-500 mt-1">{tr("비워 두면 체험 시간 × 시급({0})으로 계산해요. 선생님 신청 화면에 이 금액이 보여요.", [won(rate)])}</p>
+      <p className="f-body text-[12px] text-gray-500 mt-1">{tr("비워 두면 체험 시간 × 시급({0})으로 계산해요. 리더 신청 화면에 이 금액이 보여요.", [won(rate)])}</p>
     </div>
   );
 }
@@ -10174,6 +10398,7 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
     .map((a) => students.find((s) => s.id === a.studentId))
     .filter(Boolean);
   const [showCanceled, setShowCanceled] = useState(false);
+  const [manageTab, setManageTab] = useState("match"); // match | attend | pay
   const [slotFilter, setSlotFilter] = useState(null); // a time-slot id, "all" or "none"; the first slot until one is chosen
   const slots = sessionsOf(program);
   const slotNow = slots.length ? (slotFilter === "all" || slotFilter === "none" || slots.some((x) => x.id === slotFilter) ? slotFilter : slots[0].id) : null;
@@ -10494,6 +10719,92 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                   {(() => { const v = parentVisibility(program, adventures, students); return <p className="f-body text-[13px] font-bold mt-0.5" style={{ color: v.on ? "#1F7A44" : "#8A8060" }} data-testid="parent-visibility">{v.on ? `👪 ${tr("부모 노출")} · ${tr(v.why, [v.n])}` : `${tr("부모 비노출")} · ${tr(v.why)}`}</p>; })()}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="px-5 mb-3">
+            <div className="flex gap-1 p-1 rounded-2xl bg-white" role="tablist" aria-label="Program">
+                <button role="tab" aria-selected={manageTab === "match"} onClick={() => setManageTab("match")} data-testid="manage-tab-match" className="focus-ring tap flex-1 f-body text-[15px] font-bold py-2 rounded-xl whitespace-nowrap" style={{ background: manageTab === "match" ? C.green : "transparent", color: manageTab === "match" ? "white" : C.charcoal, minHeight: 44 }}>{tr("신청·팀")}</button>
+                <button role="tab" aria-selected={manageTab === "attend"} onClick={() => setManageTab("attend")} data-testid="manage-tab-attend" className="focus-ring tap flex-1 f-body text-[15px] font-bold py-2 rounded-xl whitespace-nowrap" style={{ background: manageTab === "attend" ? C.green : "transparent", color: manageTab === "attend" ? "white" : C.charcoal, minHeight: 44 }}>{tr("출석·피드백")}</button>
+                <button role="tab" aria-selected={manageTab === "pay"} onClick={() => setManageTab("pay")} data-testid="manage-tab-pay" className="focus-ring tap flex-1 f-body text-[15px] font-bold py-2 rounded-xl whitespace-nowrap" style={{ background: manageTab === "pay" ? C.green : "transparent", color: manageTab === "pay" ? "white" : C.charcoal, minHeight: 44 }}>{tr("리더 정산")}</button>
+            </div>
+          </div>
+          {manageTab === "match" && (
+            <>
+          {(() => {
+            const enrollButtons = (st, afterEnroll) => (slots.length > 0 ? (
+                <span className="flex gap-1.5 flex-wrap justify-end">
+                  {slots.map((x) => (
+                    <button key={x.id} onClick={() => { onEnrollStudent(st.id, programId, undefined, x.id); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>+ {x.label}</button>
+                  ))}
+                </span>
+              ) : (
+                <button onClick={() => { onEnrollStudent(st.id, programId); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("+ 추가")}</button>
+              ));
+            const applies = unenrolled
+              .map((st) => ({ st, row: suggestions.find((x) => x.id === applyId(st.id, programId) && !x.resolved) }))
+              .filter((x) => x.row);
+            const others = unenrolled.filter((st) => !applies.some((x) => x.st.id === st.id));
+            const matchSlot = slots.length ? (slotNow === "all" ? slots[0].id : slotNow) : null;
+            const matchRoster = !slots.length ? roster : matchSlot === "none" ? roster.filter((r) => !sessionOf(program, r.adv)) : roster.filter((r) => r.adv.sessionId === matchSlot);
+            const slotObj = slots.length ? slots.find((x) => x.id === matchSlot) : null;
+            const leaders = confirmedTeacherNames(joins, teachers, programId, slots.length && matchSlot !== "none" ? matchSlot : undefined);
+            return (
+              <>
+              <div className="px-5 mb-3 space-y-2.5" data-testid="add-students">
+                {applies.length > 0 && (
+                  <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="apply-queue">
+                    <p className="f-display text-[17px] font-bold mb-2" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
+                    <div className="space-y-2">
+                      {applies.map(({ st, row }) => (
+                        <div key={st.id} className="flex items-center gap-3">
+                          <span className="text-[23px]">{st.avatar}</span>
+                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}</span>
+                          {enrollButtons(st, () => onResolveSuggestions([row.id]))}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="f-body text-[13px] text-gray-500 mt-2">{tr("부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.")}</p>
+                  </div>
+                )}
+              </div>
+              <MatchingPanel
+                key={programId}
+                program={program}
+                slots={slots}
+                slotId={matchSlot}
+                onSlot={setSlotFilter}
+                roster={roster}
+                leaders={leaders}
+                onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
+                onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
+                onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
+                recruitClosed={!!program.teacherClosed}
+                onRecruit={onSetProgramRecruit ? (open) => onSetProgramRecruit(programId, open) : undefined}
+                teamAdmin={slots.length && matchSlot === "none" ? <p className="px-5 f-body text-[14px] text-gray-500">{tr("시간대를 먼저 정해 주세요.")}</p> : (
+                  <TeamPanel
+                    program={program}
+                    roster={matchRoster}
+                    session={slotObj}
+                    confirmedNames={leaders}
+                    teacherSuggestions={[...new Set([...confirmedTeacherNames(joins, teachers, programId), ...teachers.filter((t) => t.active).map((t) => t.name), ...teacherNamesIn(PROGRAMS)])]}
+                    onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
+                    onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
+                  />
+                )}
+                addStudent={others.length > 0 ? <AddStudentPicker others={others} enrollButtons={enrollButtons} liked={(st) => wishesFor(suggestions, programId).some((w) => w.familyPin === st.familyPin)} /> : <p className="f-body text-[14px] text-gray-500">{tr("추가할 수 있는 학생이 없어요.")}</p>}
+              />
+              </>
+            );
+          })()}
+
+          <ProgramTeachersBar program={program} slots={slots} joins={joins} teachers={teachers} roster={roster} onDecide={(key, st) => (onDecideJoin || (() => {}))(key, st)} />
+            </>
+          )}
+          {manageTab === "attend" && (
+            <>
+              <div className="px-5 mb-3">
+                <div className="bg-white rounded-2xl p-4">
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { on: isLive(program), label: tr("오늘 진행"), onLabel: tr("진행 중"), onClick: () => onSetProgramToday(programId, !isLive(program)) },
@@ -10516,103 +10827,18 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 ))}
               </div>
               <p className="f-body text-[13px] text-gray-400 mt-2">{tr("한 번 누르면 이 프로그램에 신청한 아이 {0}명 모두에게 바로 적용돼요.", [roster.length])}</p>
-              {payData && onSetPayAmount && <ProgramPayField key={programId} value={(payData.amounts || {})[programId]} rate={payData.rate} onSave={(v) => onSetPayAmount(programId, v)} />}
-              {onSetProgramRecruit && (
-                <button onClick={() => onSetProgramRecruit(programId, !program.teacherClosed)} aria-pressed={!program.teacherClosed} data-testid="recruit-toggle" className="focus-ring tap w-full mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left" style={{ background: program.teacherClosed ? "#F3EEE3" : "#DCF3E4", border: `1px solid ${program.teacherClosed ? C.beige : "#9FD6B2"}` }}>
-                  <span className="f-body text-[15px] font-bold" style={{ color: program.teacherClosed ? "#8A8060" : "#1F7A44" }}>{tr("선생님 모집")} · {program.teacherClosed ? tr("마감") : tr("신청 받는 중")}</span>
-                  <span className="f-body text-[13px] font-bold" style={{ color: C.green }}>{program.teacherClosed ? tr("다시 열기") : tr("마감하기")}</span>
-                </button>
-              )}
               <AttendanceStrip program={program} roster={roster} onSave={(studentId, patch) => updateAdventure(studentId, programId, patch)} />
               {FEATURES.parentAdvice && <AdviceStrip program={program} roster={roster} onSave={(studentId, advice) => updateAdventure(studentId, programId, { advice })} />}
-            </div>
-          </div>
-
-          {(() => {
-            const enrollButtons = (st, afterEnroll) => (slots.length > 0 ? (
-                <span className="flex gap-1.5 flex-wrap justify-end">
-                  {slots.map((x) => (
-                    <button key={x.id} onClick={() => { onEnrollStudent(st.id, programId, undefined, x.id); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>+ {x.label}</button>
-                  ))}
-                </span>
-              ) : (
-                <button onClick={() => { onEnrollStudent(st.id, programId); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>{tr("+ 추가")}</button>
-              ));
-            const applies = unenrolled
-              .map((st) => ({ st, row: suggestions.find((x) => x.id === applyId(st.id, programId) && !x.resolved) }))
-              .filter((x) => x.row);
-            const others = unenrolled.filter((st) => !applies.some((x) => x.st.id === st.id));
-            return (
-              <div className="px-5 mb-3 space-y-2.5" data-testid="add-students">
-                {applies.length > 0 && (
-                  <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="apply-queue">
-                    <p className="f-display text-[17px] font-bold mb-2" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
-                    <div className="space-y-2">
-                      {applies.map(({ st, row }) => (
-                        <div key={st.id} className="flex items-center gap-3">
-                          <span className="text-[23px]">{st.avatar}</span>
-                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}</span>
-                          {enrollButtons(st, () => onResolveSuggestions([row.id]))}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="f-body text-[13px] text-gray-500 mt-2">{tr("부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.")}</p>
-                  </div>
-                )}
-                {others.length > 0 && (
-                  <FoldBar title={tr("+ 학생 직접 추가")} summary={tr("추가할 수 있는 학생 {0}명", [others.length])} defaultOpen={false}>
-                    <AddStudentPicker others={others} enrollButtons={enrollButtons} liked={(st) => wishesFor(suggestions, programId).some((w) => w.familyPin === st.familyPin)} />
-                  </FoldBar>
-                )}
+                </div>
               </div>
-            );
-          })()}
-
-          <ProgramTeachersBar program={program} slots={slots} joins={joins} teachers={teachers} roster={roster} onDecide={(key, st) => (onDecideJoin || (() => {}))(key, st)} onPickSlot={(id) => setSlotFilter(id)} />
-          {slots.length > 0 && (
-            <div className="px-5 mb-3">
-              <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Time slots">
-                {[{ id: "all", label: tr("전체"), n: roster.length }, ...slots.map((x) => ({ id: x.id, label: x.label, n: roster.filter((r) => r.adv.sessionId === x.id).length })), ...(unsetCount > 0 ? [{ id: "none", label: tr("미정"), n: unsetCount }] : [])].map((c) => (
-                  <button
-                    key={c.id}
-                    role="tab"
-                    aria-selected={slotNow === c.id}
-                    onClick={() => setSlotFilter(c.id)}
-                    className="focus-ring tap shrink-0 f-body text-[16px] font-bold px-4 py-2 rounded-full whitespace-nowrap"
-                    style={{ background: slotNow === c.id ? C.green : "white", color: slotNow === c.id ? "white" : C.charcoal, border: `1px solid ${slotNow === c.id ? C.green : C.beige}` }}
-                  >
-                    {c.label} {c.n}
-                  </button>
-                ))}
-              </div>
-              {slotNow !== "all" && slotNow !== "none" && slots.find((x) => x.id === slotNow) && <p className="f-body text-[14px] text-gray-500 mt-1.5">🕘 {sessionName(slots.find((x) => x.id === slotNow))}</p>}
-            </div>
-          )}
-
-          {!slots.length || (slotNow !== "all" && slotNow !== "none") ? (
-            <TeamPanel
-              program={program}
-              roster={rosterShown}
-              session={slots.length ? slots.find((x) => x.id === slotNow) : null}
-              confirmedNames={confirmedTeacherNames(joins, teachers, programId, slots.length ? (slots.find((x) => x.id === slotNow) || {}).id : undefined)}
-              teacherSuggestions={[...new Set([...confirmedTeacherNames(joins, teachers, programId), ...teachers.filter((t) => t.active).map((t) => t.name), ...teacherNamesIn(PROGRAMS)])]}
-              onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
-              onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
-            />
-          ) : (
-            <p className="px-5 mb-3 f-body text-[14px] text-gray-500">{tr("팀은 시간대를 하나 골라서 만들어요.")}</p>
-          )}
-
           <div className="px-5 space-y-3">
-            {rosterShown.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv))) || byKoName(x.student.name, y.student.name)).map(({ student, adv }) => (
+            {roster.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv))) || byKoName(x.student.name, y.student.name)).map(({ student, adv }) => (
               <TeacherStudentCard
                 key={student.id}
                 student={student}
                 allStudents={students}
                 adv={adv}
                 program={program}
-                onAssignTeam={(teamId) => updateAdventure(student.id, programId, { teamId })}
-                onAssignSession={slots.length ? (sessionId) => { const t = teamOf(program, adv); updateAdventure(student.id, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 programTitle={program.title}
                 onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
                 adventures={adventures}
@@ -10645,6 +10871,33 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
               </div>
             )}
           </div>
+            </>
+          )}
+          {manageTab === "pay" && (
+            <div className="px-5 mb-3 space-y-3" data-testid="leader-pay">
+              <div className="bg-white rounded-2xl p-4">
+              {payData && onSetPayAmount && <ProgramPayField key={programId} value={(payData.amounts || {})[programId]} rate={payData.rate} onSave={(v) => onSetPayAmount(programId, v)} />}
+                {(() => {
+                  const amt = ((payData || {}).amounts || {})[programId];
+                  const ls = [...new Set(confirmedTeacherNames(joins, teachers, programId))];
+                  const net = (v) => (payData && payData.taxOn !== false ? Math.round(v * (1 - 0.033)) : v);
+                  return (
+                    <div className="mt-3">
+                      <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("확정된 리더 {0}명", [ls.length])}</p>
+                      {ls.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 확정된 리더가 없어요.")}</p>}
+                      {ls.map((n) => (
+                        <div key={n} className="flex items-center justify-between gap-2 py-1.5" style={{ borderTop: `1px solid ${C.cream}` }}>
+                          <span className="f-body text-[16px] font-semibold" style={{ color: C.charcoal }}>{n}</span>
+                          <span className="f-body text-[14px] text-gray-500">{amt === undefined || amt === "" ? tr("시급 기준") : `${won(amt)}${payData && payData.taxOn !== false ? ` → ${tr("실수령")} ${won(net(amt))}` : ""}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <button onClick={() => setTab("pay")} data-testid="go-pay" className="focus-ring tap w-full f-body text-[15px] font-bold rounded-xl py-3" style={{ background: C.beige, color: C.green }}>{tr("리더 정산 전체 보기")}</button>
+            </div>
+          )}
         </>
       )}
 

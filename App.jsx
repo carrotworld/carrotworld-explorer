@@ -970,6 +970,10 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"내 담당 팀": "My teams",
+"다른 리더 팀 {0}": "Other leaders' teams {0}",
+"수업 자료 보기": "Lesson materials",
+"아직 팀이 정해지지 않았어요. 본사가 정하면 여기에 나와요.": "No team yet. It will show here once HQ sets it.",
 "팀 세팅 끝 · 리더에게 알리기": "Teams done · notify leaders",
 "팀 세팅 완료 · 리더에게 알렸어요": "Teams set · leaders notified",
 "리더 신청은 마감됐어요": "Leader sign-up is closed",
@@ -5535,6 +5539,14 @@ function AdviceBox({ student, program, adv, onSave }) {
   };
   const small = "focus-ring tap f-body text-[15px] font-bold rounded-full px-3.5 py-2";
   const toggleFocus = (k) => setPick((p) => ({ ...p, focus: p.focus.includes(k) ? p.focus.filter((x) => x !== k) : [...p.focus, k] }));
+  // older data may hold two teams of one leader in the same slot (one per level): fold them into the first one
+  const dupes = (() => { const seen = new Map(); const out = []; teams.forEach((t) => { const k = String(t.teacher || "").trim().toLowerCase(); if (seen.has(k)) out.push({ from: t, into: seen.get(k) }); else seen.set(k, t); }); return out; })();
+  useEffect(() => {
+    if (!dupes.length) return;
+    const gone = new Set(dupes.map((d) => d.from.id));
+    onSaveTeams(allTeams.filter((t) => !gone.has(t.id)));
+    dupes.forEach((d) => rows.filter((r) => r.adv.teamId === d.from.id).forEach((r) => onAssign(r.student.id, d.into.id)));
+  }, [dupes.map((d) => d.from.id).join(",")]);
   const chip = (on) => ({ background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `1px solid ${on ? C.green : C.beige}` });
   return (
     <div className="pt-3 border-t" style={{ borderColor: C.beige }}>
@@ -8920,7 +8932,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z62"; // change with every delivery
+const APP_BUILD = "2026-10-22-z65"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9476,49 +9488,60 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
   );
 }
 
-/** Teacher: my team(s) for a program I signed up for, with the children, their levels and the level materials. */
-function MyTeamsCard({ program, adventures, students, name, signups, onOpenMaterials }) {
+/** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
+ *  the other leaders' teams folded, the lesson-material button once at the bottom. */
+const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
+function MyTeamsCard({ program, slot, adventures, students, name, status, onOpenMaterials }) {
+  const [showOthers, setShowOthers] = useState(false);
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
-  const slots = sessionsOf(program);
-  const slotLabel = (id) => (slots.find((x) => x.id === id) || {}).label || "";
-  const mySlots = signups.filter((j) => j.programId === program.id && ["approved", "pending", "waiting"].includes(j.status)).map((j) => slotLabel(j.slotId)).filter(Boolean);
-  const kidsOf = (t) => adventures.filter((a) => a.programId === program.id && !a.canceled && a.teamId === t.id).map((a) => students.find((st) => st.id === a.studentId)).filter((st) => st && !isPendingStudent(st)).sort((x, y) => byKoName(x.name, y.name));
-  const teams = teamsOf(program);
-  const mine = teams.filter((t) => same(t.teacher));
-  const others = teams.filter((t) => !same(t.teacher));
-  const levels = [...new Set((mine.length ? mine.map((t) => t.level) : programLevels(program)).filter(Boolean))];
+  const slotId = slot ? slot.id : "";
+  const time = infoForSession(infoFrom(program), slot || null).time;
+  const inSlot = (t) => !slotId || !t.sessionId || t.sessionId === slotId;
+  const kidsOf = (t) => adventures.filter((a) => a.programId === program.id && !a.canceled && a.teamId === t.id && (!slotId || !a.sessionId || a.sessionId === slotId)).map((a) => students.find((st) => st.id === a.studentId)).filter((st) => st && !isPendingStudent(st)).sort((x, y) => byKoName(x.name, y.name));
+  const teams = teamsOf(program).filter(inSlot);
+  // one leader = one team (one colour) in a time slot: older data may hold several, they read as one
+  const group = (list) => { const m = new Map(); list.forEach((t) => { const k = String(t.teacher || "").trim().toLowerCase(); const g = m.get(k) || { ...t, kids: [] }; kidsOf(t).forEach((x) => { if (!g.kids.some((y) => y.id === x.id)) g.kids.push(x); }); m.set(k, g); }); return [...m.values()].map((g) => ({ ...g, kids: g.kids.sort((x, y) => byKoName(x.name, y.name)) })); };
+  const mine = group(teams.filter((t) => same(t.teacher)));
+  const others = group(teams.filter((t) => !same(t.teacher)));
+  const levels = [...new Set((mine.length ? mine.flatMap((t) => t.kids.map((k) => k.level)) : programLevels(program)).filter(Boolean))].sort(sortLevelsCmp);
+  const dot = (t) => <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color || "#C9BFA8" }} />;
+  const kidLine = (t) => t.kids.map((k) => `${k.name} ${k.level}`).join(" · ");
   return (
     <div className="bg-white rounded-2xl p-4" data-testid="my-teams">
-      <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{splitTitle(program.title)[0]}</p>
-      <p className="f-body text-[13px] text-gray-500 mb-2">{[program.date, mySlots.join(" · ")].filter(Boolean).join(" · ")}</p>
-      {program.teamsDone && <p className="f-body text-[14px] font-bold rounded-xl px-3 py-2.5 mb-2.5" style={{ background: "#EAF7EF", color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
+      <div className="flex items-start justify-between gap-2">
+        <p className="f-display text-[19px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0]}</p>
+        {status && status !== "approved" && <span className="shrink-0 f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("확인 대기")}</span>}
+      </div>
+      <p className="f-body text-[14px] text-gray-500" data-testid="my-teams-when">{[program.date, slot && slot.label, time].filter(Boolean).join(" · ")}</p>
+      {program.teamsDone && <p className="f-body text-[13px] font-bold mt-2" style={{ color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
+      <p className="f-body text-[12px] font-bold tracking-[0.08em] uppercase mt-3 mb-1.5" style={{ color: C.orange }}>{tr("내 담당 팀")}</p>
       {mine.length === 0 ? (
-        <p className="f-body text-[14px] rounded-xl px-3 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("아직 팀이 정해지지 않았어요. 본사가 정하면 여기에 아이들 명단이 나와요.")}</p>
+        <p className="f-body text-[14px] rounded-xl px-3 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("아직 팀이 정해지지 않았어요. 본사가 정하면 여기에 나와요.")}</p>
       ) : (
         <div className="space-y-2.5">
-          {mine.map((t) => {
-            const kids = kidsOf(t);
-            return (
-              <div key={t.id} className="rounded-xl p-3" style={{ background: C.cream }}>
-                <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("내 팀")} · {teamColorName(t) ? `${teamColorName(t)} ${tr("팀")} · ` : ""}Level {t.level}{t.sessionId ? ` · ${slotLabel(t.sessionId)}` : ""} · {tr("{0}명", [kids.length])}</p>
-                {kids.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 배정된 아이가 없어요.")}</p>}
-                <div className="space-y-1">
-                  {kids.map((st) => (
-                    <p key={st.id} className="f-body text-[15px]" style={{ color: C.charcoal }}>
-                      <span className="mr-1.5">{st.avatar}</span><b>{st.name}</b>
-                      <span className="text-gray-500"> · {st.level}{ageText(st.birthDate) ? ` · ${ageText(st.birthDate)}` : ""}</span>
-                    </p>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {mine.map((t) => (
+            <div key={t.id} className="rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
+              <p className="f-body text-[16px] font-bold flex items-center gap-2" style={{ color: C.charcoal }}>{dot(t)}{teamTag(t)} {tr("팀")}</p>
+              <p className="f-body text-[15px] mt-0.5" style={{ color: C.charcoal }}>{kidLine(t) || <span className="text-gray-400">{tr("아직 배정된 아이가 없어요.")}</span>}</p>
+            </div>
+          ))}
         </div>
       )}
       {others.length > 0 && (
-        <p className="f-body text-[13px] text-gray-500 mt-2">{tr("다른 팀")}: {others.map((t) => `${t.teacher} (${teamTag(t)} · ${tr("{0}명", [kidsOf(t).length])})`).join(", ")}</p>
+        <div className="mt-2.5">
+          <button onClick={() => setShowOthers((v) => !v)} aria-expanded={showOthers} className="focus-ring tap w-full flex items-center justify-between f-body text-[14px] font-bold" style={{ color: "#9C927D", minHeight: 40 }}>
+            <span>{tr("다른 리더 팀 {0}", [others.length])}</span><span>{showOthers ? "▴" : "▾"}</span>
+          </button>
+          {showOthers && (
+            <div className="space-y-1.5 mt-1" data-testid="other-teams">
+              {others.map((t) => (
+                <p key={t.id} className="f-body text-[14px]" style={{ color: "#5F6B66" }}><span className="inline-flex items-center gap-1.5 font-bold">{dot(t)}{teamTag(t)} · {t.teacher}</span>{kidLine(t) ? ` — ${kidLine(t)}` : ""}</p>
+              ))}
+            </div>
+          )}
+        </div>
       )}
-      <button onClick={() => onOpenMaterials(program.id)} data-testid="my-teams-materials" className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("Level {0} 수업 자료 보기", [levels.join(" · ")])}</button>
+      <button onClick={() => onOpenMaterials(program.id)} data-testid="my-teams-materials" className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{levels.length ? tr("Level {0} 수업 자료 보기", [levels.join(" · ")]) : tr("수업 자료 보기")}</button>
     </div>
   );
 }
@@ -9573,7 +9596,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
   const loose = rows.filter((r) => !teamOfRow(r));
   const done = rows.length - loose.length;
   const byName = (x, y) => byKoName(x.student.name, y.student.name);
-  const freeColor = (extra = []) => randomTeamColor([...allTeams.map((t) => t.color), ...extra]);
+  const freeColor = (extra = []) => randomTeamColor([...allTeams.map((t) => teamColor(program, t)), ...extra]);
   const assignTeam = (r, t) => { setOpenId(null); if (r.adv.teamId !== t.id) onAssign(r.student.id, t.id); };
   const assign = (r, leader) => {
     setOpenId(null);
@@ -9671,7 +9694,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
             {names.length === 0 && <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정해 주세요.")}</p>}
             {names.map((n) => (
               <button key={n} onClick={() => assign(r, n)} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(same(lead, n)), minHeight: 40 }}>
-                {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}{countOf(n) >= 6 ? " ⚠" : ""}</span>
+                {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}/6{countOf(n) >= 6 ? " ⚠" : ""}</span>
               </button>
             ))}
             {lead && <button onClick={() => assign(r, "")} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ color: "#B03A2E", minHeight: 40 }}>{tr("배정 해제")}</button>}
@@ -9840,7 +9863,7 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
     if (!teacher) return;
     const id = form.id || `t-${Date.now().toString(36)}`;
     const before = form.id ? members(teams.find((t) => t.id === form.id)).map((st) => st.id) : [];
-    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher, color: form.color || t.color || "" } : t)) : [...teams, { id, level: form.level, teacher, color: form.color || randomTeamColor(allTeams.map((t) => t.color)), ...(session ? { sessionId: session.id } : {}) }]);
+    onSaveTeams(form.id ? teams.map((t) => (t.id === id ? { ...t, level: form.level, teacher, color: form.color || t.color || "" } : t)) : [...teams, { id, level: form.level, teacher, color: form.color || randomTeamColor(allTeams.map((t) => teamColor(program, t))), ...(session ? { sessionId: session.id } : {}) }]);
     form.picked.forEach((sid) => { if (teamIdOf(sid) !== id) onAssign(sid, id); }); // includes children moved over from another team
     before.filter((sid) => !form.picked.includes(sid)).forEach((sid) => onAssign(sid, ""));
     setForm(null);
@@ -9970,7 +9993,8 @@ function TeamPanel({ program, roster, session, teacherSuggestions, confirmedName
             <div className="flex gap-2" data-testid="team-colors">
               {TEAM_COLORS.map((c) => {
                 const cur = form.color || (form.id ? teamColor(program, teams.find((t) => t.id === form.id)) : "");
-                return <button key={c} title={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} onClick={() => setForm({ ...form, color: c })} aria-label={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} aria-pressed={cur === c} className="focus-ring tap w-9 h-9 rounded-full" style={{ background: c, border: cur === c ? `3px solid ${C.charcoal}` : "3px solid white", boxShadow: `0 0 0 1px ${C.beige}` }} />;
+                const taken = teams.some((t) => t.id !== form.id && teamColor(program, t) === c); // another leader of this slot already has it
+                return <button key={c} disabled={taken} title={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} onClick={() => setForm({ ...form, color: c })} aria-label={(TEAM_PALETTE.find((x) => x[1] === c) || [c])[0]} aria-pressed={cur === c} className="focus-ring tap w-9 h-9 rounded-full" style={{ background: c, opacity: taken ? 0.25 : 1, border: cur === c ? `3px solid ${C.charcoal}` : "3px solid white", boxShadow: `0 0 0 1px ${C.beige}` }} />;
               })}
             </div>
             {teacherSuggestions.length > 0 && (
@@ -12016,9 +12040,14 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               <button onClick={() => { setProgramId(nextP.id); setTab("materials"); }} className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }}>{tr("수업자료 열기")}</button>
             </div>
           )}
-          {teacherId && PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p)) && mySignups.some((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status))).map((p) => (
-            <MyTeamsCard key={p.id} program={p} adventures={adventures} students={students} name={name} signups={mySignups} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />
-          ))}
+          {teacherId && PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
+            const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
+            const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
+            return slotIds.map((sid) => {
+              const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
+              return <MyTeamsCard key={`${p.id}-${sid}`} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />;
+            });
+          })}
           {teacherId && (feedbackTotal > 0 || payReady > 0) && (
             <div className="grid grid-cols-2 gap-2.5" data-testid="home-todo">
               <button onClick={() => setTab("feedback")} className="focus-ring tap text-left bg-white rounded-2xl px-4 py-3">

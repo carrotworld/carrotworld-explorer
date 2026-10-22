@@ -970,6 +970,9 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "비공개 · 지정한 리더에게만 보여요": "Private · only the picked leaders see it",
+  "지정 리더에게만 보이기 (비공개)": "Show only to picked leaders (private)",
+  "다른 리더에게도 공개하기": "Show to other leaders too",
   "신청 안 한 리더도 직접 지정할 수 있어요 (바로 확정돼요)": "You can also pick a leader who has not signed up (confirmed right away)",
   "등록된 리더가 없어요. '사람' 탭에서 리더를 먼저 추가해 주세요.": "No leaders registered. Add a leader in the People tab first.",
   "소리가 안 나면 벨소리/무음 스위치와 미디어 볼륨을 확인해 주세요": "If there is no sound, check the silent switch and media volume",
@@ -9050,7 +9053,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z75"; // change with every delivery
+const APP_BUILD = "2026-10-22-z76"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9713,7 +9716,7 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
-function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, otherLeaders = [], onAddLeader, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, otherLeaders = [], onAddLeader, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, leaderPrivate, onPrivate, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
   const [matId, setMatId] = useState(null);
   const [prepOpen, setPrepOpen] = useState(false);
   const [levelId, setLevelId] = useState(null);
@@ -9863,11 +9866,13 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, otherL
   const tabs = hasSlots ? [...slots.map((x) => ({ id: x.id, label: x.label, n: roster.filter((r) => r.adv.sessionId === x.id).length })), ...(unset.length > 0 ? [{ id: "none", label: tr("시간대 미정"), n: unset.length }] : [])] : [];
   const menuItems = [
     { k: "teams", label: tr("팀 추가·수정·삭제"), on: () => setPanel(panel === "teams" ? "" : "teams") },
+    ...(onPrivate ? [{ k: "private", label: leaderPrivate ? tr("다른 리더에게도 공개하기") : tr("지정 리더에게만 보이기 (비공개)"), on: () => onPrivate(!leaderPrivate) }] : []),
     ...(onRecruit ? [{ k: "recruit", label: recruitClosed ? tr("리더 모집 다시 열기") : tr("리더 모집 마감"), on: () => onRecruit(!recruitClosed) }] : []),
   ];
   const sortedRows = [...rows].sort((x, y) => Number(!!teamOfRow(x)) - Number(!!teamOfRow(y)) || byName(x, y));
   return (
     <div className="px-5 mb-3" data-testid="matching">
+      {leaderPrivate && <p className="f-body text-[14px] font-bold rounded-xl px-3 py-2 mb-2" style={{ background: "#EEF3FF", color: "#2F5DA8" }} data-testid="private-note">🔒 {tr("비공개 · 지정한 리더에게만 보여요")}</p>}
       {tabs.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Time slots">
           {tabs.map((c) => (
@@ -10700,7 +10705,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -11140,6 +11145,8 @@ function TeacherDashboard({ onAddLeader, onMarkJoinsSeen, adventures, canceledAd
                 onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
                 onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
                 recruitClosed={!!program.teacherClosed}
+                leaderPrivate={!!program.leaderPrivate}
+                onPrivate={onSetProgramPrivate ? (on) => onSetProgramPrivate(programId, on) : undefined}
                 teamsDone={!!program.teamsDone}
                 onTeamsDone={onSetTeamsDone ? (done) => onSetTeamsDone(programId, done) : undefined}
                 onLevel={onEditStudent ? (r, level) => { onEditStudent(r.student.id, { level }); const t = teamOf(program, r.adv); if (t && t.level !== level) updateAdventure(r.student.id, programId, { teamId: "" }); } : undefined}
@@ -12116,7 +12123,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   // programs that have not run yet: nobody attended and "Live today" is off
   const upcoming = upcomingPrograms(adventures);
   // sign-up stays open for past trips too, until HQ closes it
-  const signable = [...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice().sort((x, y) => String(y.startDate || y.date || "").localeCompare(String(x.startDate || x.date || "")))].filter((p) => !p.teacherClosed);
+  const signable = [...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice().sort((x, y) => String(y.startDate || y.date || "").localeCompare(String(x.startDate || x.date || "")))].filter((p) => !p.teacherClosed).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
   // what a teacher would get for a program (before the 3.3% withholding): HQ's amount for the program, else hours x hourly rate
   const payPreview = (p, slotId) => {
     const amounts = payInfo.amounts || {};
@@ -13402,6 +13409,14 @@ function CarrotExplorer() {
     rerender((v) => v + 1);
     sync(api.updateProgram(programId, patch));
   };
+  // a program HQ staffs by hand is not public: only the leaders HQ picked (or already signed up) see it in their app
+  const setProgramPrivate = (programId, on) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    PROGRAMS[idx] = { ...PROGRAMS[idx], leaderPrivate: !!on };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, { leaderPrivate: !!on }));
+  };
   const setProgramRecruit = (programId, closed) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -13456,6 +13471,8 @@ function CarrotExplorer() {
     const key = joinKey(teacherId, programId, slotId);
     const cur = teacherJoins(suggestions).find((x) => x.key === key);
     if (cur && cur.status === "approved") return;
+    const pr = PROGRAMS.find((x) => x.id === programId);
+    if (pr && !pr.leaderPrivate && !teacherJoins(suggestions).some((x) => x.programId === programId && x.status !== "withdrawn")) setProgramPrivate(programId, true); // nobody else signed up: keep it between HQ and this leader
     if (!cur || cur.status === "withdrawn") sendJoin("request", teacherId, programId, slotId, "");
     saveRow({ id: `tjr-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: TEACHER_JOIN_RESULT_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ key, status: "approved", teacherId, programId, slotId: slotId || "", at: new Date(Date.now() + 1000).toISOString() }) });
   };
@@ -13550,6 +13567,7 @@ function CarrotExplorer() {
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
               onAddLeader={addLeaderJoin}
+              onSetProgramPrivate={setProgramPrivate}
               onMarkJoinsSeen={markJoinsSeen}
               onSetTeacherCap={setTeacherCap}
               payData={payData}

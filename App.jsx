@@ -5,7 +5,7 @@ import { api, sync as syncBase } from "./api";
 let UI_LANG = "ko";
 const setUiLang = (l) => { UI_LANG = l === "en" ? "en" : "ko"; };
 const EN = {
-"영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.": "Add 10–15 English words. Children tap to listen and practise each word 5 times.",
+"영어 단어 10~15개를 넣어 주세요. 아이가 단어마다 5번 연습해요.": "Add 10–15 English words. Children practise each word 5 times.",
 "모든 체험에 같은 공통 규칙이 적용돼요. 선생님이 따로 입력하지 않아요. 고치는 건 본사만 해요.": "The same common rules apply to every trip. Teachers do not type them in. Only HQ edits them.",
 "공통 규칙 {0}개 · 3 Warnings": "{0} common rules · 3 Warnings",
 "자동 단어 퀴즈와 선생님 질문이에요. 체험이 끝난 뒤 아이가 풀면 점수(%)가 나와요.": "Auto word quiz and teacher questions. After the trip the child answers and gets a score (%).",
@@ -217,7 +217,7 @@ const EN = {
 "로 나오는 자료예요. 프로그램을 등록(저장)해야 반영돼요.": ". Save the program for changes to take effect.",
 "영어": "English",
 "① 예습 · 단어 카드": "① Prep · Word cards",
-"예습은 단어 카드만 나와요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.": "Prep shows word cards only. The child taps to listen and practices each word 5 times.",
+"예습은 단어 카드만 나와요. 아이가 단어마다 5번 연습해요.": "Prep shows word cards only. The child practises each word 5 times.",
 "② 체험 · 현장 미션": "② Trip · On-site missions",
 "현장에서 아이가 찾아보는 미션이에요.": "Missions the child looks for during the trip.",
 "미션 (예: Find the oldest airplane.)": "Mission (e.g. Find the oldest airplane.)",
@@ -382,7 +382,7 @@ const EN = {
 "{0}/{1}명 · {2}%": "{0}/{1} children · {2}%",
 "모든 단어를 {0}회씩 끝낸 아이": "Children who practiced every word {0} times",
 "예습에 얼마나 참여했나요?": "How much did they take part in prep?",
-"예습은 단어 카드만 나와요. 아이들이 단어를 들어 보고 5칸을 체크한 기록이에요.": "Prep shows word cards only. This records children listening to words and ticking the 5 boxes.",
+"예습은 단어 카드만 나와요. 아이들이 단어마다 5칸을 체크한 기록이에요.": "Prep shows word cards only. This records children ticking the 5 boxes for each word.",
 "아직 복습 점수가 없어요. 복습을 열면 아이들이 풀 수 있어요.": "No review scores yet. Children can take the quiz once you open the review.",
 "평균 정답률": "Average correct rate",
 "{0}% · {1}명": "{0}% · {1} children",
@@ -1789,100 +1789,6 @@ function computeBadges(adventures, studentId) {
   return BADGE_DEFS.map((b) => ({ ...b, earned: b.check(mine) })).filter((b) => !b.retired); // only the stamp badges are shown, for every child alike
 }
 
-// Word sounds on every phone: the browser's voice list fills in late (Samsung / Chrome), so it is read again when it changes and an English voice
-// is chosen by hand; iPhone needs the call to stay inside the tap, Android needs a short pause after cancel, and the utterance must be kept alive.
-let SPEECH_VOICES = [];
-const loadSpeechVoices = () => { try { SPEECH_VOICES = window.speechSynthesis.getVoices() || []; } catch (e) { /* no speech */ } };
-if (typeof window !== "undefined" && "speechSynthesis" in window) {
-  loadSpeechVoices();
-  try { window.speechSynthesis.addEventListener("voiceschanged", loadSpeechVoices); } catch (e) { window.speechSynthesis.onvoiceschanged = loadSpeechVoices; }
-}
-const pickEnglishVoice = () => {
-  const en = SPEECH_VOICES.filter((v) => /^en[-_]/i.test(v.lang));
-  const us = en.filter((v) => /^en[-_]US$/i.test(v.lang));
-  return us.find((v) => /samantha|ava|allison|google us|enhanced|premium/i.test(v.name)) || us[0] || en[0] || null;
-};
-// Online voice played as plain audio. On iPhone this is the main route: the phone's silent switch mutes speechSynthesis but not an <audio> tag,
-// and the play() call has to happen straight inside the tap. Samsung/Android use the phone voice first and fall back to this.
-const IS_IOS = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
-let SPEAK_AUDIO = null;
-let SPEAK_LOG = "";
-const SPEAK_SOURCES = [
-  (w) => `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(w)}`,
-  (w) => `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=en&q=${encodeURIComponent(w)}`,
-  (w) => `https://dict.youdao.com/dictvoice?type=2&audio=${encodeURIComponent(w)}`,
-  (w) => `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${encodeURIComponent(String(w).toLowerCase())}--_us_1.mp3`,
-];
-// tries each online voice in turn (one may be blocked on a phone / network); onFail runs only when all of them failed
-function speakFallback(word, onFail, from = 0) {
-  try {
-    if (!SPEAK_AUDIO) SPEAK_AUDIO = new Audio();
-    const a = SPEAK_AUDIO;
-    if (from >= SPEAK_SOURCES.length) { SPEAK_LOG = "all audio sources failed"; if (onFail) onFail(); return; }
-    const next = () => speakFallback(word, onFail, from + 1);
-    try { a.pause(); } catch (e) { /* ignore */ }
-    a.onerror = next;
-    a.src = SPEAK_SOURCES[from](word);
-    const p = a.play();
-    if (p && p.then) p.then(() => { SPEAK_LOG = `audio ok (#${from + 1})`; }).catch(next);
-  } catch (e) { SPEAK_LOG = "audio exception"; if (onFail) onFail(); }
-}
-function speak(word) {
-  try {
-    if (!word) return;
-    const ss = typeof window !== "undefined" ? window.speechSynthesis : null;
-    if (IS_IOS) { // iPhone / iPad: audio first (works with the silent switch on), phone voice only if the audio cannot play
-      speakFallback(word, () => speakVoice(word));
-      return;
-    }
-    if (!ss) { speakFallback(word); return; }
-    speakVoice(word);
-  } catch (e) {
-    /* sound unavailable — fail silently, it's a nice-to-have */
-  }
-}
-function speakVoice(word) {
-  try {
-    const ss = window.speechSynthesis;
-    if (!ss || !word) return;
-    if (!SPEECH_VOICES.length) loadSpeechVoices();
-    const u = new SpeechSynthesisUtterance(word);
-    const v = pickEnglishVoice();
-    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-US";
-    u.rate = 0.85;
-    u.volume = 1;
-    window.__lastUtterance = u; // Chrome can drop an utterance nobody holds on to
-    const busy = ss.speaking || ss.pending;
-    if (busy) ss.cancel();
-    if (ss.paused) ss.resume();
-    let started = false;
-    u.onstart = () => { started = true; SPEAK_LOG = "voice ok"; };
-    u.onerror = (e) => { SPEAK_LOG = "voice error: " + (e && e.error); if (!started && !IS_IOS) speakFallback(word); };
-    const go = () => { try { ss.speak(u); } catch (e) { if (!IS_IOS) speakFallback(word); return; } setTimeout(() => { if (!started && !ss.speaking && !IS_IOS) speakFallback(word); }, 900); };
-    if (busy && /Android/i.test(navigator.userAgent)) setTimeout(go, 80); // Android: a speak() right after cancel() is swallowed
-    else go();
-  } catch (e) {
-    /* speech synthesis unavailable */
-  }
-}
-function SoundTest() {
-  const [msg, setMsg] = useState("");
-  const run = () => {
-    SPEAK_LOG = "";
-    speak("apple");
-    setTimeout(() => {
-      let n = 0; try { n = (window.speechSynthesis.getVoices() || []).length; } catch (e) { /* none */ }
-      setMsg(`${SPEAK_LOG || "no result"} · voices ${n} · ${IS_IOS ? "iOS" : /Android/i.test(navigator.userAgent) ? "Android" : "other"}`);
-    }, 1800);
-  };
-  return (
-    <div className="mt-3" data-testid="sound-test">
-      <button onClick={run} className="focus-ring tap w-full rounded-2xl bg-white f-display font-bold text-[17px]" style={{ minHeight: 56, border: `2px solid ${C.green}`, color: C.green }}>🔊 {tr("소리 테스트")}</button>
-      {msg && <p className="f-body text-[13px] text-center mt-2" style={{ color: "#6B7280" }}>{msg}</p>}
-      <p className="f-body text-[12px] text-center mt-1" style={{ color: "#9CA3AF" }}>{tr("소리가 안 나면 벨소리/무음 스위치와 미디어 볼륨을 확인해 주세요")}</p>
-    </div>
-  );
-}
 /* ================================================================== */
 /*  SHARED UI ATOMS                                                     */
 /* ================================================================== */
@@ -2255,10 +2161,9 @@ function PracticeBoxes({ word, count, onChange }) {
 function VocabularyCard({ v, onTap, checks, onCheck }) {
   return (
     <div className="bg-white rounded-2xl p-4 text-left">
-      <button onClick={() => { if (onTap) onTap(v); speak(v.en); }} aria-label={`Play pronunciation for ${v.en}`} className="focus-ring tap w-full text-left">
+      <button onClick={() => { if (onTap) onTap(v); }} aria-label={`Word ${v.en}`} className="focus-ring tap w-full text-left">
         <div className="flex items-start justify-between">
           {wordEmoji(v.emoji) ? <span className="text-[27px]">{wordEmoji(v.emoji)}</span> : <span />}
-          <Volume2 size={16} color={C.orange} />
         </div>
         <p className="f-display font-semibold mt-2" style={{ color: C.green }}>
           {v.en}
@@ -3065,7 +2970,7 @@ function BadgeCollection({ adventures, studentId, balance, middle }) {
 /* ================================================================== */
 /*  GET READY  (Before)                                                 */
 /* ================================================================== */
-/** Useful Expressions: whole sentences; tap one to hear it. */
+/** Useful Expressions: whole sentences to read and say. */
 function ExpressionList({ items, title = "Useful Expressions" }) {
   const list = (items || []).filter((x) => (x.en || "").trim());
   if (!list.length) return null;
@@ -3074,10 +2979,10 @@ function ExpressionList({ items, title = "Useful Expressions" }) {
       <p className="f-display text-[17px] font-semibold mb-2" style={{ color: C.green }}>{title}</p>
       <div className="space-y-2">
         {list.map((x) => (
-          <button key={x.id || x.en} onClick={() => speak(x.en)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3" style={{ border: `1px solid ${C.beige}` }}>
-            <span className="block f-body text-[17px] font-semibold leading-snug" style={{ color: C.charcoal }}>🔊 {x.en}</span>
+          <div key={x.id || x.en} className="w-full text-left bg-white rounded-2xl px-4 py-3" style={{ border: `1px solid ${C.beige}` }}>
+            <span className="block f-body text-[17px] font-semibold leading-snug" style={{ color: C.charcoal }}>{x.en}</span>
             {x.ko && <span className="block f-body text-[15px] text-gray-500 mt-0.5">{x.ko}</span>}
-          </button>
+          </div>
         ))}
       </div>
     </div>
@@ -3097,10 +3002,10 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
   const wordsDone = program.vocabulary.filter((v) => checksOf(v.id) >= WORD_PRACTICE_GOAL).length;
 
   if (readOnly) {
-    // another level's words: listen and look, nothing is recorded
+    // another level's words: look, nothing is recorded
     return (
       <div className="px-5 pb-10">
-        <p className="f-body text-[16px] text-gray-500 mb-3">Tap a card to listen 🔊</p>
+        <p className="f-body text-[16px] text-gray-500 mb-3">Look at the cards 👀</p>
         <div className="grid grid-cols-2 gap-3">
           {program.vocabulary.map((v) => (
             <VocabularyCard key={v.id} v={v} />
@@ -3149,7 +3054,7 @@ function BeforeAdventure({ program, adv, onComplete, onSaveInsights, readOnly })
 
   return (
     <div className="px-5 pb-10">
-      <p className="f-body text-[16px] text-gray-500 mb-1">Tap to listen 🔊 · say it · tick a box ✓</p>
+      <p className="f-body text-[16px] text-gray-500 mb-1">Look · say it out loud · tick a box ✓</p>
       <p className="f-body text-[14px] text-gray-400 mb-3">{wordsDone} of {program.vocabulary.length} words practiced {WORD_PRACTICE_GOAL} times</p>
       <div className="grid grid-cols-2 gap-3 mb-6">
         {program.vocabulary.map((v) => (
@@ -4639,7 +4544,7 @@ const markGuideSeen = () => {
   }
 };
 const GUIDE_STEPS = [
-  { icon: "📚", title: "체험 전 · 예습", text: "단어 카드를 눌러 듣고 따라 말한 뒤 칸을 체크해요. 하루 몇 분이면 돼요." },
+  { icon: "📚", title: "체험 전 · 예습", text: "단어 카드를 보고 따라 말한 뒤 5칸을 체크해요. 하루 몇 분이면 돼요." },
   { icon: "🎒", title: "체험 날 · 현장", text: "현장 안전수칙을 지키며 체험해요. 출석은 선생님이 체크해요." },
   { icon: "🌟", title: "체험 후 · 복습", text: "퀴즈를 풀고 점수(%)를 확인해요. 선생님 리포트를 보고 설문을 남겨 주세요." },
 ];
@@ -5570,7 +5475,6 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <h2 className="f-headline text-[28px] leading-tight" style={{ color: C.green }}>안내</h2>
           <button onClick={() => setShowSheet(true)} className="focus-ring tap w-full text-left bg-white rounded-2xl px-4 py-3.5 f-body text-[16px] font-bold" style={{ color: C.green, border: `1px solid ${C.beige}` }}>앱 설치 · 사용 방법 <span className="float-right" style={{ color: "#B9AE99" }}>›</span></button>
           <SafetySection programId="all" kids={myKids} familyPin={familyPin} defaultOpen={myKids.some((k) => !agreementOf(SAFETY_ROWS, familyPin, "all", k.id))} />
-          <SoundTest />
           <LevelGuideForParents showTitle />
         </div>
       )}
@@ -7230,7 +7134,7 @@ function MaterialsEditor({ value, onChange, levelTabs }) {
         <p className="f-body text-[13px] text-gray-400 mt-1.5">{tr("이 체험에서 진행하는 레벨 탭에만 써요. 진행하지 않는 레벨은 목표가 나오지 않아요.")}</p>
       </Fold>
 
-      <Fold heading={<>② Prep · 예습 단어</>} hint={tr("영어 단어 10~15개를 넣어 주세요. 아이가 눌러서 듣고, 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length]) + ((value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length ? ` · ${tr("표현 {0}개", [(value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length])}` : "")} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
+      <Fold heading={<>② Prep · 예습 단어</>} hint={tr("영어 단어 10~15개를 넣어 주세요. 아이가 단어마다 5번 연습해요.")} summary={tr("단어 {0}개", [(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length]) + ((value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length ? ` · ${tr("표현 {0}개", [(value.expressions || []).filter((x) => (x.en || "").trim()).length + parseBulkExpressions(value.exprBulk).length])}` : "")} defaultOpen={(value.vocabulary || []).filter((v) => (v.en || "").trim()).length + parseBulkWords(value.bulk).length === 0}>
         <VocabEditor items={value.vocabulary} onChange={(vocabulary, extra) => set({ vocabulary, ...(extra || {}) })} bulk={value.bulk || ""} onBulk={(bulk) => set({ bulk })} />
         <div className="mt-5 pt-4 border-t" style={{ borderColor: C.beige }}>
           <p className="f-display text-[17px] font-bold" style={{ color: C.green }}>Useful Expressions · 유용한 표현</p>
@@ -8787,7 +8691,7 @@ function StatsPanel({ adventures, students, suggestions }) {
             )}
           </StatCard>
 
-          <StatCard title={tr("예습에 얼마나 참여했나요?")} hint={tr("예습은 단어 카드만 나와요. 아이들이 단어를 들어 보고 5칸을 체크한 기록이에요.")}>
+          <StatCard title={tr("예습에 얼마나 참여했나요?")} hint={tr("예습은 단어 카드만 나와요. 아이들이 단어마다 5칸을 체크한 기록이에요.")}>
             {sum.practice.counted === 0 ? (
               <NoDataYet />
             ) : (
@@ -9082,7 +8986,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z81"; // change with every delivery
+const APP_BUILD = "2026-10-22-z82"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9210,7 +9114,7 @@ function makeAdviceRules(ctx, name, options = {}) {
       const w = ctx.words.leastPracticed.join(", ");
       return w
         ? { ko: chosen.ko.replace("{words}", w), en: chosen.en.replace("{words}", w) }
-        : { ko: "앱의 예습 카드를 열어 단어를 눌러 듣고 따라 말해요.", en: "Open the app's prep cards, tap each word to listen and repeat." };
+        : { ko: "앱의 예습 카드를 열어 단어를 보고 따라 말해요.", en: "Open the app's prep cards, look at each word and say it out loud." };
     }
     return chosen;
   };

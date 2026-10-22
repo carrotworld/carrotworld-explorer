@@ -970,6 +970,11 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "지정한 리더에게만 보여요": "Only picked leaders see it",
+  "모든 리더가 신청할 수 있어요": "Any leader can sign up",
+  "🔒 비공개": "🔒 Private",
+  "🌐 공개": "🌐 Public",
+  "리더에게 공개": "Visible to leaders",
   "체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.": "Moves into 'Pay to receive' above once the trip is done. Before tax.",
   "합계 {0}": "Total {0}",
   "예정 수당 (확정된 체험)": "Expected pay (confirmed trips)",
@@ -1799,15 +1804,24 @@ const pickEnglishVoice = () => {
 const IS_IOS = typeof navigator !== "undefined" && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 let SPEAK_AUDIO = null;
 let SPEAK_LOG = "";
-function speakFallback(word, onFail) {
+const SPEAK_SOURCES = [
+  (w) => `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(w)}`,
+  (w) => `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=en&q=${encodeURIComponent(w)}`,
+  (w) => `https://dict.youdao.com/dictvoice?type=2&audio=${encodeURIComponent(w)}`,
+  (w) => `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${encodeURIComponent(String(w).toLowerCase())}--_us_1.mp3`,
+];
+// tries each online voice in turn (one may be blocked on a phone / network); onFail runs only when all of them failed
+function speakFallback(word, onFail, from = 0) {
   try {
     if (!SPEAK_AUDIO) SPEAK_AUDIO = new Audio();
     const a = SPEAK_AUDIO;
+    if (from >= SPEAK_SOURCES.length) { SPEAK_LOG = "all audio sources failed"; if (onFail) onFail(); return; }
+    const next = () => speakFallback(word, onFail, from + 1);
     try { a.pause(); } catch (e) { /* ignore */ }
-    a.onerror = () => { SPEAK_LOG = "audio error"; if (onFail) onFail(); };
-    a.src = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(word)}`;
+    a.onerror = next;
+    a.src = SPEAK_SOURCES[from](word);
     const p = a.play();
-    if (p && p.then) p.then(() => { SPEAK_LOG = "audio ok"; }).catch((e) => { SPEAK_LOG = "audio blocked: " + (e && e.name); if (onFail) onFail(); });
+    if (p && p.then) p.then(() => { SPEAK_LOG = `audio ok (#${from + 1})`; }).catch(next);
   } catch (e) { SPEAK_LOG = "audio exception"; if (onFail) onFail(); }
 }
 function speak(word) {
@@ -9056,7 +9070,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z77"; // change with every delivery
+const APP_BUILD = "2026-10-22-z79"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11252,6 +11266,19 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
             <div className="px-5 mb-3 space-y-3" data-testid="leader-pay">
               <div className="bg-white rounded-2xl p-4">
               {payData && onSetPayAmount && <ProgramPayField key={programId} value={(payData.amounts || {})[programId]} rate={payData.rate} onSave={(v) => onSetPayAmount(programId, v)} />}
+              {onSetProgramPrivate && (
+                <div className="rounded-2xl p-4 mb-3" style={{ background: program.leaderPrivate ? "#EEF3FF" : "#FFFFFF", border: `2px solid ${program.leaderPrivate ? "#2F5DA8" : C.beige}` }} data-testid="leader-visibility">
+                  <p className="f-display text-[17px] font-bold" style={{ color: C.charcoal }}>{tr("리더에게 공개")}</p>
+                  <div className="flex gap-2 mt-2" role="group">
+                    {[[false, tr("🌐 공개"), tr("모든 리더가 신청할 수 있어요")], [true, tr("🔒 비공개"), tr("지정한 리더에게만 보여요")]].map(([val, label, hint]) => (
+                      <button key={String(val)} onClick={() => onSetProgramPrivate(programId, val)} aria-pressed={!!program.leaderPrivate === val} data-testid={val ? "vis-private" : "vis-public"} className="focus-ring tap flex-1 rounded-xl px-3 py-2 text-left" style={{ minHeight: 64, background: !!program.leaderPrivate === val ? (val ? "#2F5DA8" : C.green) : "#F6F1E6", color: !!program.leaderPrivate === val ? "#fff" : C.charcoal }}>
+                        <span className="block f-display text-[16px] font-bold">{label}</span>
+                        <span className="block f-body text-[12px]" style={{ opacity: 0.85 }}>{hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
                 {(() => {
                   const amt = ((payData || {}).amounts || {})[programId];
                   const ls = [...new Set(confirmedTeacherNames(joins, teachers, programId))];

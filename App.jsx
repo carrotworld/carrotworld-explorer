@@ -8847,7 +8847,8 @@ function ApprovalPanel({ students, onAccept, onReject }) {
 /*  `teamId` on their own adventure record.                              */
 /* ================================================================== */
 const teachersCall = (name) => (/선생/.test(name) ? name : `${name} 선생님`);
-const teamsOf = (program) => (program && Array.isArray(program.teams) ? program.teams : []);
+// a team saved before colours existed gets one from its place in the list, so every team shows as "Red team", "Blue team" …
+const teamsOf = (program) => (program && Array.isArray(program.teams) ? program.teams.map((t, i) => (t.color ? t : { ...t, color: TEAM_COLORS[i % TEAM_COLORS.length] })) : []);
 const teamOf = (program, adv) => teamsOf(program).find((t) => t.id === adv?.teamId) || null;
 /** Teams are named by colour ("Red team"): the colour is the team's name for the children and parents. */
 const TEAM_PALETTE = [["Red", "#D9534F"], ["Blue", "#3B7DD8"], ["Green", "#2F8F5B"], ["Yellow", "#E5B217"], ["Purple", "#B05BC4"], ["Orange", "#E9822B"], ["Pink", "#E86A9A"], ["Teal", "#1FA2A6"]];
@@ -8867,7 +8868,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z57"; // change with every delivery
+const APP_BUILD = "2026-10-22-z58"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

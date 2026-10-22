@@ -970,6 +970,8 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "신청 안 한 리더도 직접 지정할 수 있어요 (바로 확정돼요)": "You can also pick a leader who has not signed up (confirmed right away)",
+  "등록된 리더가 없어요. '사람' 탭에서 리더를 먼저 추가해 주세요.": "No leaders registered. Add a leader in the People tab first.",
   "소리가 안 나면 벨소리/무음 스위치와 미디어 볼륨을 확인해 주세요": "If there is no sound, check the silent switch and media volume",
   "소리 테스트": "Sound test",
   "한 번만 하면 돼요": "Just once",
@@ -9048,7 +9050,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z73"; // change with every delivery
+const APP_BUILD = "2026-10-22-z75"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9711,7 +9713,7 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
-function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
+function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, otherLeaders = [], onAddLeader, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
   const [matId, setMatId] = useState(null);
   const [prepOpen, setPrepOpen] = useState(false);
   const [levelId, setLevelId] = useState(null);
@@ -9756,7 +9758,7 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
     const add = Object.fromEntries(leadersAll.map((n) => [n, []]));
     const sorted = loose.slice().sort((x, y) => String(x.student.level).localeCompare(String(y.student.level)) || byName(x, y));
     let at = 0;
-    sorted.forEach((r) => {
+    if (leadersAll.length) sorted.forEach((r) => {
       while (at < leadersAll.length - 1 && room[leadersAll[at]] <= 0) at++;
       const pick = room[leadersAll[at]] > 0 ? leadersAll[at] : leadersAll.slice().sort((p, q) => countOf(p) + add[p].length - countOf(q) - add[q].length)[0];
       add[pick].push(r); room[pick]--;
@@ -9833,12 +9835,22 @@ function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, onSave
         )}
         {open && (
           <div className="flex flex-wrap gap-1.5 mt-2 pl-8" data-testid="leader-choices">
-            {names.length === 0 && <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("확정된 리더가 없어요. 아래 '리더 신청'에서 확정해 주세요.")}</p>}
+            {names.length === 0 && otherLeaders.length === 0 && <p className="f-body text-[14px]" style={{ color: "#B25A0B" }}>{tr("등록된 리더가 없어요. '사람' 탭에서 리더를 먼저 추가해 주세요.")}</p>}
             {names.map((n) => (
               <button key={n} onClick={() => assign(r, n)} className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ ...chip(same(lead, n)), minHeight: 40 }}>
                 {n} <span className="font-normal" style={{ opacity: 0.8 }}>{countOf(n)}/6{countOf(n) >= 6 ? " ⚠" : ""}</span>
               </button>
             ))}
+            {onAddLeader && otherLeaders.length > 0 && (
+              <div className="w-full mt-1" data-testid="other-leaders">
+                <p className="f-body text-[13px] mb-1" style={{ color: "#8A8060" }}>{tr("신청 안 한 리더도 직접 지정할 수 있어요 (바로 확정돼요)")}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {otherLeaders.map((t) => (
+                    <button key={t.id} onClick={() => { onAddLeader(t.id); assign(r, t.name); }} data-testid="pick-other-leader" className="focus-ring tap f-body text-[15px] font-bold px-3.5 py-1.5 rounded-full" style={{ background: "#FFFFFF", border: `1.5px dashed ${C.green}`, color: C.green, minHeight: 40 }}>+ {t.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             {lead && <button onClick={() => assign(r, "")} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ color: "#B03A2E", minHeight: 40 }}>{tr("배정 해제")}</button>}
             {hasSlots && onSetSlot && slots.filter((x) => x.id !== slotId).map((x) => (
               <button key={x.id} onClick={() => { setOpenId(null); onSetSlot(r.student.id, x.id); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.cream, color: "#8A8060", minHeight: 40 }}>{tr("{0}(으)로 이동", [x.label])}</button>
@@ -10688,7 +10700,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -11122,6 +11134,8 @@ function TeacherDashboard({ onMarkJoinsSeen, adventures, canceledAdventures = []
                 onSlot={setSlotFilter}
                 roster={roster}
                 leaders={leaders}
+                otherLeaders={teachers.filter((t) => t.active && !leaders.some((n) => String(n).trim().toLowerCase() === String(t.name).trim().toLowerCase()))}
+                onAddLeader={(tid) => onAddLeader && onAddLeader(tid, programId, slots.length && matchSlot !== "none" ? matchSlot : "")}
                 onSaveTeams={(teams) => onSaveTeams && onSaveTeams(programId, teams)}
                 onAssign={(studentId, teamId) => updateAdventure(studentId, programId, { teamId })}
                 onSetSlot={slots.length ? (studentId, sessionId) => { const r = roster.find((x) => x.student.id === studentId); const t = r && teamOf(program, r.adv); updateAdventure(studentId, programId, { sessionId, ...(t && t.sessionId && t.sessionId !== sessionId ? { teamId: "" } : {}) }); } : undefined}
@@ -13437,6 +13451,14 @@ function CarrotExplorer() {
   const setTeacherPin = (id, pin) => saveRow({ id: `tc-${id}-pin-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "pin", id, pin, at: nowIso() }) });
   const setTeacherActive = (id, active) => saveRow({ id: `tc-${id}-on-${Date.now()}`, type: TEACHER_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "active", id, active, at: nowIso() }) });
   const sendJoin = (kind, teacherId, programId, slotId, note) => saveRow({ id: `tj-${teacherId}-${programId}-${slotId || "all"}-${Date.now()}`, type: TEACHER_JOIN_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ kind, teacherId, programId, slotId: slotId || "", note: (note || "").trim(), at: nowIso() }) });
+  // HQ picks a leader by hand: confirmed straight away (a request from that leader + the approval), so the trip shows up in the leader's app
+  const addLeaderJoin = (teacherId, programId, slotId) => {
+    const key = joinKey(teacherId, programId, slotId);
+    const cur = teacherJoins(suggestions).find((x) => x.key === key);
+    if (cur && cur.status === "approved") return;
+    if (!cur || cur.status === "withdrawn") sendJoin("request", teacherId, programId, slotId, "");
+    saveRow({ id: `tjr-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: TEACHER_JOIN_RESULT_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ key, status: "approved", teacherId, programId, slotId: slotId || "", at: new Date(Date.now() + 1000).toISOString() }) });
+  };
   const decideJoin = (key, status) => {
     const j = teacherJoins(suggestions).find((x) => x.key === key);
     if (!j || j.status === status || (status !== "approved" && status !== "declined")) return;
@@ -13527,6 +13549,7 @@ function CarrotExplorer() {
               onSetTeacherPin={setTeacherPin}
               onSetTeacherActive={setTeacherActive}
               onDecideJoin={decideJoin}
+              onAddLeader={addLeaderJoin}
               onMarkJoinsSeen={markJoinsSeen}
               onSetTeacherCap={setTeacherCap}
               payData={payData}

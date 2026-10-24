@@ -3602,9 +3602,9 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
         />
       )}
 
-      {section === "after" && !mine && <WordQuizPractice key={viewing} program={fullProgram} myLevel={viewing} />}
-      {section === "after" && mine && (
+      {section === "after" && (
         <AfterAdventure
+          key={viewing || "one"}
           program={program}
           adv={adv}
           badgesJustEarned={[]}
@@ -3612,13 +3612,13 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
           onSurvey={onSurvey}
           onSaveInsights={(insights) => update({ insights })}
           onComplete={(reflection, extra) => {
-            const updated = update({ afterCompleted: true, reflection, ...(extra || {}) });
+            const updated = update({ afterCompleted: true, reflection, ...(mine ? {} : { materialLevel: viewing }), ...(extra || {}) }); // finished on another level (a level changed on site): that level is now the child's set
             const earned = newlyEarned(updated);
             if (earned.length) setCelebration({ title: "New badge earned!", badge: earned[0] });
           }}
         />
       )}
-      {section === "after" && mine && adv.attended && <div className="px-5 pb-10"><WordQuizPractice program={fullProgram} myLevel={myLevel} /></div>}
+      {section === "after" && adv.attended && <div className="px-5 pb-10"><WordQuizPractice key={viewing || "one"} program={fullProgram} myLevel={viewing || myLevel} /></div>}
 
       {celebration && <CelebrationModal {...celebration} onClose={() => setCelebration(null)} />}
     </div>
@@ -4130,16 +4130,20 @@ function payPayouts(suggestions) {
   return [...map.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 /** What each confirmed teacher earned on programs that are over, and whether it was paid already. */
-function teacherEarnings(suggestions, joins, now, adventures = []) {
+function teacherEarnings(suggestions, joins, now, adventures = [], teachers = []) {
   const { rate, amounts } = paySettings(suggestions);
   const paidBy = new Map();
   payPayouts(suggestions).filter((p) => !p.voided).forEach((p) => p.keys.forEach((k) => paidBy.set(k, p)));
   return (joins || []).filter((j) => j.status === "approved").map((j) => {
     const p = getProgram(j.programId);
     if (!p) return null;
+    // only this leader's own children count (their team); with no team on record, all children of the program
+    const tname = String(((teachers || []).find((t) => t.id === j.teacherId) || {}).name || "").trim().toLowerCase();
+    const myTeamIds = tname ? teamsOf(p).filter((t) => String(t.teacher || "").trim().toLowerCase() === tname && (!j.slotId || !t.sessionId || t.sessionId === j.slotId)).map((t) => t.id) : [];
+    const kids = adventures.filter((a) => a.programId === j.programId && !a.canceled && (!myTeamIds.length || (myTeamIds.includes(a.teamId) && (!j.slotId || !a.sessionId || a.sessionId === j.slotId))));
     // counted after the trip day, or on the day itself once the feedback of the children who came is all sent
-    if (!tripDayPassed(p, now) && !(hasDate(p) && todayKst(now) >= lastDay(p) && adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled))) return null;
-    if (adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled && !feedbackDone(a))) return null; // counted once the feedback is submitted
+    if (!tripDayPassed(p, now) && !(hasDate(p) && todayKst(now) >= lastDay(p) && kids.some((a) => a.attended))) return null;
+    if (kids.some((a) => a.attended && !feedbackDone(a))) return null; // counted once the feedback is submitted
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
     let amount = 0;
@@ -9100,7 +9104,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z97"; // change with every delivery
+const APP_BUILD = "2026-10-24-z99"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -13553,7 +13557,7 @@ function CarrotExplorer() {
 
   const teachers = teacherAccounts(suggestions);
   const joins = teacherJoins(suggestions);
-  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins, undefined, adventures), payouts: payPayouts(suggestions) };
+  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins, undefined, adventures, teachers), payouts: payPayouts(suggestions) };
   const teacherApps = teacherApplications(suggestions, teachers);
   const legacyPin = currentGuidePin(suggestions);
   // a teacher whose account HQ turns off is signed out at the next refresh

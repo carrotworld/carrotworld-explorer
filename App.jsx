@@ -1620,8 +1620,7 @@ function hasReviewContent(p) {
   return has(p) || Object.values(p.levelMaterials || {}).some(has);
 }
 function isReviewOpen(p) {
-  if (!p || p.reviewHold) return false;
-  return hasReviewContent(p);
+  return !!p && !p.reviewOff; // always open once the child is marked present; only HQ's own switch closes it (reviewOff)
 }
 /** A program view whose review always has the word questions (made from the words, not saved). */
 function withAutoReview(v) {
@@ -3464,6 +3463,49 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 /* ================================================================== */
 /*  ADVENTURE DETAIL (chapters: Get Ready / Explore / Remember)         */
 /* ================================================================== */
+/** Word quiz for the parents and children: pick a level (A1, A2 ...), play it as many times as they like; the words and the order are random each time. Nothing is saved. */
+function WordQuizPractice({ program, myLevel }) {
+  const lv = materialLevels(program).length ? materialLevels(program) : [...new Set((program.levels || [program.level]).filter(Boolean))];
+  const [level, setLevel] = useState(lv.includes(myLevel) ? myLevel : lv[0] || null);
+  const [run, setRun] = useState(null);
+  const [idx, setIdx] = useState(0);
+  const [right, setRight] = useState(0);
+  const shuffle = (arr) => { const q = [...arr]; for (let i = q.length - 1; i > 0; i--) { const k = Math.floor(Math.random() * (i + 1)); [q[i], q[k]] = [q[k], q[i]]; } return q; };
+  const view = programForLevel(program, level);
+  const pool = (view.vocabulary || []).filter((w) => (w.en || "").trim() && (w.meaning || "").trim());
+  const start = () => { setRun(shuffle(autoWordQuestions(shuffle(pool)))); setIdx(0); setRight(0); };
+  const finished = run && idx >= run.length;
+  return (
+    <div className="bg-white rounded-2xl p-4 mt-4" data-testid="word-quiz">
+      <p className="f-display text-[18px] font-bold" style={{ color: C.orange }}>Word Quiz · 단어 퀴즈</p>
+      <p className="f-body text-[14px] text-gray-500 mb-2.5">Pick a level and play as many times as you like. · 레벨을 골라 몇 번이든 풀어 보세요.</p>
+      {lv.length > 1 && (
+        <div className="flex gap-2 flex-wrap mb-3" role="tablist" aria-label="Quiz level">
+          {lv.map((l) => (
+            <button key={l} role="tab" aria-selected={level === l} data-testid={`wq-level-${l}`} onClick={() => { setLevel(l); setRun(null); }} className="focus-ring tap f-body text-[16px] font-bold px-4 rounded-full" style={{ minHeight: 44, background: level === l ? C.green : "white", color: level === l ? "white" : C.charcoal, border: `1px solid ${level === l ? C.green : C.beige}` }}>{l}</button>
+          ))}
+        </div>
+      )}
+      {!run && (pool.length >= 1
+        ? <button onClick={start} data-testid="wq-start" className="focus-ring tap w-full rounded-xl f-display text-[17px] font-bold text-white" style={{ background: C.orange, minHeight: 54 }}>Start · 시작하기</button>
+        : <p className="f-body text-[14px] text-gray-400">No words for this level yet. · 아직 단어가 없어요.</p>)}
+      {run && !finished && run[idx] && (
+        <div>
+          <p className="f-body text-[15px] text-gray-500 mb-2">Question {idx + 1} of {run.length}</p>
+          <ChoiceQuestion key={`${level}-${idx}-${run[idx].id}`} q={run[idx]} onAnswered={(ok) => { if (ok) setRight((n) => n + 1); setIdx((i) => i + 1); }} />
+        </div>
+      )}
+      {run && (finished || !run[idx]) && (
+        <div className="text-center" data-testid="wq-done">
+          <p className="f-display text-[28px] font-bold" style={{ color: C.green }}>{right} / {run.length}</p>
+          <p className="f-body text-[15px] text-gray-500 mb-3">{right === run.length ? "Perfect! · 완벽해요!" : "Nice try! · 잘했어요!"}</p>
+          <button onClick={start} data-testid="wq-again" className="focus-ring tap w-full rounded-xl f-display text-[17px] font-bold text-white" style={{ background: C.orange, minHeight: 54 }}>Again · 한 번 더</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdventureDetail({ program: fullProgram, adv, adventures, studentId, studentLevel, startSection, update, onBack, onSurvey }) {
   // a program can have a set of materials for each level: the child gets their own level's set and may peek at the others
   const levelsAvail = materialLevels(fullProgram);
@@ -3560,13 +3602,7 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
         />
       )}
 
-      {section === "after" && !mine && (
-        <div className="px-5 pb-10 text-center pt-8">
-          <p className="f-display font-semibold" style={{ color: C.green }}>The review is for your own level</p>
-          <p className="f-body text-[17px] text-gray-500 mt-1 mb-4">Tap {myLevel} above to do the review quiz.</p>
-          <PrimaryButton onClick={() => setViewLevel(myLevel)}>Back to {myLevel}</PrimaryButton>
-        </div>
-      )}
+      {section === "after" && !mine && <WordQuizPractice key={viewing} program={fullProgram} myLevel={viewing} />}
       {section === "after" && mine && (
         <AfterAdventure
           program={program}
@@ -3582,6 +3618,7 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
           }}
         />
       )}
+      {section === "after" && mine && adv.attended && <div className="px-5 pb-10"><WordQuizPractice program={fullProgram} myLevel={myLevel} /></div>}
 
       {celebration && <CelebrationModal {...celebration} onClose={() => setCelebration(null)} />}
     </div>
@@ -4099,7 +4136,9 @@ function teacherEarnings(suggestions, joins, now, adventures = []) {
   payPayouts(suggestions).filter((p) => !p.voided).forEach((p) => p.keys.forEach((k) => paidBy.set(k, p)));
   return (joins || []).filter((j) => j.status === "approved").map((j) => {
     const p = getProgram(j.programId);
-    if (!p || !tripDayPassed(p, now)) return null;
+    if (!p) return null;
+    // counted after the trip day, or on the day itself once the feedback of the children who came is all sent
+    if (!tripDayPassed(p, now) && !(hasDate(p) && todayKst(now) >= lastDay(p) && adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled))) return null;
     if (adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled && !feedbackDone(a))) return null; // counted once the feedback is submitted
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
@@ -6679,7 +6718,15 @@ const pickLevelFields = (built) => Object.fromEntries(LEVEL_FIELDS.map((k) => [k
 const AUTO_QUIZ_MAX = 8;
 function autoWordQuestions(words) {
   const L = (words || []).filter((w) => (w.en || "").trim() && (w.meaning || "").trim());
-  if (L.length < 3) return [];
+  if (L.length < 3) {
+    // only one or two words: true/false questions so the review still opens
+    return L.flatMap((w, i) => {
+      const q = [{ id: `auto-w-${w.id || w.en.trim()}`, type: "tf", auto: true, prompt: `"${w.en.trim()}" means "${w.meaning.trim()}".`, answer: true }];
+      const o = L.find((x) => x !== w && x.meaning.trim().toLowerCase() !== w.meaning.trim().toLowerCase());
+      if (o) q.push({ id: `auto-f-${w.id || w.en.trim()}`, type: "tf", auto: true, prompt: `"${w.en.trim()}" means "${o.meaning.trim()}".`, answer: false });
+      return q;
+    });
+  }
   const out = [];
   L.slice(0, AUTO_QUIZ_MAX).forEach((w, i) => {
     const asMeaning = i % 2 === 0; // even: word -> meaning, odd: meaning -> word
@@ -9053,7 +9100,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z93"; // change with every delivery
+const APP_BUILD = "2026-10-24-z97"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9612,7 +9659,7 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
 /** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
  *  the other leaders' teams folded, the lesson-material button once at the bottom. */
 const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
-function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onOpenMaterials, onMark }) {
+function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onOpenMaterials, onOpenFeedback, onMark }) {
   const [showOthers, setShowOthers] = useState(false);
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
   const slotId = slot ? slot.id : "";
@@ -9655,11 +9702,6 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
                     <div key={k.id} className="flex items-center gap-2 py-1.5" style={{ borderTop: `1px solid ${C.beige}` }} data-testid="team-kid">
                       <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{k.name}</span>
                       <span className="f-body text-[14px] shrink-0" style={{ color: "#8A8060" }}>{k.level}</span>
-                      {(() => {
-                        const rv = !!k.adv.afterCompleted; const fb = feedbackDone(k.adv);
-                        const chip = (ok, label, id) => <span className="shrink-0 f-body text-[11px] font-bold rounded-full px-2 py-1" data-testid={id} data-ok={ok ? "1" : "0"} style={{ background: ok ? "#EAF7EF" : "#F4EFE3", color: ok ? "#1F7A44" : "#9C927D" }}>{ok ? "✓ " : ""}{label}</span>;
-                        return <>{chip(rv, tr("Review"), "kid-review")}{chip(fb, tr("Feedback"), "kid-feedback")}</>;
-                      })()}
                       {canMark && (
                         <button
                           onClick={() => onMark(k.id, st === "" ? "in" : st === "in" ? "out" : "")}
@@ -9667,9 +9709,12 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
                           data-testid="mark"
                           data-state={st || "none"}
                           className="focus-ring tap shrink-0 w-11 h-11 rounded-full f-body text-[20px] font-bold flex items-center justify-center"
-                          style={{ background: st === "in" ? C.green : st === "out" ? "#F6DAD5" : "white", color: st === "in" ? "white" : "#B03A2E", border: `2px solid ${st === "in" ? C.green : st === "out" ? "#E4B3AB" : C.beige}` }}
+                          style={{ width: 44, height: 44, minWidth: 44, background: st === "in" ? C.green : st === "out" ? "#F6DAD5" : "white", color: st === "in" ? "white" : "#B03A2E", border: `2px solid ${st === "in" ? C.green : st === "out" ? "#E4B3AB" : C.beige}` }}
                         >{st === "in" ? "✓" : st === "out" ? "✕" : ""}</button>
                       )}
+                      {(attendedOk => attendedOk && (feedbackDone(k.adv)
+                        ? <span className="shrink-0 f-body text-[13px] font-bold rounded-full px-3 py-2" data-testid="kid-feedback" data-ok="1" style={{ background: "#EAF7EF", color: "#1F7A44" }}>✓ {tr("Feedback")}</span>
+                        : <button onClick={() => onOpenFeedback && onOpenFeedback(program.id)} data-testid="kid-feedback" data-ok="0" className="focus-ring tap shrink-0 f-body text-[13px] font-bold rounded-full px-3" style={{ background: "#FFF1E2", color: "#B25A0B", border: "1.5px solid #F0C48E", minHeight: 40 }}>{tr("Feedback")} ›</button>))(k.adv.attended)}
                     </div>
                   );
                 })}
@@ -12202,14 +12247,14 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
     return adventures.filter((a) => a.programId === p.id && !a.canceled && ids.includes(a.teamId) && (!sid || !a.sessionId || a.sessionId === sid));
   };
   const feedbackAllDone = (p, sid) => { const ks = myKids(p, sid); const att = ks.filter((a) => a.attended); return att.length > 0 && ks.every((a) => a.attended || a.absent) && att.every((a) => feedbackDone(a)); };
-  const recentlyRun = (p) => { const d = lastDay(p); return !!d && d < todayKst() && d >= addDays(todayKst(), -30); };
+  const recentlyRun = (p) => { const d = lastDay(p); return !!d && d <= todayKst() && d >= addDays(todayKst(), -30); };
   const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p) || (done && recentlyRun(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved" && myKids(p, j.slotId || "").some((a) => a.attended))))).flatMap((p) => {
             const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
             const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
             return slotIds.filter((sid) => teamSet(p, sid) === done).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
               const fin = feedbackAllDone(p, sid);
-              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} /> };
+              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
             });
           }).sort((x, y) => Number(x.fin) - Number(y.fin)).map((x) => x.el); // finished ones sink to the bottom
   const chipFor = (j) =>
@@ -13465,9 +13510,9 @@ function CarrotExplorer() {
     if (idx === -1) return;
     const at = new Date().toISOString();
     const reviewHold = !value; // closed by hand: it stays closed even after the trip day
-    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value, reviewAt: at, reviewHold };
+    PROGRAMS[idx] = { ...PROGRAMS[idx], reviewOpen: !!value, reviewAt: at, reviewHold, reviewOff: !value };
     rerender((v) => v + 1);
-    sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at, reviewHold }));
+    sync(api.updateProgram(programId, { reviewOpen: !!value, reviewAt: at, reviewHold, reviewOff: !value }));
   };
 
   const setProgramTeamsDone = (programId, done) => {

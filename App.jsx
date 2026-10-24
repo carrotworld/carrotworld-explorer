@@ -3531,8 +3531,26 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
         </button>
         <h1 className="f-headline text-[24px] leading-tight" style={{ color: C.green }}>{splitTitle(program.title)[0] || program.title}</h1>
       </div>
+      <div className="px-5 mb-4">
+        <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
+        <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[14px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
+          {showAbout ? "Hide details ▴" : "About this adventure ▾"}
+        </button>
+        {showAbout && (
+          <div className="mt-2">
+            <div className="mb-3"><ProgramHeadline program={program} size={30} /></div>
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
+              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
+            </div>
+            <p className="f-body text-[17px] text-gray-500 italic">"{program.theme}"</p>
+          </div>
+        )}
+      </div>
+
       {levelsAvail.length > 1 && (
-        <div className="px-5 mb-3">
+        <div className="px-5 mb-3 -mt-1">
           <div className="flex gap-2 overflow-x-auto" role="tablist" aria-label="Levels">
             {levelsAvail.map((l) => (
               <button
@@ -3555,24 +3573,6 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
           )}
         </div>
       )}
-      <div className="px-5 mb-4">
-        <StageTabs before={before} trip={trip} after={after} current={section} onPick={setSection} />
-        <button onClick={() => setShowAbout((v) => !v)} aria-expanded={showAbout} className="focus-ring tap f-body text-[14px] font-bold mt-2.5" style={{ color: "#9C927D" }}>
-          {showAbout ? "Hide details ▴" : "About this adventure ▾"}
-        </button>
-        {showAbout && (
-          <div className="mt-2">
-            <div className="mb-3"><ProgramHeadline program={program} size={30} /></div>
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>Level {levelLabel(program)}</span>
-              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: C.beige, color: C.green }}><MapPin size={11} /> {program.location}</span>
-              <span className="text-[14px] f-body font-bold px-2.5 py-1 rounded-full" style={{ background: C.beige, color: C.green }}>{program.date}</span>
-            </div>
-            <p className="f-body text-[17px] text-gray-500 italic">"{program.theme}"</p>
-          </div>
-        )}
-      </div>
-
       {section === "before" && (
         <BeforeAdventure
           key={viewing || "one"}
@@ -9104,7 +9104,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z100"; // change with every delivery
+const APP_BUILD = "2026-10-24-z101"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

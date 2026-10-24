@@ -970,6 +970,26 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "남은 것": "Left",
+  "피드백 {0}명": "Feedback {0}",
+  "예정 수당 (세전)": "Expected pay (before tax)",
+  "팀이 정해지면 여기에 나타나요. 복습과 피드백을 모두 올리면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.": "Shows here once teams are set. When review and feedback are both in, it moves to 'Pay to receive' after the 3.3% tax.",
+  "자세히 쓰기 (목표 · 단어 · 질문)": "Write in detail (goal · words · questions)",
+  "복습 바로 열기": "Open the review now",
+  "✓ 복습이 열려 있어요 (누르면 닫기)": "✓ Review is open (tap to close)",
+  "뜻이 있는 단어가 3개 이상 있어야 만들 수 있어요. 아래 '자세히 쓰기'에서 단어를 써 주세요.": "It needs 3 or more words with a meaning. Add words under 'Write in detail' below.",
+  "단어로 복습 자동 만들기": "Make the review from the words",
+  "단어로 다시 만들기": "Make again from the words",
+  "아직 복습 퀴즈가 없어요. 아래 버튼 한 번이면 만들어지고, 아이 화면 복습 칸에 바로 열려요.": "No review quiz yet. One tap below makes it and opens it on the child's Review tile.",
+  "복습 퀴즈 {0}문제가 준비됐어요 ✓": "{0} review questions are ready ✓",
+  "📖 복습 간단하게": "📖 Review, the easy way",
+  "완료 · 피드백을 모두 보냈어요": "Done · all feedback sent",
+  "Pay 탭에서 보기 ›": "See in Pay tab ›",
+  "세전 금액이에요": "Before tax",
+  "세전 {0} − 세금 3.3% {1}": "Before tax {0} − 3.3% tax {1}",
+  "피드백을 보냈어요 ✓ 이번 체험 페이": "Feedback sent ✓ Pay for this trip",
+  "세후 {0} (세금 {1} 뺀 금액)": "After tax {0} (tax {1} taken out)",
+  "세전 {0} · 세금 {1}": "Before tax {0} · Tax {1}",
   "이름 없이 보여요 · 5점 만점": "Shown without names · out of 5",
   "부모님 의견": "Parents' feedback",
   "아직 등록한 아이가 없어요": "No children yet",
@@ -4060,6 +4080,7 @@ function teacherEarnings(suggestions, joins, now, adventures = []) {
     const p = getProgram(j.programId);
     if (!p || !tripDayPassed(p, now)) return null;
     if (adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled && !feedbackDone(a))) return null; // counted once the feedback is submitted
+    if (!isReviewOpen(p, now)) return null; // ...and the leader's review is up
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
     let amount = 0;
@@ -6676,6 +6697,33 @@ function cleanQuiz(list) {
   });
   return out;
 }
+/** Leader: the review quiz in one tap. The questions come from the program's words; nothing to type. */
+function QuickReview({ program, onSave }) {
+  const levelSets = program.levelMaterials ? Object.entries(program.levelMaterials) : null;
+  const wordsOf = (m) => (m.vocabulary || []).filter((w) => (w.en || "").trim() && (w.meaning || "").trim());
+  const canMake = levelSets ? levelSets.some(([, m]) => wordsOf(m).length >= 3) : wordsOf(program).length >= 3;
+  const count = levelSets ? levelSets.reduce((n, [, m]) => n + (m.remember || []).length, 0) : (program.remember || []).length;
+  const open = isReviewOpen(program);
+  const keep = (list) => (list || []).filter((q) => !q.auto && q.id !== "match-auto");
+  const make = () => {
+    // making the review also opens it, so the child sees it at once on the 복습 tile (it can be closed again below)
+    if (levelSets) onSave({ reviewOpen: true, levelMaterials: Object.fromEntries(levelSets.map(([l, m]) => [l, { ...m, remember: [...keep(m.remember), ...autoWordQuestions(m.vocabulary)] }])), remember: [...keep(program.remember), ...autoWordQuestions(program.vocabulary)] });
+    else onSave({ reviewOpen: true, remember: [...keep(program.remember), ...autoWordQuestions(program.vocabulary)] });
+  };
+  const btn = "focus-ring tap w-full rounded-xl f-display text-[17px] font-bold";
+  return (
+    <div className="rounded-2xl p-4 mb-3" style={{ background: "#FFF8EC", border: `2px solid ${C.orange}` }} data-testid="quick-review">
+      <p className="f-display text-[19px] font-bold" style={{ color: C.green }}>{tr("📖 복습 간단하게")}</p>
+      <p className="f-body text-[14px] text-gray-600 mt-0.5">{count > 0 ? tr("복습 퀴즈 {0}문제가 준비됐어요 ✓", [count]) : tr("아직 복습 퀴즈가 없어요. 아래 버튼 한 번이면 만들어지고, 아이 화면 복습 칸에 바로 열려요.")}</p>
+      <div className="space-y-2 mt-3">
+        <button onClick={make} disabled={!canMake} data-testid="quick-make" className={`${btn} text-white disabled:opacity-40`} style={{ background: C.orange, minHeight: 56 }}>🪄 {count > 0 ? tr("단어로 다시 만들기") : tr("단어로 복습 자동 만들기")}</button>
+        {!canMake && <p className="f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("뜻이 있는 단어가 3개 이상 있어야 만들 수 있어요. 아래 '자세히 쓰기'에서 단어를 써 주세요.")}</p>}
+        {count > 0 && <button onClick={() => onSave({ reviewOpen: !open })} data-testid="quick-open" aria-pressed={open} className={btn} style={{ minHeight: 56, background: open ? "#EAF7EF" : C.green, color: open ? "#1F7A44" : "#fff" }}>{open ? tr("✓ 복습이 열려 있어요 (누르면 닫기)") : tr("복습 바로 열기")}</button>}
+      </div>
+    </div>
+  );
+}
+
 /** Turns the editor state into the fields stored on the program. Empty parts fall back to defaults. */
 function buildMaterials(m) {
   const d = defaultMaterials();
@@ -8976,7 +9024,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-22-z87"; // change with every delivery
+const APP_BUILD = "2026-10-24-z91"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9535,7 +9583,7 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
 /** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
  *  the other leaders' teams folded, the lesson-material button once at the bottom. */
 const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
-function MyTeamsCard({ program, slot, adventures, students, name, status, onOpenMaterials, onMark }) {
+function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onOpenMaterials, onMark }) {
   const [showOthers, setShowOthers] = useState(false);
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
   const slotId = slot ? slot.id : "";
@@ -9554,7 +9602,8 @@ function MyTeamsCard({ program, slot, adventures, students, name, status, onOpen
   const markedN = mine.reduce((n, t) => n + t.kids.filter((k) => k.adv.attended).length, 0);
   const kidsN = mine.reduce((n, t) => n + t.kids.length, 0);
   return (
-    <div className="bg-white rounded-2xl p-4" data-testid="my-teams">
+    <div className="bg-white rounded-2xl p-4" data-testid="my-teams" data-finished={finished ? "1" : "0"} style={finished ? { opacity: 0.92, border: "2px solid #BFE3CC" } : undefined}>
+      {finished && <p className="f-body text-[14px] font-bold rounded-xl px-3 py-2 mb-2.5" style={{ background: "#EAF7EF", color: "#1F7A44" }} data-testid="finished-badge">✓ {tr("완료 · 피드백을 모두 보냈어요")}</p>}
       <div className="flex items-start justify-between gap-2">
         <p className="f-display text-[19px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0]}</p>
         {status && status !== "approved" && <span className="shrink-0 f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("확인 대기")}</span>}
@@ -9577,6 +9626,11 @@ function MyTeamsCard({ program, slot, adventures, students, name, status, onOpen
                     <div key={k.id} className="flex items-center gap-2 py-1.5" style={{ borderTop: `1px solid ${C.beige}` }} data-testid="team-kid">
                       <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{k.name}</span>
                       <span className="f-body text-[14px] shrink-0" style={{ color: "#8A8060" }}>{k.level}</span>
+                      {(() => {
+                        const rv = isReviewOpen(program); const fb = feedbackDone(k.adv);
+                        const chip = (ok, label, id) => <span className="shrink-0 f-body text-[11px] font-bold rounded-full px-2 py-1" data-testid={id} data-ok={ok ? "1" : "0"} style={{ background: ok ? "#EAF7EF" : "#F4EFE3", color: ok ? "#1F7A44" : "#9C927D" }}>{ok ? "✓ " : ""}{label}</span>;
+                        return <>{chip(rv, tr("Review"), "kid-review")}{chip(fb, tr("Feedback"), "kid-feedback")}</>;
+                      })()}
                       {canMark && (
                         <button
                           onClick={() => onMark(k.id, st === "" ? "in" : st === "in" ? "out" : "")}
@@ -12044,6 +12098,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const [savedAt, setSavedAt] = useState(null);
   const [asking, setAsking] = useState(null); // { program, slot }
   const [showGoals, setShowGoals] = useState(false);
+  const [showFull, setShowFull] = useState(false);
   useBack(() => {
     if (asking) { setAsking(null); return true; }
     if (tab !== "programs") { setTab("programs"); return true; }
@@ -12112,14 +12167,22 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   // trips whose teams HQ has finished go to their own tab ("진행"); the others stay under "예정"
   // a slot counts as set (and moves to "진행") as soon as HQ has given me a team in it, or finished the teams for the trip
   const teamSet = (p, sid) => !!p.teamsDone || teamsOf(p).some((t) => !!name && String(t.teacher || "").trim().toLowerCase() === name.trim().toLowerCase() && (!sid || !t.sessionId || t.sessionId === sid));
-  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p))).flatMap((p) => {
+  // feedback state of my own team(s) in one slot: nothing to write yet / still writing / all written
+  const myKids = (p, sid) => {
+    const ids = teamsOf(p).filter((t) => !!name && String(t.teacher || "").trim().toLowerCase() === name.trim().toLowerCase() && (!sid || !t.sessionId || t.sessionId === sid)).map((t) => t.id);
+    return adventures.filter((a) => a.programId === p.id && !a.canceled && ids.includes(a.teamId) && (!sid || !a.sessionId || a.sessionId === sid));
+  };
+  const feedbackAllDone = (p, sid) => { const ks = myKids(p, sid); const att = ks.filter((a) => a.attended); return att.length > 0 && ks.every((a) => a.attended || a.absent) && att.every((a) => feedbackDone(a)); };
+  const recentlyRun = (p) => { const d = lastDay(p); return !!d && d < todayKst() && d >= addDays(todayKst(), -30); };
+  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p) || (done && recentlyRun(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved" && myKids(p, j.slotId || "").some((a) => a.attended))))).flatMap((p) => {
             const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
             const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
             return slotIds.filter((sid) => teamSet(p, sid) === done).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
-              return <MyTeamsCard key={`${p.id}-${sid}`} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} />;
+              const fin = feedbackAllDone(p, sid);
+              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} /> };
             });
-          });
+          }).sort((x, y) => Number(x.fin) - Number(y.fin)).map((x) => x.el); // finished ones sink to the bottom
   const chipFor = (j) =>
     j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("이번엔 어려워요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("정원이 차서 대기 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
@@ -12128,7 +12191,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && upcoming.some((u) => u.id === p.id)).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "")).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId) }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const left = past ? myKids(p, j.slotId || "").filter((a) => a.attended && !feedbackDone(a)).length : 0; const wait = past ? [!isReviewOpen(p) ? tr("복습") : "", left > 0 ? tr("피드백 {0}명", [left]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -12236,14 +12299,19 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 {showGoals && <div className="mt-2.5"><ObjectiveTable program={program} /></div>}
               </div>
               <p className="f-body text-[14px] text-gray-500 mb-2">{tr("학습 목표, 단어, 퀴즈를 써요. 안전수칙은 공통이라 따로 쓰지 않아요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
-              <RegisterProgramPanel
+              <QuickReview key={`q-${program.id}-${formKey}`} program={program} onSave={(m) => { onSaveMaterials(program.id, m); setSavedAt(Date.now()); setFormKey((k) => k + 1); }} />
+              <button onClick={() => setShowFull((v) => !v)} aria-expanded={showFull} data-testid="full-form-toggle" className="focus-ring tap w-full flex items-center justify-between rounded-2xl px-4 py-3 mb-3 bg-white" style={{ border: `1px solid ${C.beige}` }}>
+                <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("자세히 쓰기 (목표 · 단어 · 질문)")}</span>
+                <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{showFull ? "▴" : "▾"}</span>
+              </button>
+              {showFull && <RegisterProgramPanel
                 key={`${program.id}-${formKey}`}
                 materialsOnly
                 initial={program}
                 defaultShowMaterials
                 onSave={(m) => { onSaveMaterials(program.id, m); setSavedAt(Date.now()); setFormKey((k) => k + 1); }}
                 onCancel={() => {}}
-              />
+              />}
               {savedAt && <p role="status" className="f-body text-[15px] font-bold text-center mt-3" style={{ color: "#1F7A44" }}>{tr("저장됐어요. 아이들 화면에 바로 반영돼요.")}</p>}
             </div>
           )}
@@ -12259,6 +12327,19 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                   </div>
                 )}
               </div>
+              {feedbackLeft === 0 && (() => {
+                const earned = payItems.filter((i) => i.programId === program.id && !i.paid && !i.needsAmount);
+                const gross = earned.reduce((n, i) => n + i.amount, 0);
+                if (!gross) return null;
+                const tx = payTax(gross, payInfo.taxOn !== false);
+                return (
+                  <button onClick={() => { setTab("pay"); window.scrollTo({ top: 0 }); }} className="focus-ring tap w-full rounded-2xl p-4 text-left text-white" style={{ background: C.green }} data-testid="feedback-pay">
+                    <p className="f-body text-[13px]" style={{ color: "#BFE0CF" }}>{tr("피드백을 보냈어요 ✓ 이번 체험 페이")}</p>
+                    <p className="f-display text-[28px] font-bold leading-tight">{won(tx.net)}</p>
+                    <p className="f-body text-[13px]" style={{ color: "#BFE0CF" }}>{tx.withheld ? tr("세전 {0} − 세금 3.3% {1}", [won(gross), won(tx.tax)]) : tr("세전 금액이에요")} · {tr("Pay 탭에서 보기 ›")}</p>
+                  </button>
+                );
+              })()}
               {name && mine.length === 0 && roster.length > 0 && <p className="f-body text-[13px] text-gray-400">{tr("아직 내 팀에 배정된 아이가 없어서 모두 보여요.")}</p>}
               {list.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("아직 신청한 아이가 없어요.")}</p></div>}
               {list.map(({ a, st }) => (
@@ -12437,6 +12518,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
                     <div className="min-w-0">
                       <p className="f-body text-[15px] truncate" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
                       <p className="f-body text-[12px] text-gray-400">{[i.date, sourceNote(i)].filter(Boolean).join(" · ")}</p>
+                      {!i.needsAmount && pay.taxOn && <p className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }} data-testid="hq-item-net">{tr("세후 {0} (세금 {1} 뺀 금액)", [won(payTax(i.amount, true).net), won(payTax(i.amount, true).tax)])}</p>}
                     </div>
                     {editing ? (
                       <span className="flex items-center gap-1.5 shrink-0">
@@ -12522,7 +12604,7 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
       {expected.length > 0 && (
         <div data-testid="expected-pay">
           <div className="flex items-baseline justify-between mb-1.5">
-            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{tr("예정 수당 (팀이 정해진 체험)")}</p>
+            <p className="f-display font-semibold text-[17px]" style={{ color: C.green }}>{tr("예정 수당 (세전)")}</p>
             <p className="f-display text-[15px] font-bold" style={{ color: "#B25A0B" }}>{tr("합계 {0}", [won(expected.reduce((n, e) => n + (e.amount || 0), 0))])}</p>
           </div>
           <div className="rounded-2xl px-4" style={{ background: "#FFF8EC", border: "1.5px dashed #E9C98F" }}>
@@ -12531,12 +12613,13 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
                 <div className="min-w-0">
                   <p className="f-body text-[15px] font-bold truncate" style={{ color: C.charcoal }}>{e.title}{e.slotLabel ? ` · ${e.slotLabel}` : ""}</p>
                   <p className="f-body text-[13px] text-gray-400">{e.date}</p>
+                  {e.wait && e.wait.length > 0 && <p className="f-body text-[12px] font-bold" style={{ color: "#B25A0B" }} data-testid="expected-wait">{tr("남은 것")}: {e.wait.join(" · ")}</p>}
                 </div>
                 <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: e.amount ? "#B25A0B" : "#9C927D" }}>{e.amount ? won(e.amount) : tr("금액 확인 중")}</p>
               </div>
             ))}
           </div>
-          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("팀이 정해지면 여기에 나타나요. 체험이 끝나면 위 '받을 수당'에 들어가요. 세전 금액이에요.")}</p>
+          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("팀이 정해지면 여기에 나타나요. 복습과 피드백을 모두 올리면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.")}</p>
         </div>
       )}
       {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}
@@ -12548,7 +12631,10 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
                 <p className="f-body text-[15px] font-bold truncate" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
                 <p className="f-body text-[13px] text-gray-400">{[i.date, i.source === "hours" ? tr("{0}시간", [i.hours]) : ""].filter(Boolean).join(" · ")}</p>
               </div>
-              <p className="f-display text-[16px] font-semibold shrink-0" style={{ color: i.needsAmount ? "#B25A0B" : C.green }}>{i.needsAmount ? tr("금액 확인 중") : won(i.amount)}</p>
+              <div className="shrink-0 text-right">
+                <p className="f-display text-[17px] font-bold" style={{ color: i.needsAmount ? "#B25A0B" : C.green }} data-testid="pay-net">{i.needsAmount ? tr("금액 확인 중") : won(payTax(i.amount, taxOn).net)}</p>
+                {!i.needsAmount && taxOn && <p className="f-body text-[12px] text-gray-400">{tr("세전 {0} · 세금 {1}", [won(i.amount), won(payTax(i.amount, true).tax)])}</p>}
+              </div>
             </div>
           ))}
         </div>

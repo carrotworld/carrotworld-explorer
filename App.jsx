@@ -970,6 +970,16 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "팀이 정해지면 여기에 나타나요. 피드백을 모두 보내면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.": "Shows here once teams are set. When all feedback is sent, it moves to 'Pay to receive' after the 3.3% tax.",
+  "✓ 아이들에게 열려 있어요": "✓ Open for the children",
+  "아직 닫혀 있어요": "Closed for now",
+  "복습 퀴즈 {0}문제": "{0} review questions",
+  "복습 닫기": "Close review",
+  "아직 복습이 없어요": "No review yet",
+  "단어만 있으면 한 번에 만들어요.": "Just add words and make it in one tap.",
+  "단어로 복습 만들기": "Make review from words",
+  "먼저 아래 '자세히 쓰기'에서 단어 3개 이상(뜻 포함)을 써 주세요.": "First add 3+ words with meanings under 'Write in detail'.",
+  "🎯 레벨별 학습 목표": "🎯 Goals by level",
   "남은 것": "Left",
   "피드백 {0}명": "Feedback {0}",
   "예정 수당 (세전)": "Expected pay (before tax)",
@@ -1476,7 +1486,7 @@ const materialLevels = (program) => (program && program.levelMaterials ? sortLev
 /** The program as a child of this level sees it. */
 function programForLevel(program, level) {
   const m = program && program.levelMaterials && program.levelMaterials[level];
-  return m ? { ...program, ...m } : program;
+  return withAutoReview(m ? { ...program, ...m } : program);
 }
 /** Which level's set this child uses: the one saved on their record, else their own level, else the first. */
 function levelFor(program, student, adv) {
@@ -1603,10 +1613,21 @@ function isLive(p, now) {
   return !!p.dateReached;
 }
 const tripDayPassed = (p, now) => hasDate(p) && todayKst(now) > lastDay(p);
-function isReviewOpen(p, now) {
+/** The review is made from the words by itself (no leader step); it opens for a child the moment attendance is marked. HQ can still close it by hand. */
+function hasReviewContent(p) {
   if (!p) return false;
-  if (p.reviewOpen) return true;
-  return tripDayPassed(p, now) && !p.reviewHold && (p.remember || []).length > 0;
+  const has = (m) => (m.remember || []).length > 0 || autoWordQuestions(m.vocabulary).length > 0;
+  return has(p) || Object.values(p.levelMaterials || {}).some(has);
+}
+function isReviewOpen(p) {
+  if (!p || p.reviewHold) return false;
+  return hasReviewContent(p);
+}
+/** A program view whose review always has the word questions (made from the words, not saved). */
+function withAutoReview(v) {
+  if (!v || (v.remember || []).some((q) => q.auto)) return v;
+  const auto = autoWordQuestions(v.vocabulary);
+  return auto.length ? { ...v, remember: [...(v.remember || []), ...auto] } : v;
 }
 function infoComplete(p, slot) {
   const i = { ...(p.info || {}) };
@@ -3196,7 +3217,7 @@ function ScoreCard({ score, className = "" }) {
 }
 
 function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsights, onHome, onSurvey }) {
-  const quiz = program.remember || [];
+  const quiz = React.useMemo(() => { const q = [...(program.remember || [])]; for (let i = q.length - 1; i > 0; i--) { const k = Math.floor(Math.random() * (i + 1)); [q[i], q[k]] = [q[k], q[i]]; } return q; }, [program.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasBigQ = !!program.bigQuestion && (program.bigQuestionOptions || []).length >= 2;
   const [step, setStep] = useState(quiz.length || hasBigQ ? "quiz" : "favorite");
   const [phase, setPhase] = useState(quiz.length ? "questions" : "bigq");
@@ -4080,7 +4101,6 @@ function teacherEarnings(suggestions, joins, now, adventures = []) {
     const p = getProgram(j.programId);
     if (!p || !tripDayPassed(p, now)) return null;
     if (adventures.some((a) => a.programId === j.programId && a.attended && !a.canceled && !feedbackDone(a))) return null; // counted once the feedback is submitted
-    if (!isReviewOpen(p, now)) return null; // ...and the leader's review is up
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
     let amount = 0;
@@ -6710,16 +6730,25 @@ function QuickReview({ program, onSave }) {
     if (levelSets) onSave({ reviewOpen: true, levelMaterials: Object.fromEntries(levelSets.map(([l, m]) => [l, { ...m, remember: [...keep(m.remember), ...autoWordQuestions(m.vocabulary)] }])), remember: [...keep(program.remember), ...autoWordQuestions(program.vocabulary)] });
     else onSave({ reviewOpen: true, remember: [...keep(program.remember), ...autoWordQuestions(program.vocabulary)] });
   };
-  const btn = "focus-ring tap w-full rounded-xl f-display text-[17px] font-bold";
+  const sec = "focus-ring tap flex-1 rounded-xl f-body text-[15px] font-bold bg-white";
   return (
-    <div className="rounded-2xl p-4 mb-3" style={{ background: "#FFF8EC", border: `2px solid ${C.orange}` }} data-testid="quick-review">
-      <p className="f-display text-[19px] font-bold" style={{ color: C.green }}>{tr("📖 복습 간단하게")}</p>
-      <p className="f-body text-[14px] text-gray-600 mt-0.5">{count > 0 ? tr("복습 퀴즈 {0}문제가 준비됐어요 ✓", [count]) : tr("아직 복습 퀴즈가 없어요. 아래 버튼 한 번이면 만들어지고, 아이 화면 복습 칸에 바로 열려요.")}</p>
-      <div className="space-y-2 mt-3">
-        <button onClick={make} disabled={!canMake} data-testid="quick-make" className={`${btn} text-white disabled:opacity-40`} style={{ background: C.orange, minHeight: 56 }}>🪄 {count > 0 ? tr("단어로 다시 만들기") : tr("단어로 복습 자동 만들기")}</button>
-        {!canMake && <p className="f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("뜻이 있는 단어가 3개 이상 있어야 만들 수 있어요. 아래 '자세히 쓰기'에서 단어를 써 주세요.")}</p>}
-        {count > 0 && <button onClick={() => onSave({ reviewOpen: !open })} data-testid="quick-open" aria-pressed={open} className={btn} style={{ minHeight: 56, background: open ? "#EAF7EF" : C.green, color: open ? "#1F7A44" : "#fff" }}>{open ? tr("✓ 복습이 열려 있어요 (누르면 닫기)") : tr("복습 바로 열기")}</button>}
-      </div>
+    <div className="rounded-2xl p-5 mb-3 bg-white" style={{ border: `1px solid ${C.beige}` }} data-testid="quick-review">
+      <p className="f-body text-[13px] font-bold tracking-[0.1em] uppercase" style={{ color: C.orange }}>{tr("복습")}</p>
+      {count > 0 ? (
+        <>
+          <p className="f-display text-[26px] font-bold leading-tight mt-1" style={{ color: open ? "#1F7A44" : C.green }}>{open ? tr("✓ 아이들에게 열려 있어요") : tr("아직 닫혀 있어요")}</p>
+          <p className="f-body text-[15px] text-gray-500 mt-0.5">{tr("복습 퀴즈 {0}문제", [count])}</p>
+          <button onClick={() => onSave({ reviewOpen: !open })} data-testid="quick-open" aria-pressed={open} className="focus-ring tap w-full mt-4 rounded-xl f-display text-[17px] font-bold" style={{ minHeight: 54, background: open ? "#F4EFE3" : C.green, color: open ? C.charcoal : "#fff" }}>{open ? tr("복습 닫기") : tr("복습 열기")}</button>
+          <button onClick={make} disabled={!canMake} data-testid="quick-make" className="focus-ring tap w-full mt-2 f-body text-[14px] font-bold underline disabled:opacity-40" style={{ color: "#8A8060", minHeight: 44 }}>{tr("단어로 다시 만들기")}</button>
+        </>
+      ) : (
+        <>
+          <p className="f-display text-[22px] font-bold leading-tight mt-1" style={{ color: C.green }}>{tr("아직 복습이 없어요")}</p>
+          <p className="f-body text-[15px] text-gray-500 mt-0.5">{tr("단어만 있으면 한 번에 만들어요.")}</p>
+          <button onClick={make} disabled={!canMake} data-testid="quick-make" className="focus-ring tap w-full mt-4 rounded-xl f-display text-[17px] font-bold text-white disabled:opacity-40" style={{ background: C.orange, minHeight: 56 }}>{tr("단어로 복습 만들기")}</button>
+          {!canMake && <p className="f-body text-[13px] mt-2" style={{ color: "#B25A0B" }}>{tr("먼저 아래 '자세히 쓰기'에서 단어 3개 이상(뜻 포함)을 써 주세요.")}</p>}
+        </>
+      )}
     </div>
   );
 }
@@ -9024,7 +9053,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z91"; // change with every delivery
+const APP_BUILD = "2026-10-24-z93"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9627,7 +9656,7 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
                       <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{k.name}</span>
                       <span className="f-body text-[14px] shrink-0" style={{ color: "#8A8060" }}>{k.level}</span>
                       {(() => {
-                        const rv = isReviewOpen(program); const fb = feedbackDone(k.adv);
+                        const rv = !!k.adv.afterCompleted; const fb = feedbackDone(k.adv);
                         const chip = (ok, label, id) => <span className="shrink-0 f-body text-[11px] font-bold rounded-full px-2 py-1" data-testid={id} data-ok={ok ? "1" : "0"} style={{ background: ok ? "#EAF7EF" : "#F4EFE3", color: ok ? "#1F7A44" : "#9C927D" }}>{ok ? "✓ " : ""}{label}</span>;
                         return <>{chip(rv, tr("Review"), "kid-review")}{chip(fb, tr("Feedback"), "kid-feedback")}</>;
                       })()}
@@ -12191,7 +12220,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const left = past ? myKids(p, j.slotId || "").filter((a) => a.attended && !feedbackDone(a)).length : 0; const wait = past ? [!isReviewOpen(p) ? tr("복습") : "", left > 0 ? tr("피드백 {0}명", [left]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const left = past ? myKids(p, j.slotId || "").filter((a) => a.attended && !feedbackDone(a)).length : 0; const wait = past ? [left > 0 ? tr("피드백 {0}명", [left]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
@@ -12298,8 +12327,6 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 </button>
                 {showGoals && <div className="mt-2.5"><ObjectiveTable program={program} /></div>}
               </div>
-              <p className="f-body text-[14px] text-gray-500 mb-2">{tr("학습 목표, 단어, 퀴즈를 써요. 안전수칙은 공통이라 따로 쓰지 않아요. 레벨이 여러 개면 레벨마다 탭이 있어요.")}</p>
-              <QuickReview key={`q-${program.id}-${formKey}`} program={program} onSave={(m) => { onSaveMaterials(program.id, m); setSavedAt(Date.now()); setFormKey((k) => k + 1); }} />
               <button onClick={() => setShowFull((v) => !v)} aria-expanded={showFull} data-testid="full-form-toggle" className="focus-ring tap w-full flex items-center justify-between rounded-2xl px-4 py-3 mb-3 bg-white" style={{ border: `1px solid ${C.beige}` }}>
                 <span className="f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("자세히 쓰기 (목표 · 단어 · 질문)")}</span>
                 <span className="f-body text-[14px] font-bold" style={{ color: C.green }}>{showFull ? "▴" : "▾"}</span>
@@ -12619,7 +12646,7 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
               </div>
             ))}
           </div>
-          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("팀이 정해지면 여기에 나타나요. 복습과 피드백을 모두 올리면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.")}</p>
+          <p className="f-body text-[13px] text-gray-500 mt-1.5">{tr("팀이 정해지면 여기에 나타나요. 피드백을 모두 보내면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.")}</p>
         </div>
       )}
       {open.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("아직 쌓인 수당이 없어요. 체험이 끝나면 여기에 보여요.")}</p></div>}

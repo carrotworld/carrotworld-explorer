@@ -3464,9 +3464,8 @@ function AfterAdventure({ program, adv, badgesJustEarned, onComplete, onSaveInsi
 /*  ADVENTURE DETAIL (chapters: Get Ready / Explore / Remember)         */
 /* ================================================================== */
 /** Word quiz for the parents and children: pick a level (A1, A2 ...), play it as many times as they like; the words and the order are random each time. Nothing is saved. */
-function WordQuizPractice({ program, myLevel }) {
-  const lv = materialLevels(program).length ? materialLevels(program) : [...new Set((program.levels || [program.level]).filter(Boolean))];
-  const [level, setLevel] = useState(lv.includes(myLevel) ? myLevel : lv[0] || null);
+function WordQuizPractice({ program, myLevel, onFinish }) {
+  const level = myLevel;
   const [run, setRun] = useState(null);
   const [idx, setIdx] = useState(0);
   const [right, setRight] = useState(0);
@@ -3475,17 +3474,11 @@ function WordQuizPractice({ program, myLevel }) {
   const pool = (view.vocabulary || []).filter((w) => (w.en || "").trim() && (w.meaning || "").trim());
   const start = () => { setRun(shuffle(autoWordQuestions(shuffle(pool)))); setIdx(0); setRight(0); };
   const finished = run && idx >= run.length;
+  const doneRef = useRef(false);
+  useEffect(() => { if (finished && !doneRef.current) { doneRef.current = true; if (onFinish) onFinish(right, run.length); } }); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="bg-white rounded-2xl p-4 mt-4" data-testid="word-quiz">
       <p className="f-display text-[18px] font-bold" style={{ color: C.orange }}>Word Quiz · 단어 퀴즈</p>
-      <p className="f-body text-[14px] text-gray-500 mb-2.5">Pick a level and play as many times as you like. · 레벨을 골라 몇 번이든 풀어 보세요.</p>
-      {lv.length > 1 && (
-        <div className="flex gap-2 flex-wrap mb-3" role="tablist" aria-label="Quiz level">
-          {lv.map((l) => (
-            <button key={l} role="tab" aria-selected={level === l} data-testid={`wq-level-${l}`} onClick={() => { setLevel(l); setRun(null); }} className="focus-ring tap f-body text-[16px] font-bold px-4 rounded-full" style={{ minHeight: 44, background: level === l ? C.green : "white", color: level === l ? "white" : C.charcoal, border: `1px solid ${level === l ? C.green : C.beige}` }}>{l}</button>
-          ))}
-        </div>
-      )}
       {!run && (pool.length >= 1
         ? <button onClick={start} data-testid="wq-start" className="focus-ring tap w-full rounded-xl f-display text-[17px] font-bold text-white" style={{ background: C.orange, minHeight: 54 }}>Start · 시작하기</button>
         : <p className="f-body text-[14px] text-gray-400">No words for this level yet. · 아직 단어가 없어요.</p>)}
@@ -3602,23 +3595,30 @@ function AdventureDetail({ program: fullProgram, adv, adventures, studentId, stu
         />
       )}
 
-      {section === "after" && (
-        <AfterAdventure
-          key={viewing || "one"}
-          program={program}
-          adv={adv}
-          badgesJustEarned={[]}
-          onHome={onBack}
-          onSurvey={onSurvey}
-          onSaveInsights={(insights) => update({ insights })}
-          onComplete={(reflection, extra) => {
-            const updated = update({ afterCompleted: true, reflection, ...(mine ? {} : { materialLevel: viewing }), ...(extra || {}) }); // finished on another level (a level changed on site): that level is now the child's set
-            const earned = newlyEarned(updated);
-            if (earned.length) setCelebration({ title: "New badge earned!", badge: earned[0] });
-          }}
-        />
+      {section === "after" && !adv.attended && (
+        <div className="px-5 pb-10 text-center pt-10">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: C.beige }}><Lock size={20} color="#9C927D" /></div>
+          <p className="f-display font-semibold" style={{ color: C.green }}>Finish exploring first</p>
+          <p className="f-body text-[17px] text-gray-500 mt-1">Your teacher checks you in on the trip day. Then this part opens.</p>
+        </div>
       )}
-      {section === "after" && adv.attended && <div className="px-5 pb-10"><WordQuizPractice key={viewing || "one"} program={fullProgram} myLevel={viewing || myLevel} /></div>}
+      {section === "after" && adv.attended && (
+        <div className="px-5 pb-10">
+          <WordQuizPractice
+            key={viewing || "one"}
+            program={program}
+            myLevel={viewing || myLevel}
+            onFinish={(correct, total) => {
+              if (adv.afterCompleted) return;
+              const rememberScore = { correct, total };
+              const updated = update({ afterCompleted: true, reflection: { rememberScore }, reviewScore: rememberScore, ...(mine ? {} : { materialLevel: viewing }) }); // finished on another level (a level changed on site): that level is now the child's set
+              const earned = newlyEarned(updated);
+              if (earned.length) setCelebration({ title: "New badge earned!", badge: earned[0] });
+            }}
+          />
+          {adv.afterCompleted && onSurvey && !adv.parentSurvey && <div className="mt-4"><PrimaryButton onClick={onSurvey}>Parent survey · 보호자 설문 작성하기</PrimaryButton></div>}
+        </div>
+      )}
 
       {celebration && <CelebrationModal {...celebration} onClose={() => setCelebration(null)} />}
     </div>
@@ -9104,7 +9104,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z99"; // change with every delivery
+const APP_BUILD = "2026-10-24-z100"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

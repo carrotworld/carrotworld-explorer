@@ -6160,26 +6160,31 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
             <p className="f-body text-[14px] text-gray-400 mt-1">Usually filled out after the trip — not needed in the moment.</p>
 
             {feedbackOpen && (
-              <fieldset disabled={sent} className="mt-3 space-y-4 border-0 p-0 m-0 min-w-0" style={sent ? { opacity: 0.7 } : undefined}>
+              <>
+              <div className="mt-3">
                 <div className="flex gap-2">
                   <input
                     value={fb.guideName}
                     onChange={(e) => patchFeedback({ guideName: e.target.value })}
+                    disabled={sent}
                     placeholder="Guide name"
                     aria-label="Guide name"
-                    className="focus-ring flex-1 rounded-xl p-3 f-body text-[17px] outline-none"
-                    style={{ background: C.cream, border: `1px solid ${C.beige}` }}
+                    className="focus-ring flex-1 min-w-0 rounded-xl p-3 f-body text-[17px] outline-none"
+                    style={{ background: C.cream, border: `1px solid ${C.beige}`, opacity: sent ? 0.7 : 1 }}
                   />
-                  <input
-                    value={fb.cefrLevel}
+                  <select
+                    value={fb.cefrLevel || ""}
                     onChange={(e) => patchFeedback({ cefrLevel: e.target.value })}
-                    placeholder="CEFR"
                     aria-label="CEFR level"
-                    className="focus-ring w-20 rounded-xl p-3 f-body text-[17px] outline-none text-center"
-                    style={{ background: C.cream, border: `1px solid ${C.beige}` }}
-                  />
+                    data-testid="fb-level"
+                    className="focus-ring rounded-xl px-3 f-body text-[17px] font-bold outline-none text-center"
+                    style={{ background: "white", border: `2px solid ${C.green}`, color: C.green, width: 84 }}
+                  >
+                    {[...new Set([fb.cefrLevel, ...LEVEL_CHOICES].filter(Boolean))].map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
                 </div>
-
+              </div>
+              <fieldset disabled={sent} className="mt-3 space-y-4 border-0 p-0 m-0 min-w-0" style={sent ? { opacity: 0.7 } : undefined}>
                 <div>
                   <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>Experience Overview / Summary</p>
                   <textarea
@@ -6232,6 +6237,7 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
                   ))}
                 </div>
               </fieldset>
+              </>
             )}
             {feedbackOpen && (
               <div className="mt-4">
@@ -9122,7 +9128,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-26-z105"; // change with every delivery
+const APP_BUILD = "2026-10-26-z106"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

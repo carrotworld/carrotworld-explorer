@@ -2257,13 +2257,78 @@ function PracticeBoxes({ word, count, onChange }) {
   );
 }
 
+/* ---- Word sound -------------------------------------------------------------------------------------------------
+ * The voice is made inside the app (public/speech.js, a small speech engine) and played as a plain <audio>, so it does not depend on the
+ * phone's own voices, the silent switch or the browser. The file loads the first time a word card is shown/tapped. Fallback: the phone's voice. */
+let SPEECH_LOAD = null;
+const loadSpeechEngine = () => {
+  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
+  if (window.cwSpeechReady) return Promise.resolve();
+  if (!SPEECH_LOAD) {
+    SPEECH_LOAD = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = "/speech.js";
+      el.async = true;
+      el.onload = () => (window.cwSpeechReady ? resolve() : reject(new Error("speech engine missing")));
+      el.onerror = () => { SPEECH_LOAD = null; reject(new Error("speech.js not loaded")); };
+      document.head.appendChild(el);
+    });
+  }
+  return SPEECH_LOAD;
+};
+const SPEECH_URLS = new Map();
+let SPEECH_AUDIO = null;
+// a tiny silent clip: playing it inside the tap unlocks the audio element for the sound that follows a moment later
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+function speakWord(word) {
+  const text = String(word || "").trim();
+  if (!text || typeof window === "undefined") return;
+  try {
+    if (!SPEECH_AUDIO) SPEECH_AUDIO = new Audio();
+    SPEECH_AUDIO.src = SILENT_WAV;
+    const p0 = SPEECH_AUDIO.play();
+    if (p0 && p0.catch) p0.catch(() => {});
+  } catch (e) { /* ignore */ }
+  const phoneVoice = () => {
+    try {
+      const ss = window.speechSynthesis; if (!ss) return;
+      ss.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = 0.85; ss.speak(u);
+    } catch (e) { /* no voice */ }
+  };
+  loadSpeechEngine().then(() => {
+    let url = SPEECH_URLS.get(text.toLowerCase());
+    if (!url) {
+      const wav = window.cwSpeechWav(text);
+      if (!wav || !wav.length) throw new Error("no sound made");
+      url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+      SPEECH_URLS.set(text.toLowerCase(), url);
+    }
+    SPEECH_AUDIO.src = url;
+    const p = SPEECH_AUDIO.play();
+    if (p && p.catch) p.catch(phoneVoice);
+  }).catch(phoneVoice);
+}
+function SpeakButton({ word, size = 44 }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); speakWord(word); }}
+      aria-label={`Hear ${word}`}
+      data-testid="speak"
+      className="focus-ring tap shrink-0 rounded-full flex items-center justify-center"
+      style={{ width: size, height: size, background: "#FFF1E2", border: "1.5px solid #F0C48E" }}
+    ><Volume2 size={Math.round(size * 0.5)} color={C.orange} /></button>
+  );
+}
+
 function VocabularyCard({ v, onTap, checks, onCheck }) {
+  useEffect(() => { loadSpeechEngine().catch(() => {}); }, []);
   return (
     <div className="bg-white rounded-2xl p-4 text-left">
-      <button onClick={() => { if (onTap) onTap(v); }} aria-label={`Word ${v.en}`} className="focus-ring tap w-full text-left">
-        <div className="flex items-start justify-between">
-          {wordEmoji(v.emoji) ? <span className="text-[27px]">{wordEmoji(v.emoji)}</span> : <span />}
-        </div>
+      <div className="flex items-start justify-between">
+        {wordEmoji(v.emoji) ? <span className="text-[27px]">{wordEmoji(v.emoji)}</span> : <span />}
+        <SpeakButton word={v.en} />
+      </div>
+      <button onClick={() => { if (onTap) onTap(v); speakWord(v.en); }} aria-label={`Word ${v.en}`} className="focus-ring tap w-full text-left">
         <p className="f-display font-semibold mt-2" style={{ color: C.green }}>
           {v.en}
         </p>
@@ -9128,7 +9193,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-26-z106"; // change with every delivery
+const APP_BUILD = "2026-10-26-z107"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

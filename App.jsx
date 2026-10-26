@@ -970,6 +970,14 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "📌 리더 특이사항": "📌 Notes for leaders",
+  "신청할 때 리더에게 보여요. 부모님께는 안 보여요. 없으면 비워 두세요.": "Leaders see this when they sign up. Parents do not. Leave blank if none.",
+  "리더 특이사항": "Notes for leaders",
+  "예) 1박 2일이라 숙박이 있어요 / 차량 이동 / 도시락 준비": "e.g. Overnight trip / travel by car / bring lunch",
+  "본사 특이사항": "Note from HQ",
+  "상황 설명 (선택) — 가능한 시간, 이동 수단, 참고할 점 등을 적어 주세요. 없으면 비워 두세요.": "Your situation (optional): times you can do, how you travel, anything HQ should know. Leave blank if none.",
+  "예) 오후 2시 이후에만 가능해요 / 차로 이동해요": "e.g. I can only do after 2 pm / I come by car",
+  "상황 설명": "Your situation",
   "팀이 정해지면 여기에 나타나요. 피드백을 모두 보내면 위 '받을 수당'에 세금 3.3%를 뺀 금액으로 들어가요.": "Shows here once teams are set. When all feedback is sent, it moves to 'Pay to receive' after the 3.3% tax.",
   "✓ 아이들에게 열려 있어요": "✓ Open for the children",
   "아직 닫혀 있어요": "Closed for now",
@@ -1556,6 +1564,14 @@ function tripDayOf(p) {
 }
 const hasDate = (p) => !!(p && YMD.test(p.startDate || ""));
 /** The last day of the trip: the optional end date (for 1 night 2 days and the like), else the start date. */
+/** Programs for lists and pickers: today and coming ones first (soonest first), undated ones after them, finished trips last (latest first). */
+const programsOrdered = (list = PROGRAMS) => {
+  const today = todayKst();
+  const past = (p) => hasDate(p) && lastDay(p) < today;
+  const idx = new Map(list.map((p, i) => [p.id, i]));
+  const rank = (p) => (past(p) ? 2 : hasDate(p) ? 0 : 1);
+  return [...list].sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? String(a.startDate).localeCompare(String(b.startDate)) : rank(a) === 2 ? String(lastDay(b)).localeCompare(String(lastDay(a))) : 0) || idx.get(a.id) - idx.get(b.id));
+};
 const lastDay = (p) => (p && YMD.test(p.endDate || "") && p.endDate >= p.startDate ? p.endDate : p.startDate);
 /** Reads a date written by hand ("10월 24일", "10월24", "10월 24~25일", "10/24") and returns { start, end } as YYYY-MM-DD, or null.
  *  The year is the one that puts the date closest to today. */
@@ -8745,7 +8761,7 @@ function StatsPanel({ adventures, students, suggestions }) {
   return (
     <div className="px-5 space-y-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
-        {[{ id: "all", label: tr("전체") }, ...PROGRAMS.map((p) => ({ id: p.id, label: `${p.emoji || ""} ${String(p.title || p.id || "").split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
+        {[{ id: "all", label: tr("전체") }, ...programsOrdered().map((p) => ({ id: p.id, label: `${p.emoji || ""} ${String(p.title || p.id || "").split(" ").slice(0, 2).join(" ")}` }))].map((o) => (
           <button
             key={o.id}
             onClick={() => setSel(o.id)}
@@ -9104,7 +9120,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-24-z101"; // change with every delivery
+const APP_BUILD = "2026-10-26-z104"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9689,6 +9705,7 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
         {status && status !== "approved" && <span className="shrink-0 f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("확인 대기")}</span>}
       </div>
       <p className="f-body text-[14px] text-gray-500" data-testid="my-teams-when">{[program.date, slot && slot.label, time].filter(Boolean).join(" · ")}</p>
+      {program.leaderNote && <div className="mt-2"><LeaderNote text={program.leaderNote} /></div>}
       {program.teamsDone && <p className="f-body text-[13px] font-bold mt-2" style={{ color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
       <div className="flex items-center justify-between mt-3 mb-1.5"><p className="f-body text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: C.orange }}>{tr("내 담당 팀")}</p>{canMark && kidsN > 0 && <p className="f-body text-[13px] font-bold" style={{ color: markedN === kidsN ? "#1F7A44" : "#8A8060" }} data-testid="mark-count">{tr("출석 {0}/{1}", [markedN, kidsN])}</p>}</div>
       {mine.length === 0 ? (
@@ -10760,13 +10777,13 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
   const [tab, setTabState] = useState(teacherUi.tab); // register | manage | programs | suggestions | stats
   const setTab = (t) => { teacherUi.tab = t; setTabState(t); };
-  const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : PROGRAMS[0]?.id));
+  const [programId, setProgramIdState] = useState(() => (PROGRAMS.some((p) => p.id === teacherUi.programId) ? teacherUi.programId : programsOrdered()[0]?.id));
   const setProgramId = (id) => { teacherUi.programId = id; setProgramIdState(id); };
   const [editingProgramId, setEditingProgramId] = useState(null);
   const [infoFocusId, setInfoFocusId] = useState(null);
@@ -11096,7 +11113,7 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
         <>
           <div className="px-5 mb-4">
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5">
-              {PROGRAMS.map((p) => (
+              {programsOrdered().map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setProgramId(p.id)}
@@ -11304,6 +11321,7 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
             <div className="px-5 mb-3 space-y-3" data-testid="leader-pay">
               <div className="bg-white rounded-2xl p-4">
               {payData && onSetPayAmount && <ProgramPayField key={programId} value={(payData.amounts || {})[programId]} rate={payData.rate} onSave={(v) => onSetPayAmount(programId, v)} />}
+              {onSetProgramLeaderNote && <LeaderNoteField key={`ln-${programId}`} value={program.leaderNote} onSave={(t) => onSetProgramLeaderNote(programId, t)} />}
               {onSetProgramPrivate && (
                 <div className="rounded-2xl p-4 mb-3" style={{ background: program.leaderPrivate ? "#EEF3FF" : "#FFFFFF", border: `2px solid ${program.leaderPrivate ? "#2F5DA8" : C.beige}` }} data-testid="leader-visibility">
                   <p className="f-display text-[17px] font-bold" style={{ color: C.charcoal }}>{tr("리더에게 공개")}</p>
@@ -11357,7 +11375,7 @@ function TeacherDashboard({ onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, a
             <RegisterProgramPanel onRegister={async (...a) => { const r = await onRegisterProgram(...a); setOpenNew(false); return r; }} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
           </div>
           <SectionBar>{tr("등록된 프로그램")}</SectionBar>
-          {PROGRAMS.map((p) =>
+          {programsOrdered().map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
                 key={`${p.id}-${editorTick}`}
@@ -12150,7 +12168,27 @@ function LangToggle({ lang, onChange }) {
 }
 
 /** A small question before a teacher signs up: an optional note for HQ. */
-function JoinDialog({ title, onSend, onClose }) {
+/** HQ writes what the leaders should know before they sign up (shown to leaders, never to parents). */
+function LeaderNoteField({ value, onSave }) {
+  const [text, setText] = useState(value || "");
+  const [saved, setSaved] = useState(false);
+  const dirty = text.trim() !== (value || "").trim();
+  return (
+    <div className="rounded-2xl p-4 mb-3" style={{ background: "#FFFBF2", border: `2px solid ${text.trim() ? "#F0C48E" : C.beige}` }} data-testid="leader-note-field">
+      <p className="f-display text-[17px] font-bold" style={{ color: C.charcoal }}>{tr("📌 리더 특이사항")}</p>
+      <p className="f-body text-[13px] text-gray-500 mb-2">{tr("신청할 때 리더에게 보여요. 부모님께는 안 보여요. 없으면 비워 두세요.")}</p>
+      <textarea value={text} onChange={(e) => { setText(e.target.value); setSaved(false); }} rows={4} maxLength={600} aria-label={tr("리더 특이사항")} data-testid="leader-note-input" placeholder={tr("예) 1박 2일이라 숙박이 있어요 / 차량 이동 / 도시락 준비")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none" style={{ background: "white", border: `1px solid ${C.beige}`, resize: "none" }} />
+      <button onClick={() => { onSave(text); setSaved(true); }} disabled={!dirty} data-testid="leader-note-save" className="focus-ring tap w-full mt-2 rounded-xl f-display text-[16px] font-bold text-white disabled:opacity-40" style={{ background: C.green, minHeight: 48 }}>{saved && !dirty ? tr("저장했어요 ✓") : tr("저장")}</button>
+    </div>
+  );
+}
+/** The HQ note, as the leaders see it. */
+function LeaderNote({ text }) {
+  if (!text || !String(text).trim()) return null;
+  return <p className="f-body text-[14px] rounded-xl px-3 py-2.5 mb-3 whitespace-pre-line" style={{ background: "#FFF1E2", border: "1.5px solid #F0C48E", color: "#8A4B0B" }} data-testid="leader-note">📌 <b>{tr("본사 특이사항")}</b>{"\n"}{String(text).trim()}</p>;
+}
+
+function JoinDialog({ title, onSend, onClose, hqNote }) {
   const [note, setNote] = useState("");
   return (
     <ConfirmDialog
@@ -12160,7 +12198,9 @@ function JoinDialog({ title, onSend, onClose }) {
         { label: tr("취소"), tone: "plain", onClick: onClose },
       ]}
     >
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("본사에 남길 말 (선택)")} aria-label={tr("본사에 남길 말")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none mt-2" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+      {hqNote && <div className="mt-2"><LeaderNote text={hqNote} /></div>}
+      <p className="f-body text-[14px] text-gray-600 mt-2 mb-1.5">{tr("상황 설명 (선택) — 가능한 시간, 이동 수단, 참고할 점 등을 적어 주세요. 없으면 비워 두세요.")}</p>
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={500} data-testid="join-note" placeholder={tr("예) 오후 2시 이후에만 가능해요 / 차로 이동해요")} aria-label={tr("상황 설명")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}`, resize: "none" }} />
     </ConfirmDialog>
   );
 }
@@ -12170,7 +12210,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("programs");
-  const [programId, setProgramId] = useState(() => (PROGRAMS[0] ? PROGRAMS[0].id : null));
+  const [programId, setProgramId] = useState(() => (PROGRAMS[0] ? programsOrdered()[0].id : null));
   const [mineOnly, setMineOnly] = useState(true);
   const [formKey, setFormKey] = useState(0);
   const [savedAt, setSavedAt] = useState(null);
@@ -12311,6 +12351,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
             <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
               <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}{!upcoming.some((u) => u.id === p.id) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
+              <LeaderNote text={p.leaderNote} />
               <div className="space-y-2">
                 {openSlots(p).map((x) => {
                   const j = stateOf(p.id, x.id);
@@ -12343,6 +12384,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {asking && (
             <JoinDialog
               title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program) + (asking.slot.label ? ` · ${asking.slot.label}` : "")])}
+              hqNote={asking.program.leaderNote}
               onSend={(note) => { onJoin(asking.program.id, asking.slot.id, note); setAsking(null); }}
               onClose={() => setAsking(null)}
             />
@@ -12362,7 +12404,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {tab !== "pay" && (
             <div className="px-5 mb-3">
               <select value={program.id} onChange={(e) => { setProgramId(e.target.value); setSavedAt(null); setFormKey((k) => k + 1); }} aria-label={tr("프로그램")} data-testid="program-select" className="focus-ring w-full rounded-xl px-3.5 py-3 f-body text-[16px] font-bold outline-none" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green }}>
-                {PROGRAMS.map((pp) => <option key={pp.id} value={pp.id}>{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
+                {programsOrdered().map((pp) => <option key={pp.id} value={pp.id}>{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
               </select>
             </div>
           )}
@@ -13535,6 +13577,15 @@ function CarrotExplorer() {
     rerender((v) => v + 1);
     sync(api.updateProgram(programId, { leaderPrivate: !!on }));
   };
+  // HQ's note for the leaders (conditions, things to know): shown on the sign-up card, in the sign-up window and on the trip card
+  const setProgramLeaderNote = (programId, text) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    const leaderNote = String(text || "").trim();
+    PROGRAMS[idx] = { ...PROGRAMS[idx], leaderNote };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, { leaderNote }));
+  };
   const setProgramRecruit = (programId, closed) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -13686,6 +13737,7 @@ function CarrotExplorer() {
               onDecideJoin={decideJoin}
               onAddLeader={addLeaderJoin}
               onSetProgramPrivate={setProgramPrivate}
+              onSetProgramLeaderNote={setProgramLeaderNote}
               onMarkJoinsSeen={markJoinsSeen}
               onSetTeacherCap={setTeacherCap}
               payData={payData}

@@ -1565,6 +1565,8 @@ function tripDayOf(p) {
 const hasDate = (p) => !!(p && YMD.test(p.startDate || ""));
 /** The last day of the trip: the optional end date (for 1 night 2 days and the like), else the start date. */
 /** Programs for lists and pickers: today and coming ones first (soonest first), undated ones after them, finished trips last (latest first). */
+/** A trip whose last day is over. */
+const isProgramDone = (p) => hasDate(p) && lastDay(p) < todayKst();
 const programsOrdered = (list = PROGRAMS) => {
   const today = todayKst();
   const past = (p) => hasDate(p) && lastDay(p) < today;
@@ -9120,7 +9122,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-26-z104"; // change with every delivery
+const APP_BUILD = "2026-10-26-z105"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11118,7 +11120,7 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
                   key={p.id}
                   onClick={() => setProgramId(p.id)}
                   className="focus-ring tap shrink-0 text-[15px] f-body font-bold px-3.5 py-2 rounded-full"
-                  style={{ background: programId === p.id ? C.green : "white", color: programId === p.id ? "white" : C.charcoal }}
+                  style={{ background: programId === p.id ? C.green : isProgramDone(p) ? "#F1EEE6" : "white", color: programId === p.id ? "white" : isProgramDone(p) ? "#A39C8B" : C.charcoal, fontWeight: isProgramDone(p) && programId !== p.id ? 600 : undefined }}
                 >
                   {splitTitle(p.title)[0] || p.title}
                 </button>
@@ -11402,7 +11404,9 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
               <button
                 key={p.id}
                 onClick={() => go(() => setEditingProgramId(p.id))}
-                className="focus-ring tap w-full flex items-stretch gap-3 bg-white rounded-2xl p-3 text-left"
+                className="focus-ring tap w-full flex items-stretch gap-3 rounded-2xl p-3 text-left"
+                style={isProgramDone(p) ? { background: "#F6F3EC", opacity: 0.75 } : { background: "white" }}
+                data-done={isProgramDone(p) ? "1" : "0"}
               >
                 <span className="w-1.5 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                 <div className="flex-1 min-w-0 py-0.5">

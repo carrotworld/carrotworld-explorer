@@ -88,6 +88,10 @@ const EN = {
 "부모님 등록 없이 온 학생": "Students without a parent sign-up",
 "현장 학생 등록": "On-site student sign-up",
 "🔔 지금 처리할 일 {0}": "🔔 To do now {0}",
+"👪 부모 요청": "👪 Parent requests",
+"🧑‍🏫 리더 요청": "🧑‍🏫 Leader requests",
+"🏢 본사 업무": "🏢 HQ work",
+"더 보기 ▾": "Show more ▾",
 "통계·데이터": "Stats & data",
 "의견": "Feedback",
 "의견 {0}": "Feedback {0}",
@@ -119,7 +123,7 @@ const EN = {
 "신청 {0}명": "{0} applied",
 "전체 프로그램 보기": "All programs",
 "예정된 프로그램이 없어요.": "No upcoming programs.",
-"선생님 체험 신청 {0}건": "{0} teacher sign-up(s)",
+"리더 체험 신청 {0}건": "{0} leader sign-up(s)",
 "학생 고르기": "Choose a student",
 "학생을 골라 주세요": "Choose a student",
 "🧑‍🏫 리더 신청": "🧑‍🏫 Teacher sign-ups",
@@ -906,7 +910,7 @@ const EN = {
 "번호 확인": "Check number",
 "신청한 번호와 같아요 ✓": "Matches the number they gave ✓",
 "신청한 번호와 달라요": "Does not match the number they gave",
-"선생님 가입 신청 {0}건": "{0} teacher account request(s)",
+"리더 가입 신청 {0}건": "{0} leader account request(s)",
 "수락하면 그 번호로 로그인할 수 있어요": "Accept, and they can log in with their number",
 "선생님이 로그인 화면에서 직접 신청했어요. 수락하면 선생님이 정한 번호로 바로 로그인할 수 있어요.": "Teachers asked for an account on the login screen. Accept, and they can log in with the number they chose.",
 "프로그램 {0}": "Programs {0}",
@@ -1099,6 +1103,13 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+"체험 신청 ": "Trip sign-ups: ",
+"등록한 아이": "Children registered",
+"체험 신청": "Trip sign-ups",
+"체험 등록 ": "Trip sign-ups: ",
+" (아이 ": " (children: ",
+") 중 ": ") — ",
+"이 체험에 왔고, 복습까지 끝낸 건 ": " came to the trip, finished review: ",
   "💡 가장 많이 줄어드는 단계: \"{0}\" → \"{1}\" ({2}명 → {3}명)": "💡 Biggest drop: \"{0}\" → \"{1}\" ({2} → {3})",
   "별점 없음": "No ratings yet",
   "설문 없음": "No survey yet",
@@ -8969,7 +8980,7 @@ function VisitCard({ suggestions }) {
 
 function StatsPanel({ adventures, students, suggestions }) {
   const [sel, setSel] = useState("all");
-  const valid = adventures.filter((a) => students.some((st) => st.id === a.studentId) && getProgram(a.programId));
+  const valid = adventures.filter((a) => !a.canceled && students.some((st) => st.id === a.studentId && !isPendingStudent(st)) && getProgram(a.programId)); // canceled and not-yet-accepted children are not counted
   const program = sel === "all" ? null : getProgram(sel);
   const rows = sel === "all" ? valid : valid.filter((a) => a.programId === sel);
   const sum = summarizeRows(rows);
@@ -9011,15 +9022,21 @@ function StatsPanel({ adventures, students, suggestions }) {
           { e: "⭐", label: tr("부모 만족도"), value: surveyAvg === null ? "-" : oneDecimal(surveyAvg), t: surveyAvg === null ? "none" : tone(surveyAvg, 4), sub: surveyAvg === null ? "" : tr("5점 만점 · {0}건", [sum.survey.n]) },
           { e: "🧒", label: tr("아이 별점"), value: sum.rating.n ? oneDecimal(sum.rating.avg) : "-", t: sum.rating.n ? tone(sum.rating.avg, 4) : "none", sub: sum.rating.n ? tr("5점 만점 · {0}명", [sum.rating.n]) : "" },
         ];
-        const circles = [[tr("등록"), f[0].value, 100], [tr("예습 완료"), f[1].value, pctOf(f[1].value, sum.total)], [tr("현장 참여"), f[2].value, attP], [tr("복습 완료"), f[3].value, aftP]];
+        const circles = [[sel === "all" ? tr("체험 신청") : tr("등록"), f[0].value, 100], [tr("예습 완료"), f[1].value, pctOf(f[1].value, sum.total)], [tr("현장 참여"), f[2].value, attP], [tr("복습 완료"), f[3].value, aftP]];
         const ask = drop ? ({ prep: tr("예습 알림을 한 번 더 보내 보세요."), attended: tr("체험 전 안내를 한 번 더 보내 보세요."), after: tr("복습 알림을 한 번 더 보내 보세요."), report: tr("리더 리포트 작성을 확인해 주세요.") }[drop.to.key] || "") : "";
         return (
           <>
             <div className="rounded-3xl p-5" style={{ background: C.green }} data-testid="stats-summary">
               <p className="f-body text-[13px]" style={{ color: "#BFE0CF" }}>{tr("한 줄 요약")} · {sel === "all" ? tr("전체 프로그램") : tr("이 프로그램")}</p>
               <p className="f-display text-[21px] font-bold text-white leading-snug mt-1.5">
-                {tr("등록한 아이 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [sum.total])}</span>{tr(" 중 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[2].value])}</span>{tr("이 체험에 왔고, 복습까지 끝낸 아이는 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[3].value])}</span>{tr("이에요.")}
+                {sel === "all" ? <>{tr("체험 신청 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}건", [sum.total])}</span>{tr(" 중 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}건", [f[2].value])}</span>{tr("이 체험에 왔고, 복습까지 끝낸 건 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}건", [f[3].value])}</span>{tr("이에요.")}</> : <>{tr("등록한 아이 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [sum.total])}</span>{tr(" 중 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[2].value])}</span>{tr("이 체험에 왔고, 복습까지 끝낸 아이는 ")}<span style={{ color: "#FFB36B" }}>{tr("{0}명", [f[3].value])}</span>{tr("이에요.")}</>}
               </p>
+              {sel === "all" && (
+                <div className="grid grid-cols-2 gap-2 mt-3" data-testid="stats-counts">
+                  <div className="rounded-2xl px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.12)" }}><p className="f-body text-[12px]" style={{ color: "#BFE0CF" }}>{tr("등록한 아이")}</p><p className="f-display text-[20px] font-bold text-white" data-testid="stats-kids">{tr("{0}명", [new Set(rows.map((a) => a.studentId)).size])}</p></div>
+                  <div className="rounded-2xl px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.12)" }}><p className="f-body text-[12px]" style={{ color: "#BFE0CF" }}>{tr("체험 신청")}</p><p className="f-display text-[20px] font-bold text-white" data-testid="stats-enrollments">{tr("{0}건", [sum.total])}</p></div>
+                </div>
+              )}
               <div className="flex items-start mt-4">
                 {circles.map(([label, n, p], i) => (
                   <React.Fragment key={label}>
@@ -9346,7 +9363,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z151"; // change with every delivery
+const APP_BUILD = "2026-10-27-z154"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11269,7 +11286,7 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
     });
   });
   if (teacherApps.length) {
-    teacherNotices.push({ key: "teacher-apps", icon: "🧑‍🏫", title: tr("선생님 가입 신청 {0}건", [teacherApps.length]), text: tr("수락하면 그 번호로 로그인할 수 있어요"), onClick: () => setTab("teachers") });
+    teacherNotices.push({ key: "teacher-apps", icon: "🧑‍🏫", title: tr("리더 가입 신청 {0}건", [teacherApps.length]), text: tr("수락하면 그 번호로 로그인할 수 있어요"), onClick: () => setTab("teachers") });
   }
   // a teacher signed up for a program/slot: tell HQ once (even when a free seat confirmed it by itself); "확인함" marks them all seen
   const joinSeenAt = (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "joinSeen").map((r) => String(r.at || "")).sort().pop() || "";
@@ -11280,7 +11297,7 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
     teacherNotices.unshift({
       key: "new-teacher-joins",
       icon: "🧑‍🏫",
-      title: tr("선생님 체험 신청 {0}건", [newJoins.length]),
+      title: tr("리더 체험 신청 {0}건", [newJoins.length]),
       text: newJoins.slice(0, 2).map(label).join(" / "),
       onClick: () => { setProgramId(first.programId); setTab("manage"); },
       doneLabel: tr("✓ 확인함"),
@@ -11364,28 +11381,47 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
             const showNotices = true;
             return (<>
           <p className="f-body text-[14px] font-bold mb-1.5" data-testid="notices-title" style={{ color: C.orange }}>{tr("🔔 지금 처리할 일 {0}", [teacherNotices.length])}</p>
-          {showNotices && <div className="space-y-1.5">
-            {teacherNotices.slice(0, moreReminders ? teacherNotices.length : 5).map((n) => (
-              <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
-                <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
-                  <span className="text-[20px]">{n.icon}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{n.title}</span>
-                    <span className="block f-body text-[13px] text-gray-500 truncate">{n.text}</span>
-                  </span>
-                  {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
-                </button>
-                {n.onDone && (
-                  <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>{n.doneLabel || tr("✓ 확인함")}</button>
+          {showNotices && (() => {
+            // the to-do list in three parts: what parents asked, what leaders asked, HQ's own work
+            const kindOf = (k) => (/^(approvals|advice-drafts|inquiries|other|ext-reviews)/.test(k) ? "parent" : /^(feedback-review|teacher-apps|teacher-joins|new-teacher-joins)/.test(k) ? "leader" : "hq");
+            const groups = [
+              { id: "parent", label: tr("👪 부모 요청") },
+              { id: "leader", label: tr("🧑‍🏫 리더 요청") },
+              { id: "hq", label: tr("🏢 본사 업무") },
+            ].map((g) => ({ ...g, items: teacherNotices.filter((n) => kindOf(n.key) === g.id) })).filter((g) => g.items.length);
+            const LIMIT = 3;
+            return (
+              <div className="space-y-3" data-testid="notice-groups">
+                {groups.map((g) => (
+                  <div key={g.id} data-testid={`notice-group-${g.id}`}>
+                    <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{g.label} <span style={{ color: C.orange }}>{g.items.length}</span></p>
+                    <div className="space-y-1.5">
+                      {g.items.slice(0, moreReminders ? g.items.length : LIMIT).map((n) => (
+                        <div key={n.key} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }}>
+                          <button onClick={() => go(n.onClick)} className="focus-ring tap flex-1 min-w-0 flex items-center gap-3 text-left">
+                            <span className="text-[20px]">{n.icon}</span>
+                            <span className="flex-1 min-w-0">
+                              <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{n.title}</span>
+                              <span className="block f-body text-[13px] text-gray-500 truncate">{n.text}</span>
+                            </span>
+                            {!n.onDone && <ChevronRight size={16} color="#C9BFA8" />}
+                          </button>
+                          {n.onDone && (
+                            <button onClick={n.onDone} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-3 py-2 rounded-full text-white" style={{ background: C.green }}>{n.doneLabel || tr("✓ 확인함")}</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {groups.some((g) => g.items.length > LIMIT) && (
+                  <button onClick={() => setMoreReminders((v) => !v)} aria-expanded={moreReminders} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
+                    {moreReminders ? tr("접기 ▴") : tr("더 보기 ▾")}
+                  </button>
                 )}
               </div>
-            ))}
-            {teacherNotices.length > 5 && (
-                <button onClick={() => setMoreReminders((v) => !v)} aria-expanded={moreReminders} className="focus-ring tap w-full f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
-                  {moreReminders ? tr("접기 ▴") : tr("외 {0}건 더 보기 ▾", [teacherNotices.length - 5])}
-                </button>
-              )}
-          </div>}
+            );
+          })()}
             </>);
           })()}
         </div>

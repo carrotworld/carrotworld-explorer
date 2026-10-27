@@ -57,6 +57,14 @@ const EN = {
 "다시 열기": "Reopen",
 "마감하기": "Close it",
 "지난 체험": "Past trip",
+"선착순이에요. 본사가 확인하면 확정돼요.": "First come, first served. Confirmed once HQ accepts.",
+"{0} 리더를 확정할까요?": "Confirm {0}?",
+"{0} 리더의 신청을 삭제할까요?": "Delete {0}'s sign-up?",
+"{0} 리더의 신청을 거절할까요?": "Decline {0}'s sign-up?",
+"신청 기록이 지워지고 리더 화면에서도 사라져요.": "The sign-up is removed, and it disappears from the leader's app too.",
+"리더 화면에 '확정'으로 보여요.": "The leader sees 'Confirmed'.",
+"리더 화면에 '죄송해요, 이 자리는 이미 정해졌어요'로 보여요.": "The leader sees 'Sorry, this position has been taken'.",
+"지난 체험 신청": "Sign-ups for past trips",
 "🙋 참여 신청 {0}명": "🙋 Sign-ups: {0}",
 "부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.": "Children whose parents applied in the app. Tap to add them to this program.",
 "+ 학생 직접 추가": "+ Add a student",
@@ -9333,7 +9341,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z142"; // change with every delivery
+const APP_BUILD = "2026-10-27-z144"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12673,7 +12681,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               </button>
             </div>
           )}
-          {signable.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p>}
+          {signable.length > 0 && <div className="pt-1"><p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p><p className="f-body text-[13px] mt-0.5" style={{ color: "#9C927D" }} data-testid="first-come-note">{tr("선착순이에요. 본사가 확인하면 확정돼요.")}</p></div>}
           {signable.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {signable.map((p) => (
             <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : { background: "white" }}>
@@ -13141,12 +13149,15 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
   const [newPin, setNewPin] = useState("");
   const [editError, setEditError] = useState("");
   const isWait = (j) => j.status === "pending" || j.status === "waiting";
-  const count = (st) => joins.filter((j) => (st === "waiting" ? isWait(j) : j.status === st)).length;
-  const progIdx = (id) => { const i = programs.findIndex((p) => p.id === id); return i < 0 ? 999 : i; };
   const isPast = (j) => { const p = programs.find((x) => x.id === j.programId) || PROGRAMS.find((x) => x.id === j.programId); return !!p && tripDayPassed(p); };
+  const liveJoins = joins.filter((j) => j.status !== "withdrawn" && !isPast(j)); // finished trips go to their own folded list at the bottom
+  const pastJoins = joins.filter((j) => j.status !== "withdrawn" && isPast(j));
+  const count = (st) => liveJoins.filter((j) => (st === "waiting" ? isWait(j) : j.status === st)).length;
+  const progIdx = (id) => { const i = programs.findIndex((p) => p.id === id); return i < 0 ? 999 : i; };
   // same order as HQ's program list: upcoming ones first, finished trips at the bottom; waiting requests first inside a trip
-  const shown = joins.filter((j) => (filter === "all" ? true : filter === "waiting" ? isWait(j) : j.status === filter))
-    .slice().sort((a, b) => Number(isPast(a)) - Number(isPast(b)) || progIdx(a.programId) - progIdx(b.programId) || Number(isWait(b)) - Number(isWait(a)) || String(a.requestedAt).localeCompare(String(b.requestedAt)));
+  const byOrder = (list) => list.slice().sort((a, b) => progIdx(a.programId) - progIdx(b.programId) || Number(isWait(b)) - Number(isWait(a)) || String(a.requestedAt).localeCompare(String(b.requestedAt)));
+  const shown = byOrder(liveJoins.filter((j) => (filter === "all" ? true : filter === "waiting" ? isWait(j) : j.status === filter)));
+  const pastShown = byOrder(pastJoins);
   const look = {
     pending: { label: tr("확인 대기"), bg: "#FFF1E2", color: "#B25A0B" },
     waiting: { label: tr("정원 초과 대기"), bg: "#FFF1E2", color: "#B25A0B" },
@@ -13213,19 +13224,18 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
           {chip("waiting", tr("대기 {0}", [count("waiting")]))}
           {chip("approved", tr("확정 {0}", [count("approved")]))}
           {chip("declined", tr("거절 {0}", [count("declined")]))}
-          {chip("all", tr("전체 {0}", [joins.length]))}
+          {chip("all", tr("전체 {0}", [liveJoins.length]))}
         </div>
         {shown.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("해당하는 신청이 없어요.")}</p></div>}
         <div className="space-y-2.5">
-          {shown.map((j, n) => {
+          {(() => { const renderJoin = (j, past) => {
             const t = teachers.find((x) => x.id === j.teacherId);
             const p = getProgram(j.programId);
             const slot = p ? sessionsOf(p).find((x) => x.id === j.slotId) : null;
             const st = look[j.status] || look.waiting;
             return (
               <React.Fragment key={j.key + j.requestedAt}>
-              {isPast(j) && (n === 0 || !isPast(shown[n - 1])) && <p className="f-body text-[13px] font-bold pt-2" style={{ color: "#9C927D" }} data-testid="join-past-label">{tr("지난 체험")}</p>}
-              <div className="bg-white rounded-2xl p-4" data-testid="join-row" style={isPast(j) ? { opacity: 0.75 } : undefined}>
+              <div className="bg-white rounded-2xl p-4" data-testid="join-row" style={past ? { opacity: 0.8 } : undefined}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t ? t.name : "—"}</p>
@@ -13237,14 +13247,15 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
                 {j.note && <p className="f-body text-[15px] mt-2 rounded-xl px-3 py-2" style={{ background: C.cream, color: C.charcoal }}>{j.note}</p>}
                 {j.status !== "withdrawn" && (
                   <div className="flex gap-2 mt-3">
-                    {j.status !== "declined" && <button onClick={() => setConfirm({ key: j.key, status: "declined", who: t ? t.name : "" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("거절")}</button>}
-                    {j.status !== "approved" && <button onClick={() => setConfirm({ key: j.key, status: "approved", who: t ? t.name : "" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("확정")}</button>}
+                    {!past && j.status !== "declined" && <button onClick={() => setConfirm({ key: j.key, status: "declined", who: t ? t.name : "" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("거절")}</button>}
+                    {!past && j.status !== "approved" && <button onClick={() => setConfirm({ key: j.key, status: "approved", who: t ? t.name : "" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("확정")}</button>}
                   </div>
                 )}
+                <button onClick={() => setConfirm({ key: j.key, status: "delete", who: t ? t.name : "" })} className="focus-ring tap w-full mt-1.5 f-body text-[14px] font-bold py-2" style={{ color: "#9C927D" }} data-testid="join-delete">{tr("삭제")}</button>
               </div>
               </React.Fragment>
             );
-          })}
+          }; return <>{shown.map((j) => renderJoin(j, false))}{pastShown.length > 0 && <FoldBar title={tr("지난 체험 신청")} summary={tr("{0}건", [pastShown.length])} defaultOpen={false}><div className="space-y-2.5" data-testid="join-past">{pastShown.map((j) => renderJoin(j, true))}</div></FoldBar>}</>; })()}
         </div>
         {programs.length > 0 && (
           <div className="bg-white rounded-2xl p-3 mt-4 space-y-2" data-testid="teacher-caps">
@@ -13313,13 +13324,13 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
 
       {confirm && (
         <ConfirmDialog
-          title={confirm.status === "approved" ? tr("{0} 선생님을 확정할까요?", [confirm.who]) : tr("{0} 선생님의 신청을 거절할까요?", [confirm.who])}
+          title={confirm.status === "approved" ? tr("{0} 리더를 확정할까요?", [confirm.who]) : confirm.status === "delete" ? tr("{0} 리더의 신청을 삭제할까요?", [confirm.who]) : tr("{0} 리더의 신청을 거절할까요?", [confirm.who])}
           actions={[
-            { label: confirm.status === "approved" ? tr("확정") : tr("거절"), tone: confirm.status === "approved" ? "primary" : "danger", onClick: () => { onDecide(confirm.key, confirm.status); setConfirm(null); } },
+            { label: confirm.status === "approved" ? tr("확정") : confirm.status === "delete" ? tr("삭제") : tr("거절"), tone: confirm.status === "approved" ? "primary" : "danger", onClick: () => { onDecide(confirm.key, confirm.status); setConfirm(null); } },
             { label: tr("취소"), tone: "plain", onClick: () => setConfirm(null) },
           ]}
         >
-          {confirm.status === "approved" ? tr("선생님 화면에 '확정'으로 보여요.") : tr("선생님 화면에 '이번엔 어려워요'로 보이고, 다시 신청할 수 있어요.")}
+          {confirm.status === "approved" ? tr("리더 화면에 '확정'으로 보여요.") : confirm.status === "delete" ? tr("신청 기록이 지워지고 리더 화면에서도 사라져요.") : tr("리더 화면에 '죄송해요, 이 자리는 이미 정해졌어요'로 보여요.")}
         </ConfirmDialog>
       )}
     </div>
@@ -14023,6 +14034,7 @@ function CarrotExplorer() {
   };
   const decideJoin = (key, status) => {
     const j = teacherJoins(suggestions).find((x) => x.key === key);
+    if (j && status === "delete") { sendJoin("withdraw", j.teacherId, j.programId, j.slotId, ""); return; } // HQ removes the sign-up: it disappears for the leader too
     if (!j || j.status === status || (status !== "approved" && status !== "declined")) return;
     saveRow({ id: `tjr-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type: TEACHER_JOIN_RESULT_TYPE, familyPin: "teacher", resolved: false, message: JSON.stringify({ key, status, teacherId: j.teacherId, programId: j.programId, slotId: j.slotId, at: nowIso() }) });
   };

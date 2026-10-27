@@ -970,6 +970,8 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"영어 이름을 만들고 있어요…": "Making the English name…",
+"한글로만 쓰면 영어 이름이 자동으로 붙어요. 리더 화면에는 이름 아래에 보여요.": "Type the name in Korean and the English name is added automatically. Leaders see it under the name.",
   "✓ 마무리 완료": "✓ All done",
   "남은 아이 {0}명 · 마무리 {1}명": "{0} left · {1} done",
   "✓ 마무리된 아이 {0}명": "✓ {0} children finished",
@@ -8035,9 +8037,29 @@ function shrinkPhoto(file, max = 900, quality = 0.72) {
   });
 }
 
+/** A place name typed only in Korean gets its English name added after a colon ("서대문자연사박물관: Seodaemun Museum of Natural History");
+ *  leaders see the English line under the name. Failure just leaves the name as typed. */
+const HANGUL = /[\uAC00-\uD7A3]/;
+async function autoEnglishName(title, setTitle, setBusy) {
+  const t = String(title || "").trim();
+  if (!t || !HANGUL.test(t) || /[:：]/.test(t)) return;
+  setBusy(true);
+  try {
+    const r = await fetch(`/api/translate?q=${encodeURIComponent(t)}`);
+    if (r.ok) {
+      const j = await r.json();
+      const en = String((j && j.en) || "").trim().replace(/[.:：]+$/, "");
+      if (en && /[A-Za-z]/.test(en)) setTitle((cur) => (String(cur).trim() === t ? `${t}: ${en}` : cur));
+    }
+  } catch (e) {
+    /* offline or not set up: keep the name as typed */
+  }
+  setBusy(false);
+}
 function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShowInfo, defaultShowMaterials, deleteNote, onRegister, onSave, onDelete, onCancel, onDirtyChange, apiRef, places = [], onRememberPlace }) {
   const isEdit = !!initial;
   const [title, setTitle] = useState(initial?.title || "");
+  const [titleBusy, setTitleBusy] = useState(false);
   const [startDate, setStartDate] = useState(initial?.startDate || ""); // the real date: the screens switch by it
   const [endDate, setEndDate] = useState(initial?.endDate || ""); // optional last day (1 night 2 days and the like)
   const [date, setDate] = useState(initial?.date || "");
@@ -8221,11 +8243,13 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+        onBlur={() => autoEnglishName(title, setTitle, setTitleBusy)}
         placeholder={tr("프로그램 이름 (예: Seoul Grand Park)")}
         aria-label={tr("프로그램 이름")}
-        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-3"
+        className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none"
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
+      <p className="f-body text-[13px] mt-1 mb-3 px-1" style={{ color: "#9C927D" }} data-testid="title-hint">{titleBusy ? tr("영어 이름을 만들고 있어요…") : tr("한글로만 쓰면 영어 이름이 자동으로 붙어요. 리더 화면에는 이름 아래에 보여요.")}</p>
       <div className="mb-3">
         <label className="block f-body text-[14px] font-bold mb-1" style={{ color: C.charcoal }}>{tr("체험 날짜")}</label>
         <input
@@ -9216,7 +9240,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z115"; // change with every delivery
+const APP_BUILD = "2026-10-27-z116"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

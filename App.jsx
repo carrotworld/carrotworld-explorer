@@ -568,6 +568,14 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"과학": "Science",
+"역사": "History",
+"행사": "Events",
+"수학": "Math",
+"의학": "Medicine",
+"예술": "Art",
+"Arts and Craft": "Arts and Craft",
+"해외": "Overseas",
 "없음 (무료)": "None (free)",
 "부모님 부담": "Paid by parents",
 "프로그램비 포함": "Included in program fee",
@@ -1923,6 +1931,14 @@ function ProgramIcon({ kind, size = 24, color = C.cream }) {
         <line x1="18" y1="20" x2="30" y2="20" stroke={C.orange} strokeWidth="1.6" strokeLinecap="round" />
       </svg>
     );
+  if (kind === "overseas")
+    return (
+      <svg width={size} height={size} viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="12" {...s} />
+        <ellipse cx="20" cy="20" rx="5" ry="12" {...s} strokeWidth="1.3" />
+        <line x1="8" y1="20" x2="32" y2="20" {...s} strokeWidth="1.3" />
+      </svg>
+    );
   if (kind === "nature")
     return (
       <svg width={size} height={size} viewBox="0 0 40 40">
@@ -1962,22 +1978,37 @@ const COVER_COLORS = {
   science: ["#174C35", "#2F7A58"],
   nature: ["#2F7A58", "#7DBB94"],
   history: ["#7A4E22", "#C28A4E"],
+  overseas: ["#1F5F8B", "#5BA3C9"],
 };
 const themeBar = (program) => {
+  const first = themeChoice((Array.isArray(program.icons) && program.icons[0]) || program.icon);
   const cat = program.category || ICON_CHOICES.find((i) => i.key === program.icon)?.category;
-  const [from, to] = COVER_COLORS[cat] || [C.green, "#2F7A58"];
+  const [from, to] = first ? [first.from, first.to] : COVER_COLORS[cat] || [C.green, "#2F7A58"];
   return `linear-gradient(180deg, ${from}, ${to})`;
 };
 const splitTitle = (title) => {
   const [main, ...rest] = String(title || "").split(/[:：]\s*/);
   return [main.trim(), rest.join(": ").trim()];
 };
+/** The theme words as small pills (next to the program name). */
+function ThemePills({ program, className = "" }) {
+  const ks = programIcons(program);
+  if (!ks.length) return null;
+  return (
+    <span className={`inline-flex flex-wrap gap-1 align-middle ${className}`} data-testid="theme-pills">
+      {ks.map((k) => {
+        const c = themeChoice(k);
+        return <span key={k} className="f-body text-[12px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap" style={{ background: `${c.tone}1F`, color: c.tone }}>{tr(c.label)}</span>;
+      })}
+    </span>
+  );
+}
 /** Program name as it appears everywhere in lists: big main name, English line under it. */
 function ProgramTitle({ program, size = 22 }) {
   const [main, sub] = splitTitle(program.title);
   return (
     <>
-      <p className="f-headline leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}</p>
+      <p className="f-headline leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}<ThemePills program={program} className="ml-2" /></p>
       {sub && <p className="f-body text-[15px] text-gray-500 leading-snug">{sub}</p>}
     </>
   );
@@ -1987,7 +2018,7 @@ function ProgramHeadline({ program, size = 34 }) {
   const [main, sub] = splitTitle(program.title);
   return (
     <div>
-      <h2 className="f-headline leading-tight" style={{ color: C.green, fontSize: size }}>{main || program.title}</h2>
+      <h2 className="f-headline leading-tight" style={{ color: C.green, fontSize: size }}>{main || program.title}<ThemePills program={program} className="ml-2" /></h2>
       {sub && <p className="f-body text-[18px] text-gray-500 leading-snug mt-1">{sub}</p>}
     </div>
   );
@@ -4479,7 +4510,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                 <div className="flex items-start gap-2.5">
                   <span className="self-stretch w-1 rounded-full shrink-0" style={{ background: themeBar(p) }} aria-hidden="true" />
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 text-left">
-                    <span className="block f-display text-[18px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</span>
+                    <span className="block f-display text-[18px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}<ThemePills program={p} className="ml-2" /></span>
                     <span className="block f-body text-[13px] text-gray-500 mt-0.5">{p.date} · {levelLabel(p)}{fits ? <b style={{ color: "#1F7A44" }}> · 우리 아이 레벨</b> : null}</span>
                     <span className="block f-body text-[12px] mt-0.5" style={{ color: "#9C927D" }}>{open ? "접기 ▴" : "자세히 ▾"}</span>
                   </button>
@@ -6443,13 +6474,23 @@ const CEFR_GOALS = {
   C2: { verb: "Critically Examine", ko: "비판적으로 살펴보고 논증해요" },
 };
 const LEVEL_CHOICES = ["Pre-A1", "A1", "A2", "B1", "B2", "C1", "C2"];
+// One theme = one word. `from`/`to` colour the bar beside the program card, `tone` the little pill next to the name.
 const ICON_CHOICES = [
-  { key: "plane", label: "과학/비행", category: "science", emoji: "✈️" },
-  { key: "nature", label: "자연", category: "nature", emoji: "🌿" },
-  { key: "palace", label: "역사/궁", category: "history", emoji: "🏯" },
-  { key: "medal", label: "역사/기념", category: "history", emoji: "🎖️" },
-  { key: "hanbok", label: "전통문화", category: "culture", emoji: "🏺" },
+  { key: "science", label: "과학", category: "science", emoji: "🔬", tone: "#174C35", from: "#174C35", to: "#2F7A58" },
+  { key: "nature", label: "자연", category: "nature", emoji: "🌿", tone: "#2F7A58", from: "#2F7A58", to: "#7DBB94" },
+  { key: "history", label: "역사", category: "history", emoji: "🏯", tone: "#7A4E22", from: "#7A4E22", to: "#C28A4E" },
+  { key: "event", label: "행사", category: "event", emoji: "🎉", tone: "#B25A0B", from: "#D9650F", to: "#F59A3B" },
+  { key: "tradition", label: "전통문화", category: "culture", emoji: "🏺", tone: "#A8500C", from: "#B4540E", to: "#E8924A" },
+  { key: "overseas", label: "해외", category: "overseas", emoji: "🌏", tone: "#1F5F8B", from: "#1F5F8B", to: "#5BA3C9" },
+  { key: "math", label: "수학", category: "math", emoji: "🔢", tone: "#5B4BA8", from: "#5B4BA8", to: "#9A8CD8" },
+  { key: "medical", label: "의학", category: "medical", emoji: "🩺", tone: "#B03A4A", from: "#B03A4A", to: "#E07B88" },
+  { key: "art", label: "예술", category: "art", emoji: "🎨", tone: "#A23B8C", from: "#A23B8C", to: "#D78BC6" },
+  { key: "craft", label: "Arts and Craft", category: "craft", emoji: "✂️", tone: "#8A6A12", from: "#8A6A12", to: "#D4B24E" },
 ];
+// older programs saved the earlier theme names; they still show under the new ones
+const ICON_ALIAS = { plane: "science", palace: "history", medal: "history", hanbok: "tradition" };
+const themeKey = (k) => ICON_ALIAS[k] || k;
+const themeChoice = (k) => ICON_CHOICES.find((c) => c.key === themeKey(k));
 
 /* A program may have several levels / theme icons. Older programs only have
    a single `level` / `icon` string, so these helpers read either shape. */
@@ -6458,8 +6499,8 @@ function programLevels(p) {
   return p?.level ? [p.level] : [];
 }
 function programIcons(p) {
-  if (Array.isArray(p?.icons) && p.icons.length) return p.icons;
-  return p?.icon ? [p.icon] : [];
+  const raw = Array.isArray(p?.icons) && p.icons.length ? p.icons : p?.icon ? [p.icon] : [];
+  return [...new Set(raw.map(themeKey))].filter((k) => ICON_CHOICES.some((c) => c.key === k));
 }
 function levelLabel(p) {
   return programLevels(p).join(" · ");
@@ -8384,7 +8425,7 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
             className="focus-ring tap rounded-xl px-3 py-2 flex items-center gap-1.5"
             style={{ background: icons.includes(opt.key) ? C.green : C.cream, border: `1px solid ${icons.includes(opt.key) ? C.green : C.beige}` }}
           >
-            <ProgramIcon kind={opt.key} size={16} color={icons.includes(opt.key) ? "white" : C.green} />
+            <span aria-hidden="true" className="text-[16px] leading-none">{opt.emoji}</span>
             <span className="f-body text-[14px] font-bold" style={{ color: icons.includes(opt.key) ? "white" : C.charcoal }}>{tr(opt.label)}</span>
           </button>
         ))}
@@ -8392,7 +8433,7 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
 
       <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("이름 미리보기")}</p>
       <div className="rounded-2xl px-4 py-4 mb-1" style={{ background: C.cream, border: `1px solid ${C.beige}` }}>
-        <ProgramHeadline program={{ title: title.trim() || tr("프로그램 이름") }} size={30} />
+        <ProgramHeadline program={{ title: title.trim() || tr("프로그램 이름"), icons }} size={30} />
       </div>
       <p className="f-body text-[13px] text-gray-400 mb-3">{tr("부모님과 아이 화면에 이렇게 큰 제목으로 나와요. \":\" 뒤의 영어는 작게 아래에 보여요.")}</p>
 
@@ -9254,7 +9295,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z122"; // change with every delivery
+const APP_BUILD = "2026-10-27-z124"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11606,7 +11647,7 @@ function TeacherDashboard({ onSetPriorities, onSetProgramLeaderNote, onSetProgra
                 <div className="flex-1 min-w-0 py-0.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="f-headline text-[24px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}</p>
+                      <p className="f-headline text-[24px] leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}<ThemePills program={p} className="ml-2" /></p>
                       {splitTitle(p.title)[1] && <p className="f-body text-[15px] text-gray-500 leading-snug">{splitTitle(p.title)[1]}</p>}
                       <p className="f-body text-[14px] text-gray-400 mt-0.5">{p.date} · {p.locationKo || p.location}</p>
                       {wishesFor(suggestions, p.id).length > 0 && (
@@ -12516,7 +12557,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 <span className="f-body text-[12px] font-bold tracking-[0.1em] uppercase" style={{ color: C.orange }}>{tr("다음 체험")}</span>
                 {nextJoin && <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: chipFor(nextJoin).bg, color: chipFor(nextJoin).color }}>{chipFor(nextJoin).text.replace(" ✓", "")}</span>}
               </div>
-              <p className="f-display text-[22px] font-semibold leading-snug mt-1" style={{ color: C.green }}>{shortTitle(nextP)}</p>
+              <p className="f-display text-[22px] font-semibold leading-snug mt-1" style={{ color: C.green }}>{shortTitle(nextP)}<ThemePills program={nextP} className="ml-2" /></p>
               <div className="mt-2 space-y-0.5 f-body text-[14px]" style={{ color: "#5F6B66" }}>
                 <p>{[nextP.date, nextSlot && nextSlot.label, nextTime].filter(Boolean).join(" · ")}</p>
                 <p>{nextP.locationKo || nextP.location}</p>
@@ -12545,7 +12586,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {signable.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {signable.map((p) => (
             <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
-              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}{!upcoming.some((u) => u.id === p.id) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
+              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
               <LeaderNote text={p.leaderNote} />
               <div className="space-y-2">
@@ -13582,7 +13623,7 @@ function CarrotExplorer() {
 
   const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
     const dm = defaultMaterials();
-    const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
+    const iconInfo = themeChoice(icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
     const newProgram = {
       id,
@@ -13626,7 +13667,7 @@ function CarrotExplorer() {
   };
 
   const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
-    const iconInfo = ICON_CHOICES.find((c) => c.key === icon);
+    const iconInfo = themeChoice(icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
     const patch = {

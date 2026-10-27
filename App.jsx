@@ -568,6 +568,9 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"체험이 시작되면 여기서 피드백을 쓸 수 있어요.": "You can write feedback here once a trip has started.",
+"출석을 먼저 눌러 주세요": "Please mark attendance first",
+"아직 체험 전이에요. 체험 후에 피드백을 쓸 수 있어요.": "The trip has not happened yet. You can write feedback after it.",
 "본사 확인 {0}명": "HQ review {0}",
 "이 줄 삭제": "Delete this line",
 "이 줄을 삭제할까요?": "Delete this line?",
@@ -9309,7 +9312,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z129"; // change with every delivery
+const APP_BUILD = "2026-10-27-z131"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12476,7 +12479,9 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
     if (tab !== "programs") { setTab("programs"); return true; }
     return false;
   });
-  const program = PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null;
+  // feedback is only written for trips that have started (today or earlier), so trips still ahead are not offered there
+  const feedbackProgs = programsOrdered().filter((p) => p.published !== false && (isLive(p) || tripDayPassed(p) || adventures.some((a) => a.programId === p.id && a.attended)));
+  const program = (tab === "feedback" ? feedbackProgs.find((p) => p.id === programId) || feedbackProgs[0] : null) || (tab === "feedback" ? null : PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null);
   const shortTitle = (p) => splitTitle(p.title)[0] || p.title;
   const mySignups = joins.filter((j) => j.teacherId === teacherId);
   const stateOf = (programId2, slotId) => {
@@ -12653,13 +12658,13 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
         </div>
       )}
 
-      {tab !== "programs" && tab !== "running" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10">{tr("프로그램이 없어요.")}</p>}
+      {tab !== "programs" && tab !== "running" && !program && <p className="f-body text-[16px] text-gray-400 text-center pt-10 px-5" data-testid="no-feedback-yet">{tab === "feedback" ? tr("체험이 시작되면 여기서 피드백을 쓸 수 있어요.") : tr("프로그램이 없어요.")}</p>}
       {tab !== "programs" && tab !== "running" && program && (
         <>
           {tab !== "pay" && (
             <div className="px-5 mb-3">
               <select value={program.id} onChange={(e) => { setProgramId(e.target.value); setSavedAt(null); setFormKey((k) => k + 1); }} aria-label={tr("프로그램")} data-testid="program-select" className="focus-ring w-full rounded-xl px-3.5 py-3 f-body text-[16px] font-bold outline-none" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green }}>
-                {programsOrdered().map((pp) => <option key={pp.id} value={pp.id}>{tripDayPassed(pp) ? `🏁 ${tr("끝남")} · ` : ""}{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
+                {(tab === "feedback" ? feedbackProgs : programsOrdered()).map((pp) => <option key={pp.id} value={pp.id}>{tripDayPassed(pp) ? `🏁 ${tr("끝남")} · ` : ""}{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
               </select>
             </div>
           )}
@@ -12692,7 +12697,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {tab === "feedback" && (
             <div className="px-5 pb-8 space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="f-body text-[15px] font-bold" style={{ color: feedbackLeft ? "#B25A0B" : "#1F7A44" }}>{feedbackLeft ? tr("피드백 {0}명 남음", [feedbackLeft]) : tr("피드백을 모두 썼어요 ✓")}</p>
+                <p className="f-body text-[15px] font-bold" style={{ color: feedbackLeft ? "#B25A0B" : list.some((x) => x.a.attended) ? "#1F7A44" : "#8A8060" }} data-testid="feedback-head">{feedbackLeft ? tr("피드백 {0}명 남음", [feedbackLeft]) : list.some((x) => x.a.attended) ? tr("피드백을 모두 썼어요 ✓") : tripDayPassed(program) ? tr("출석을 먼저 눌러 주세요") : tr("아직 체험 전이에요. 체험 후에 피드백을 쓸 수 있어요.")}</p>
                 {mine.length > 0 && (
                   <div className="flex gap-2" role="group" aria-label="Whose children">
                     <button onClick={() => setMineOnly(true)} aria-pressed={mineOnly} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: mineOnly ? C.green : "white", color: mineOnly ? "white" : C.charcoal, border: `1px solid ${C.beige}` }}>{tr("내 팀 {0}", [mine.length])}</button>

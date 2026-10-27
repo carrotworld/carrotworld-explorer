@@ -9342,7 +9342,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z146"; // change with every delivery
+const APP_BUILD = "2026-10-27-z150"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9905,6 +9905,10 @@ const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf
 function ConfirmedStrip() {
   return <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: C.orange, margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="confirmed-strip">{tr("✓ 확정됐어요")}</div>;
 }
+function TakenStrip() {
+  return <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white leading-snug" style={{ background: "#B8604A", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="taken-strip">{tr("죄송해요, 이 자리는 이미 정해졌어요")}</div>;
+}
+const TAKEN_BOX = { background: "#FFF6F3", border: "2px solid #B8604A", borderLeft: "6px solid #B8604A" };
 const CONFIRMED_BOX = { background: "#FFF8F0", border: `2px solid ${C.orange}`, borderLeft: `6px solid ${C.orange}` };
 /** What a leader may know about a child on their own team before the trip: level, how many trips, and a short summary of the last report
  *  that was already sent to the parents. No other leader's name, no scores, nothing from drafts. */
@@ -12584,8 +12588,11 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const upcoming = upcomingPrograms(adventures);
   // sign-up stays open for past trips too, until HQ closes it
   // a trip I have joined in every slot is shown once above (team card / next trip), not again in the sign-up list
+  // every request I made for this trip was declined (or the seats were full): the whole card says so
+  const takenAll = (p) => { const mine = mySignups.filter((j) => j.programId === p.id && j.status !== "withdrawn"); return mine.length > 0 && mine.every((j) => j.status === "declined" || j.status === "waiting"); };
   const joinedAll = (p) => !!teacherId && (sessionsOf(p).length ? sessionsOf(p).map((x) => x.id) : [""]).every((sid) => mySignups.some((j) => j.programId === p.id && (j.slotId || "") === (sid || "") && ["approved", "pending", "waiting"].includes(j.status)));
-  const signable = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => tripDayPassed(p) || !joinedAll(p)).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
+  const signable0 = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => tripDayPassed(p) || !joinedAll(p)).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
+  const signable = signable0;
   // what a teacher would get for a program (before the 3.3% withholding): HQ's amount for the program, else hours x hourly rate
   const payPreview = (p, slotId) => {
     const amounts = payInfo.amounts || {};
@@ -12645,18 +12652,64 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   };
   const feedbackAllDone = (p, sid) => { const ks = myKids(p, sid); const att = ks.filter((a) => a.attended); return att.length > 0 && ks.every((a) => a.attended || a.absent) && att.every((a) => feedbackDone(a)); };
   const recentlyRun = (p) => { const d = lastDay(p); return !!d && d <= todayKst() && d >= addDays(todayKst(), -30); };
-  const teamCards = (done) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p) || (done && recentlyRun(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved" && myKids(p, j.slotId || "").some((a) => a.attended))))).flatMap((p) => {
+  const teamCards = (done, raw = false) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p) || (done && tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved")))).flatMap((p) => {
             const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
             const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
             return slotIds.filter((sid) => teamSet(p, sid) === done).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
               const fin = feedbackAllDone(p, sid);
-              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} onWithdraw={!p.teamsDone && !isLive(p) && !tripDayPassed(p) ? () => onWithdraw(p.id, sid) : null} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
+              return { fin, p, status: j.status, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} onWithdraw={!p.teamsDone && !isLive(p) && !tripDayPassed(p) ? () => onWithdraw(p.id, sid) : null} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
             });
-          }).sort((x, y) => Number(x.fin) - Number(y.fin)).map((x) => x.el); // finished ones sink to the bottom
+          }).sort((x, y) => Number(x.fin) - Number(y.fin) || (tripDayPassed(x.p) || tripDayPassed(y.p) ? String(lastDay(y.p) || "").localeCompare(String(lastDay(x.p) || "")) : 0)).map((x) => (raw ? x : x.el)); // finished ones sink to the bottom; past trips stay, newest first
   const chipFor = (j) =>
     j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("죄송해요, 이 자리는 이미 정해졌어요"), bg: "#F3EEE3", color: "#8A8060" } : j.status === "waiting" ? { text: tr("죄송해요, 이 자리는 이미 정해졌어요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("본사 확인 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
+  const signableCard = (p) => (
+            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : takenAll(p) ? TAKEN_BOX : { background: "white" }}>
+              {!tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved") && <ConfirmedStrip />}
+              {!tripDayPassed(p) && takenAll(p) && <TakenStrip />}
+              {tripDayPassed(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="ended-badge">✓ {tr("체험 끝남")}</div>}
+              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && !tripDayPassed(p) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
+              <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
+              <LeaderNote text={p.leaderNote} />
+              <div className="space-y-2">
+                {openSlots(p).map((x) => {
+                  const j = stateOf(p.id, x.id);
+                  const chip = j ? chipFor(j) : null;
+                  if (j && (j.status === "declined" || j.status === "waiting") && !x.label) return null; // the card's red strip already says it
+                  if (!x.label && payPreview(p, x.id) === null && !chip && !(p.teamsDone || p.teacherClosed)) return null; // nothing to show for this row
+                  return (
+                    <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
+                      <div className="min-w-0" style={!x.label && payPreview(p, x.id) === null && !chip ? { display: "none" } : undefined}>
+                        {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
+                        {(() => { const g = payPreview(p, x.id); if (g === null || (j && j.status === "declined")) return null; return (
+                          <p className="f-body text-[14px] font-bold mt-0.5" style={{ color: g === null ? "#9C927D" : C.green }} data-testid="slot-pay">
+                            {g === null ? tr("활동비 확인 중") : <>{tr("활동비")} {won(g)} <span className="font-normal text-gray-500">· per section</span>{payInfo.taxOn !== false && <span className="font-normal text-gray-500"> · {tr("세전 (3.3% 공제 전)")}</span>}</>}
+                          </p>); })()}
+                        {chip && (j && (j.status === "declined" || j.status === "waiting") ? <p className="f-body text-[14px] font-bold" style={{ color: "#B8604A" }} data-testid="taken-note">✕</p> : <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>)}
+                      </div>
+                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed) && !j ? (
+                        <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
+                      ) : p.teamsDone ? (
+                        <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
+                      ) : !j ? null : (
+                        <button onClick={() => onWithdraw(p.id, x.id)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {teacherId && !p.teamsDone && !p.teacherClosed && !tripDayPassed(p) && openSlots(p).some((x) => !stateOf(p.id, x.id)) && (
+                <button onClick={() => setAsking({ program: p })} className="focus-ring tap w-full mt-2.5 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }} data-testid="signup-open">{tr("참여 신청")}</button>
+              )}
+            </div>
+  );
+  const mineTeam = teacherId ? teamCards(false, true) : [];
+  const appliedConfirmed = mineTeam.filter((x) => x.status === "approved").map((x) => x.el);
+  const appliedWaiting = mineTeam.filter((x) => x.status !== "approved").map((x) => x.el);
+  const appliedDeclined = signable.filter((p) => !tripDayPassed(p) && takenAll(p));
+  const canSignList = signable.filter((p) => !tripDayPassed(p) && !takenAll(p));
+  const pastList = signable.filter((p) => tripDayPassed(p));
   return (
     <div className="flex-1">
       {header}
@@ -12687,7 +12740,9 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               {nextJoin && !nextP.teamsDone && !isLive(nextP) && <button onClick={() => onWithdraw(nextP.id, nextJoin.slotId || "")} className="focus-ring tap w-full mt-2 f-body text-[14px] font-bold py-2" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>}
             </div>
           )}
-          {teacherId && teamCards(false)}
+          {appliedConfirmed}
+          {appliedDeclined.map(signableCard)}
+          {appliedWaiting}
           {teacherId && (feedbackTotal > 0 || payReady > 0) && (
             <div className="grid grid-cols-2 gap-2.5" data-testid="home-todo">
               <button onClick={() => setTab("feedback")} className="focus-ring tap text-left bg-white rounded-2xl px-4 py-3">
@@ -12700,46 +12755,11 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               </button>
             </div>
           )}
-          {signable.length > 0 && <div className="pt-1"><p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p><p className="f-body text-[13px] mt-0.5" style={{ color: "#9C927D" }} data-testid="first-come-note">{tr("선착순이에요. 본사가 확인하면 확정돼요.")}</p></div>}
-          {signable.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
-          {signable.map((p) => (
-            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : { background: "white" }}>
-              {!tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved") && <ConfirmedStrip />}
-              {tripDayPassed(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="ended-badge">✓ {tr("체험 끝남")}</div>}
-              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && !tripDayPassed(p) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
-              <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
-              <LeaderNote text={p.leaderNote} />
-              <div className="space-y-2">
-                {openSlots(p).map((x) => {
-                  const j = stateOf(p.id, x.id);
-                  const chip = j ? chipFor(j) : null;
-                  if (!x.label && payPreview(p, x.id) === null && !chip && !(p.teamsDone || p.teacherClosed)) return null; // nothing to show for this row
-                  return (
-                    <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
-                      <div className="min-w-0" style={!x.label && payPreview(p, x.id) === null && !chip ? { display: "none" } : undefined}>
-                        {x.label && <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{x.label}{(sessionsOf(p).find((y) => y.id === x.id) || {}).time ? ` · ${(sessionsOf(p).find((y) => y.id === x.id) || {}).time}` : ""}</p>}
-                        {(() => { const g = payPreview(p, x.id); if (g === null || (j && j.status === "declined")) return null; return (
-                          <p className="f-body text-[14px] font-bold mt-0.5" style={{ color: g === null ? "#9C927D" : C.green }} data-testid="slot-pay">
-                            {g === null ? tr("활동비 확인 중") : <>{tr("활동비")} {won(g)} <span className="font-normal text-gray-500">· per section</span>{payInfo.taxOn !== false && <span className="font-normal text-gray-500"> · {tr("세전 (3.3% 공제 전)")}</span>}</>}
-                          </p>); })()}
-                        {chip && (j && (j.status === "declined" || j.status === "waiting") ? <p className="f-body text-[15px] font-bold leading-snug" style={{ color: "#8A8060" }} data-testid="taken-note">{chip.text}</p> : <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>)}
-                      </div>
-                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed) && !j ? (
-                        <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
-                      ) : p.teamsDone ? (
-                        <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
-                      ) : !j ? null : (
-                        <button onClick={() => onWithdraw(p.id, x.id)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {teacherId && !p.teamsDone && !p.teacherClosed && !tripDayPassed(p) && openSlots(p).some((x) => !stateOf(p.id, x.id)) && (
-                <button onClick={() => setAsking({ program: p })} className="focus-ring tap w-full mt-2.5 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }} data-testid="signup-open">{tr("참여 신청")}</button>
-              )}
-            </div>
-          ))}
+          {canSignList.length > 0 && <div className="pt-1"><p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p><p className="f-body text-[13px] mt-0.5" style={{ color: "#9C927D" }} data-testid="first-come-note">{tr("선착순이에요. 본사가 확인하면 확정돼요.")}</p></div>}
+          {canSignList.length === 0 && appliedConfirmed.length + appliedDeclined.length + appliedWaiting.length + pastList.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
+          {canSignList.map(signableCard)}
+          {pastList.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }} data-testid="past-label">{tr("지난 체험")}</p>}
+          {pastList.map(signableCard)}
           {asking && (
             <JoinDialog
               title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program)])}

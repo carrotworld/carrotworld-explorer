@@ -9363,7 +9363,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z155"; // change with every delivery
+const APP_BUILD = "2026-10-27-z156"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12698,7 +12698,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const teamCards = (done, raw = false) => PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || isLive(p) || (done && tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved")))).flatMap((p) => {
             const mine = mySignups.filter((j) => j.programId === p.id && ["approved", "pending", "waiting"].includes(j.status));
             const slotIds = [...new Set(mine.map((j) => j.slotId || ""))];
-            return slotIds.filter((sid) => teamSet(p, sid) === done && !dropped(p, sid)).map((sid) => {
+            return slotIds.filter((sid) => teamSet(p, sid) === done && !dropped(p, sid) && (!tripDayPassed(p) || myKids(p, sid).length > 0 || !done)).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
               const fin = feedbackAllDone(p, sid);
               return { fin, p, status: j.status, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} onWithdraw={!p.teamsDone && !isLive(p) && !tripDayPassed(p) ? () => onWithdraw(p.id, sid) : null} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
@@ -12758,7 +12758,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !dropped(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const mk = past ? myKids(p, j.slotId || "").filter((a) => a.attended) : []; const left = mk.filter((a) => !feedbackDone(a)).length; const hold = mk.filter((a) => feedbackDone(a) && !feedbackSent(a)).length; const wait = past ? [left > 0 ? tr("피드백 {0}명", [left]) : "", hold > 0 ? tr("본사 확인 {0}명", [hold]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !dropped(p, j.slotId || "") && (!tripDayPassed(p) || myKids(p, j.slotId || "").length > 0) && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const mk = past ? myKids(p, j.slotId || "").filter((a) => a.attended) : []; const left = mk.filter((a) => !feedbackDone(a)).length; const hold = mk.filter((a) => feedbackDone(a) && !feedbackSent(a)).length; const wait = past ? [left > 0 ? tr("피드백 {0}명", [left]) : "", hold > 0 ? tr("본사 확인 {0}명", [hold]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">

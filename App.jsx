@@ -973,7 +973,7 @@ const EN = {
 "순서 정리 닫기": "Close ordering",
 "↕ 급한 순서로 정리됨": "↕ Ordered by urgency",
 "↕ 급한 순서로 정리": "↕ Order by urgency",
-"위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌어요. 끝난 프로그램은 알아서 맨 뒤로 가요.": "Higher means more urgent. Moving a program changes the list and the chips right away. Finished programs go to the end by themselves.",
+"위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌고, 부모님 앱의 예정 체험과 리더 신청 목록도 이 순서로 보여요. 끝난 프로그램은 알아서 맨 뒤로 가요.": "Higher means more urgent. Moving a program changes the list and the chips right away, and the parents\' upcoming trips and the leaders\' sign-up list follow the same order. Finished programs go to the end by themselves.",
 "정리할 프로그램이 없어요.": "No programs to arrange.",
 "맨 위로": "To top",
 "위로": "Up",
@@ -9254,7 +9254,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z121"; // change with every delivery
+const APP_BUILD = "2026-10-27-z122"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9477,7 +9477,7 @@ const infoForSession = (info, session) =>
 const teamsForAdv = (program, adv) => (sessionsOf(program).length ? teamsOf(program).filter((t) => !t.sessionId || t.sessionId === adv?.sessionId) : teamsOf(program));
 
 /** Programs that have not run yet: nobody attended and "Live today" is off. Parents and teachers both see these as "Upcoming". */
-const upcomingPrograms = (adventures) => PROGRAMS.filter((p) => p.published !== false).filter((p) => (tripDayOf(p) ? todayKst() < tripDayOf(p) : ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage))); // a dated trip is upcoming strictly before its start date (nothing else changes that); undated ones follow their stage
+const upcomingPrograms = (adventures) => programsOrdered().filter((p) => p.published !== false).filter((p) => (tripDayOf(p) ? todayKst() < tripDayOf(p) : ["setup", "prep", "noticed"].includes(programStatus(p, adventures).stage))); // a dated trip is upcoming strictly before its start date (nothing else changes that); undated ones follow their stage
 /** Why a program is (not) shown to parents: it shows while it is upcoming and a child has not applied yet. */
 function parentVisibility(p, adventures, students) {
   if (p.published === false) return { on: false, why: "임시 저장 (공개 전)" };
@@ -10931,7 +10931,7 @@ function PriorityPanel({ onSet }) {
       </button>
       {open && (
         <div className="bg-white rounded-2xl p-3 mt-2 space-y-1.5">
-          <p className="f-body text-[13px] text-gray-500 px-1 pb-1">{tr("위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌어요. 끝난 프로그램은 알아서 맨 뒤로 가요.")}</p>
+          <p className="f-body text-[13px] text-gray-500 px-1 pb-1">{tr("위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌고, 부모님 앱의 예정 체험과 리더 신청 목록도 이 순서로 보여요. 끝난 프로그램은 알아서 맨 뒤로 가요.")}</p>
           {list.length === 0 && <p className="f-body text-[14px] text-gray-400 px-1">{tr("정리할 프로그램이 없어요.")}</p>}
           {list.map((p, i) => (
             <div key={p.id} className="flex items-center gap-2 rounded-xl px-2.5 py-1.5" style={{ background: C.cream }} data-testid="priority-row">

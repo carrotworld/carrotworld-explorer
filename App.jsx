@@ -9330,7 +9330,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z136"; // change with every delivery
+const APP_BUILD = "2026-10-27-z137"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9927,7 +9927,7 @@ function KidPreview({ kid, program, adventures }) {
   );
 }
 
-function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onOpenMaterials, onOpenFeedback, onMark }) {
+function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onWithdraw, onOpenMaterials, onOpenFeedback, onMark }) {
   const [showOthers, setShowOthers] = useState(false);
   const [openKid, setOpenKid] = useState(""); // the child whose short summary is open
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
@@ -10015,6 +10015,7 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
         </div>
       )}
       <button onClick={() => onOpenMaterials(program.id)} data-testid="my-teams-materials" className="focus-ring tap w-full mt-3 f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{levels.length ? tr("Level {0} 수업 자료 보기", [levels.join(" · ")]) : tr("수업 자료 보기")}</button>
+      {onWithdraw && mine.length === 0 && <button onClick={onWithdraw} data-testid="my-teams-withdraw" className="focus-ring tap w-full mt-2 f-body text-[14px] font-bold py-2" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>}
     </div>
   );
 }
@@ -12552,7 +12553,9 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   // programs that have not run yet: nobody attended and "Live today" is off
   const upcoming = upcomingPrograms(adventures);
   // sign-up stays open for past trips too, until HQ closes it
-  const signable = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
+  // a trip I have joined in every slot is shown once above (team card / next trip), not again in the sign-up list
+  const joinedAll = (p) => !!teacherId && (sessionsOf(p).length ? sessionsOf(p).map((x) => x.id) : [""]).every((sid) => mySignups.some((j) => j.programId === p.id && (j.slotId || "") === (sid || "") && ["approved", "pending", "waiting"].includes(j.status)));
+  const signable = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => tripDayPassed(p) || !joinedAll(p)).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
   // what a teacher would get for a program (before the 3.3% withholding): HQ's amount for the program, else hours x hourly rate
   const payPreview = (p, slotId) => {
     const amounts = payInfo.amounts || {};
@@ -12618,7 +12621,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
             return slotIds.filter((sid) => teamSet(p, sid) === done).map((sid) => {
               const j = mine.filter((x) => (x.slotId || "") === sid).sort((x, y) => (x.status === "approved" ? -1 : 1) - (y.status === "approved" ? -1 : 1))[0];
               const fin = feedbackAllDone(p, sid);
-              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
+              return { fin, el: <MyTeamsCard key={`${p.id}-${sid}`} finished={fin} program={p} slot={sessionsOf(p).find((x) => x.id === sid) || null} status={j.status} onWithdraw={!p.teamsDone && !isLive(p) && !tripDayPassed(p) ? () => onWithdraw(p.id, sid) : null} adventures={adventures} students={students} name={name} onMark={(studentId, state) => updateAdventure(studentId, p.id, state === "in" ? { attended: true, absent: false } : state === "out" ? { attended: false, absent: true } : { attended: false, absent: false })} onOpenMaterials={(id) => { setProgramId(id); setTab("materials"); }} onOpenFeedback={(id) => { setProgramId(id); setTab("feedback"); window.scrollTo({ top: 0 }); }} /> };
             });
           }).sort((x, y) => Number(x.fin) - Number(y.fin)).map((x) => x.el); // finished ones sink to the bottom
   const chipFor = (j) =>
@@ -12634,7 +12637,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
           {!teacherId && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.")}</p>}
-          {nextP && (
+          {nextP && !(teacherId && mySignups.some((j) => j.programId === nextP.id && ["approved", "pending", "waiting"].includes(j.status) && !teamSet(nextP, j.slotId || ""))) && (
             <div className="rounded-2xl p-4" data-testid="next-trip" style={nextJoin && nextJoin.status === "approved" ? CONFIRMED_BOX : { background: "white" }}>
               {nextJoin && nextJoin.status === "approved" && <ConfirmedStrip />}
               <div className="flex items-center justify-between gap-2">
@@ -12651,6 +12654,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: nextReady ? "#EAF7EF" : "#FFF1E2", color: nextReady ? "#1F7A44" : "#B25A0B" }}>{nextReady ? tr("자료 준비됨") : tr("자료 준비 중")}</span>
               </div>
               <button onClick={() => { setProgramId(nextP.id); setTab("materials"); }} className="focus-ring tap w-full mt-3 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }}>{tr("수업자료 열기")}</button>
+              {nextJoin && !nextP.teamsDone && !isLive(nextP) && <button onClick={() => onWithdraw(nextP.id, nextJoin.slotId || "")} className="focus-ring tap w-full mt-2 f-body text-[14px] font-bold py-2" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>}
             </div>
           )}
           {teacherId && teamCards(false)}

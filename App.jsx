@@ -2767,16 +2767,16 @@ function NavPointsIcon({ size = 20, color = "currentColor" }) {
 }
 
 /** Bottom tabs that stay on screen for every role (parent, teacher, HQ); a spacer keeps content clear of them. */
-const PARENT_TABS = [["home", "홈"], ["stamps", "도장·포인트"], ["help", "안내"]];
+const PARENT_TABS = [["home", "홈"], ["apply", "체험 신청"], ["stamps", "도장·포인트"], ["help", "안내"]];
 const parentUi = { tab: "home" };
-function FixedTabs({ items, active, onSelect, label = "메뉴" }) {
+function FixedTabs({ items, active, onSelect, label = "메뉴", dots = {} }) {
   return (
     <>
       <div style={{ height: 76 }} aria-hidden="true" />
       <nav className="fixed bottom-0 inset-x-0 z-40 bg-white" style={{ borderTop: `1px solid ${C.beige}`, paddingBottom: "env(safe-area-inset-bottom, 0px)" }} aria-label={label} data-testid="fixed-tabs">
         <div className="max-w-md mx-auto grid px-2 pt-1.5 pb-2.5 gap-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
           {items.map(([k, text]) => (
-            <button key={k} onClick={() => onSelect(k)} aria-current={active === k} className="focus-ring tap min-w-0 truncate whitespace-nowrap f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ color: active === k ? C.green : "#9C927D", background: active === k ? C.beige : "transparent", minHeight: 44 }} data-testid={`tab-${k}`}>{text}</button>
+            <button key={k} onClick={() => onSelect(k)} aria-current={active === k} className="focus-ring tap min-w-0 truncate whitespace-nowrap f-body text-[14px] font-bold py-2.5 rounded-xl" style={{ color: active === k ? C.green : "#9C927D", background: active === k ? C.beige : "transparent", minHeight: 44 }} data-testid={`tab-${k}`}>{text}{dots[k] && <span className="inline-block align-top ml-1 rounded-full" style={{ width: 8, height: 8, background: C.orange }} data-testid={`dot-${k}`} aria-label="새 소식" />}</button>
           ))}
         </div>
       </nav>
@@ -4597,7 +4597,6 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                       </div>
                     );
                   })}
-                  <p className="f-body text-[13px] leading-snug px-1" style={{ color: "#8A8060" }} data-testid="pay-note">💳 앱에서는 신청만 받아요. 결제는 신청 후 본사에서 따로 안내드려요.</p>
                 </div>
               </div>
             );
@@ -5522,7 +5521,6 @@ function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, o
         })}
       </div>
 
-      {browse}
       {section("신청한 체험", otherActive)}
       {section("지난 체험", pastRows)}
     </div>
@@ -5618,7 +5616,8 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
     )
   ) : null;
 
-  const goBrowse = () => document.getElementById("browse-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // a new trip a child could still apply for (shows as a dot on the apply tab)
+  const canApplyCount = upcomingPrograms(adventures).filter((p) => myChildren.some((c) => !adventures.some((a) => a.studentId === c.id && a.programId === p.id) && !suggestions.some((sg) => sg.id === applyId(c.id, p.id) && !sg.resolved))).length;
   return (
     <div className="pb-24">
       <RoleBar light label="Parent" onLogout={onLogout} />
@@ -5693,6 +5692,15 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
 
       </div>
       )}
+      {ptab === "apply" && (
+        <div className="px-4 pt-2" data-testid="apply-tab">
+          <h2 className="f-headline text-[28px] leading-tight px-1" style={{ color: C.green }}>체험 신청</h2>
+          <p className="f-body text-[15px] leading-snug px-1 mt-1 mb-3" style={{ color: "#6B6450" }} data-testid="pay-note">💳 앱에서는 신청만 받아요. 결제는 신청 후 본사에서 따로 안내드려요.</p>
+          {myChildren.length === 0
+            ? <p className="f-body text-[15px] text-gray-400 text-center pt-8">아직 등록된 자녀가 없어요.</p>
+            : <ProgramBrowse children={myChildren} adventures={adventures} suggestions={suggestions} familyPin={familyPin} onToggleWish={onToggleWish} onApply={onApply} />}
+        </div>
+      )}
       {ptab === "stamps" && (
         <BadgesPane
           kids={myKids}
@@ -5709,7 +5717,7 @@ function ParentHome({ adventures, students, familyPin, suggestions, onAddSuggest
           <LevelGuideForParents showTitle />
         </div>
       )}
-      <FixedTabs items={PARENT_TABS} active={ptab} onSelect={(k) => { setPtab(k); window.scrollTo({ top: 0 }); }} />
+      <FixedTabs items={PARENT_TABS} active={ptab} dots={{ apply: canApplyCount > 0 && ptab !== "apply" }} onSelect={(k) => { setPtab(k); window.scrollTo({ top: 0 }); }} />
     </div>
   );
 }
@@ -9321,7 +9329,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z134"; // change with every delivery
+const APP_BUILD = "2026-10-27-z135"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

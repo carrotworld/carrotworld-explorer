@@ -568,6 +568,10 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"체험 끝남": "Trip finished",
+"체험 끝남 · 피드백 완료": "Trip finished · feedback done",
+"체험 끝남 · 피드백 작성 전": "Trip finished · feedback to write",
+"끝남": "Finished",
 "과학": "Science",
 "역사": "History",
 "행사": "Events",
@@ -9295,7 +9299,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z124"; // change with every delivery
+const APP_BUILD = "2026-10-27-z127"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9870,11 +9874,14 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
   const dot = (t) => <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color || "#C9BFA8" }} />;
   const kidLine = (t) => t.kids.map((k) => `${k.name} ${k.level}`).join(" · ");
   const canMark = !!onMark && (isLive(program) || tripDayPassed(program) || mine.some((t) => t.kids.some((k) => k.adv.attended)));
+  const ended = tripDayPassed(program);
   const markedN = mine.reduce((n, t) => n + t.kids.filter((k) => k.adv.attended).length, 0);
   const kidsN = mine.reduce((n, t) => n + t.kids.length, 0);
   return (
-    <div className="bg-white rounded-2xl p-4" data-testid="my-teams" data-finished={finished ? "1" : "0"} style={finished ? { opacity: 0.92, border: "2px solid #BFE3CC" } : undefined}>
-      {finished && <p className="f-body text-[14px] font-bold rounded-xl px-3 py-2 mb-2.5" style={{ background: "#EAF7EF", color: "#1F7A44" }} data-testid="finished-badge">✓ {tr("완료 · 피드백을 모두 보냈어요")}</p>}
+    <div className="rounded-2xl p-4" data-testid="my-teams" data-finished={finished ? "1" : "0"} data-ended={ended ? "1" : "0"} style={finished ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : ended ? { background: "white", borderLeft: "6px solid #D8CEB8" } : { background: "white" }}>
+      {finished
+        ? <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="finished-badge">✓ {tr("체험 끝남 · 피드백 완료")}</div>
+        : ended && <p className="f-body text-[13px] font-bold rounded-full px-3 py-1 mb-2.5 inline-block" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="ended-badge">○ {tr("체험 끝남 · 피드백 작성 전")}</p>}
       <div className="flex items-start justify-between gap-2">
         <p className="f-display text-[19px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(program.title)[0]}</p>
         {status && status !== "approved" && <span className="shrink-0 f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("확인 대기")}</span>}
@@ -12469,7 +12476,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   // programs that have not run yet: nobody attended and "Live today" is off
   const upcoming = upcomingPrograms(adventures);
   // sign-up stays open for past trips too, until HQ closes it
-  const signable = [...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice().sort((x, y) => String(y.startDate || y.date || "").localeCompare(String(x.startDate || x.date || "")))].filter((p) => !p.teacherClosed).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
+  const signable = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
   // what a teacher would get for a program (before the 3.3% withholding): HQ's amount for the program, else hours x hourly rate
   const payPreview = (p, slotId) => {
     const amounts = payInfo.amounts || {};
@@ -12585,8 +12592,9 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {signable.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p>}
           {signable.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {signable.map((p) => (
-            <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
-              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
+            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : { background: "white" }}>
+              {tripDayPassed(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="ended-badge">✓ {tr("체험 끝남")}</div>}
+              <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && !tripDayPassed(p) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
               <LeaderNote text={p.leaderNote} />
               <div className="space-y-2">
@@ -12641,7 +12649,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {tab !== "pay" && (
             <div className="px-5 mb-3">
               <select value={program.id} onChange={(e) => { setProgramId(e.target.value); setSavedAt(null); setFormKey((k) => k + 1); }} aria-label={tr("프로그램")} data-testid="program-select" className="focus-ring w-full rounded-xl px-3.5 py-3 f-body text-[16px] font-bold outline-none" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green }}>
-                {programsOrdered().map((pp) => <option key={pp.id} value={pp.id}>{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
+                {programsOrdered().map((pp) => <option key={pp.id} value={pp.id}>{tripDayPassed(pp) ? `🏁 ${tr("끝남")} · ` : ""}{shortTitle(pp)}{pp.date ? ` · ${pp.date}` : ""}</option>)}
               </select>
             </div>
           )}

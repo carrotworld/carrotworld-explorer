@@ -970,6 +970,7 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"희망": "Preferred",
 "영어 이름을 만들고 있어요…": "Making the English name…",
 "한글로만 쓰면 영어 이름이 자동으로 붙어요. 리더 화면에는 이름 아래에 보여요.": "Type the name in Korean and the English name is added automatically. Leaders see it under the name.",
   "✓ 마무리 완료": "✓ All done",
@@ -3936,6 +3937,8 @@ const KAKAO_CHAT_URL = ""; // paste the KakaoTalk channel / open-chat link here 
 const wishId = (familyPin, programId) => `wish-${familyPin}-${programId}`;
 const APPLY_TYPE = "신청 문의";
 const applyId = (studentId, programId) => `apply-${studentId}-${programId}`;
+// the time slot a parent picked is kept inside the application message as [s:<slotId>]
+const applySlotId = (row) => { const m = row && /\[s:([^\]]+)\]/.exec(row.message || ""); return m ? m[1] : ""; };
 const isWish = (sg) => sg.type === WISH_TYPE;
 
 /* App visits (customers only): one small row per family per day, saved the first time a parent
@@ -4428,6 +4431,7 @@ function parentNotices(children, adventures, suggestions) {
 
 function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleWish, onApply }) {
   const [openId, setOpenId] = useState(null);
+  const [pick, setPick] = useState({}); // `${childId}-${programId}` -> chosen time slot id
   // only programs that have not run yet, and that none of the family's children has applied to
   const cards = upcomingPrograms(adventures)
     .map((p) => ({
@@ -4488,21 +4492,40 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                 <div className="mt-3 space-y-2">
                   {pending.map((c) => {
                     const done = applied(c, p);
+                    const row = suggestions.find((sg) => sg.id === applyId(c.id, p.id) && !sg.resolved);
+                    const pk = `${c.id}-${p.id}`;
+                    const chosen = pick[pk] || (slots.length === 1 ? slots[0].id : "");
+                    const slotOf = (id) => slots.find((x) => x.id === id);
+                    const slotText = (x) => (x ? (x.time ? `${x.label} ${x.time}` : x.label) : "");
+                    const sent = slotOf(applySlotId(row));
+                    const send = () => onApply && onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의${chosen && slotOf(chosen) ? ` · 희망 ${slotText(slotOf(chosen))} [s:${chosen}]` : ""}` });
                     return done ? (
                       <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5" style={{ background: "#EAF7EF" }} data-testid="apply-done">
-                        <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요 · 결제는 따로 안내드려요</span>
-                        {onApply && <button onClick={() => onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의` })} className="focus-ring tap f-body text-[13px] font-bold px-2 py-1" style={{ color: "#8A8060" }}>취소</button>}
+                        <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요{sent ? ` · ${slotText(sent)}` : ""}</span>
+                        {onApply && <button onClick={() => onApply({ studentId: c.id, programId: p.id, familyPin, message: row.message })} className="focus-ring tap f-body text-[13px] font-bold px-2 py-1" style={{ color: "#8A8060" }}>취소</button>}
                       </div>
                     ) : (
-                      <button
-                        key={c.id}
-                        onClick={() => onApply && onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의` })}
-                        data-testid="apply-btn"
-                        className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl text-white"
-                        style={{ background: C.orange, minHeight: 48 }}
-                      >
-                        {pending.length > 1 ? `${c.name} 참여 신청하기` : "참여 신청하기"}
-                      </button>
+                      <div key={c.id} className="space-y-2">
+                        {slots.length > 1 && (
+                          <div role="radiogroup" aria-label="희망 시간" data-testid="slot-pick">
+                            <p className="f-body text-[13px] font-bold mb-1 px-1" style={{ color: C.charcoal }}>{pending.length > 1 ? `${c.name} · ` : ""}희망 시간을 골라주세요</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {slots.map((x) => (
+                                <button key={x.id} role="radio" aria-checked={chosen === x.id} onClick={() => setPick((cur) => ({ ...cur, [pk]: x.id }))} data-testid="slot-opt" className="focus-ring tap f-body text-[15px] font-bold rounded-xl px-3.5" style={{ minHeight: 44, background: chosen === x.id ? C.green : C.cream, color: chosen === x.id ? "white" : C.charcoal, border: `1px solid ${chosen === x.id ? C.green : C.beige}` }}>{slotText(x)}</button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          onClick={send}
+                          disabled={slots.length > 1 && !chosen}
+                          data-testid="apply-btn"
+                          className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl text-white"
+                          style={{ background: slots.length > 1 && !chosen ? "#D9CDB4" : C.orange, minHeight: 48 }}
+                        >
+                          {slots.length > 1 && !chosen ? "시간을 먼저 골라주세요" : pending.length > 1 ? `${c.name} 참여 신청하기` : "참여 신청하기"}
+                        </button>
+                      </div>
                     );
                   })}
                   <p className="f-body text-[13px] leading-snug px-1" style={{ color: "#8A8060" }} data-testid="pay-note">💳 앱에서는 신청만 받아요. 결제는 신청 후 본사에서 따로 안내드려요.</p>
@@ -9240,7 +9263,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z116"; // change with every delivery
+const APP_BUILD = "2026-10-27-z117"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11278,10 +11301,10 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
           {manageTab === "match" && (
             <>
           {(() => {
-            const enrollButtons = (st, afterEnroll) => (slots.length > 0 ? (
+            const enrollButtons = (st, afterEnroll, wish) => (slots.length > 0 ? (
                 <span className="flex gap-1.5 flex-wrap justify-end">
                   {slots.map((x) => (
-                    <button key={x.id} onClick={() => { onEnrollStudent(st.id, programId, undefined, x.id); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: C.beige, color: C.green, minHeight: 40 }}>+ {x.label}</button>
+                    <button key={x.id} onClick={() => { onEnrollStudent(st.id, programId, undefined, x.id); afterEnroll && afterEnroll(); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full" style={{ background: wish === x.id ? C.orange : C.beige, color: wish === x.id ? "white" : C.green, minHeight: 40 }}>+ {x.label}</button>
                   ))}
                 </span>
               ) : (
@@ -11314,8 +11337,8 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
                       {applies.map(({ st, row }) => (
                         <div key={st.id} className="flex items-center gap-3">
                           <span className="text-[23px]">{st.avatar}</span>
-                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}</span>
-                          {enrollButtons(st, () => onResolveSuggestions([row.id]))}
+                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}{(() => { const w = slots.find((x) => x.id === applySlotId(row)); return w ? <span className="block f-body text-[13px] font-bold" style={{ color: "#B25A0B" }} data-testid="wish-slot">{tr("희망")} · {w.label}{w.time ? ` ${w.time}` : ""}</span> : null; })()}</span>
+                          {enrollButtons(st, () => onResolveSuggestions([row.id]), applySlotId(row))}
                         </div>
                       ))}
                     </div>

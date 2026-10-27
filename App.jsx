@@ -904,7 +904,7 @@ const EN = {
 "사람 {0}": "People {0}",
 "사람": "People",
 "설정": "Settings",
-"프로그램별 선생님 정원": "Teacher places per program",
+"프로그램별 리더 정원": "Teacher places per program",
 "주말 체험 기본 시간(오전 10:30~12:00, 오후 13:00~14:30)이 들어 있어요. 다르면 고치고, 한 타임만 있으면 하나를 삭제하세요.": "The usual weekend times (morning 10:30-12:00, afternoon 13:00-14:30) are filled in. Change them if this one differs; delete one if there is only one time.",
 "확정 {0}명": "{0} confirmed",
 "정원 줄이기": "Fewer places",
@@ -9333,7 +9333,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z141"; // change with every delivery
+const APP_BUILD = "2026-10-27-z142"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11772,7 +11772,7 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
 
       {["teachers", "pay"].includes(tab) && (
         <div className="space-y-4">
-          <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={PROGRAMS.filter((p) => !p.teacherClosed || upcomingPrograms(adventures).some((u) => u.id === p.id))} />
+          <TeachersPanel teachers={teachers} joins={joins} legacyPin={legacyPin} hqPin={TEACHER_PIN} onAdd={onAddTeacher || (() => {})} onSetPin={onSetTeacherPin || (() => {})} onSetActive={onSetTeacherActive || (() => {})} onDecide={onDecideJoin || (() => {})} apps={teacherApps} onAcceptApp={onAcceptTeacherApp || (() => {})} onRejectApp={onRejectTeacherApp || (() => {})} caps={teacherCapMap || {}} onSetCap={onSetTeacherCap || (() => {})} programs={programsOrdered(PROGRAMS.filter((p) => !p.teacherClosed || upcomingPrograms(adventures).some((u) => u.id === p.id)))} />
           {payData && (
             <div className="px-5">
               <FoldBar title={tr("수당 정산")} defaultOpen={tab === "pay"}>
@@ -13132,7 +13132,7 @@ function MyPay({ expected = [], items, payouts, taxOn = true, rate = DEFAULT_PAY
 }
 
 function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onSetActive, onDecide, caps = {}, onSetCap = () => {}, programs = [], apps = [], onAcceptApp = () => {}, onRejectApp = () => {} }) {
-  const [filter, setFilter] = useState("approved");
+  const [filter, setFilter] = useState(() => (joins.some((j) => j.status === "pending" || j.status === "waiting") ? "waiting" : "approved"));
   const [confirm, setConfirm] = useState(null);
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -13140,8 +13140,13 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
   const [editing, setEditing] = useState(null);
   const [newPin, setNewPin] = useState("");
   const [editError, setEditError] = useState("");
-  const count = (st) => joins.filter((j) => j.status === st).length;
-  const shown = joins.filter((j) => (filter === "all" ? true : j.status === filter));
+  const isWait = (j) => j.status === "pending" || j.status === "waiting";
+  const count = (st) => joins.filter((j) => (st === "waiting" ? isWait(j) : j.status === st)).length;
+  const progIdx = (id) => { const i = programs.findIndex((p) => p.id === id); return i < 0 ? 999 : i; };
+  const isPast = (j) => { const p = programs.find((x) => x.id === j.programId) || PROGRAMS.find((x) => x.id === j.programId); return !!p && tripDayPassed(p); };
+  // same order as HQ's program list: upcoming ones first, finished trips at the bottom; waiting requests first inside a trip
+  const shown = joins.filter((j) => (filter === "all" ? true : filter === "waiting" ? isWait(j) : j.status === filter))
+    .slice().sort((a, b) => Number(isPast(a)) - Number(isPast(b)) || progIdx(a.programId) - progIdx(b.programId) || Number(isWait(b)) - Number(isWait(a)) || String(a.requestedAt).localeCompare(String(b.requestedAt)));
   const look = {
     pending: { label: tr("확인 대기"), bg: "#FFF1E2", color: "#B25A0B" },
     waiting: { label: tr("정원 초과 대기"), bg: "#FFF1E2", color: "#B25A0B" },
@@ -13204,9 +13209,46 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
       )}
       <FoldBar title={tr("선생님 참여 신청")} summary={tr("확정 {0} · 대기 {1}", [count("approved"), count("pending") + count("waiting")])} defaultOpen={count("pending") + count("waiting") > 0}>
         <p className="f-body text-[14px] text-gray-500 mb-2.5">{tr("리더가 예정 프로그램에 낸 신청이에요. 본사가 확정해야 리더 화면에 '확정'이 떠요. 정원이 이미 찬 뒤에 신청한 리더에게는 '죄송해요, 이 자리는 이미 정해졌어요'로 보여요.")}</p>
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Sign-up filter">
+          {chip("waiting", tr("대기 {0}", [count("waiting")]))}
+          {chip("approved", tr("확정 {0}", [count("approved")]))}
+          {chip("declined", tr("거절 {0}", [count("declined")]))}
+          {chip("all", tr("전체 {0}", [joins.length]))}
+        </div>
+        {shown.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("해당하는 신청이 없어요.")}</p></div>}
+        <div className="space-y-2.5">
+          {shown.map((j, n) => {
+            const t = teachers.find((x) => x.id === j.teacherId);
+            const p = getProgram(j.programId);
+            const slot = p ? sessionsOf(p).find((x) => x.id === j.slotId) : null;
+            const st = look[j.status] || look.waiting;
+            return (
+              <React.Fragment key={j.key + j.requestedAt}>
+              {isPast(j) && (n === 0 || !isPast(shown[n - 1])) && <p className="f-body text-[13px] font-bold pt-2" style={{ color: "#9C927D" }} data-testid="join-past-label">{tr("지난 체험")}</p>}
+              <div className="bg-white rounded-2xl p-4" data-testid="join-row" style={isPast(j) ? { opacity: 0.75 } : undefined}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t ? t.name : "—"}</p>
+                    <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{p ? splitTitle(p.title)[0] || p.title : "—"}{slot ? ` · ${slot.label}` : ""}</p>
+                    <p className="f-body text-[13px] text-gray-400">{[p ? p.date : "", fmtDay(j.requestedAt)].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                </div>
+                {j.note && <p className="f-body text-[15px] mt-2 rounded-xl px-3 py-2" style={{ background: C.cream, color: C.charcoal }}>{j.note}</p>}
+                {j.status !== "withdrawn" && (
+                  <div className="flex gap-2 mt-3">
+                    {j.status !== "declined" && <button onClick={() => setConfirm({ key: j.key, status: "declined", who: t ? t.name : "" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("거절")}</button>}
+                    {j.status !== "approved" && <button onClick={() => setConfirm({ key: j.key, status: "approved", who: t ? t.name : "" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("확정")}</button>}
+                  </div>
+                )}
+              </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
         {programs.length > 0 && (
-          <div className="bg-white rounded-2xl p-3 mb-2.5 space-y-2" data-testid="teacher-caps">
-            <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("프로그램별 선생님 정원")}</p>
+          <div className="bg-white rounded-2xl p-3 mt-4 space-y-2" data-testid="teacher-caps">
+            <p className="f-body text-[14px] font-bold" style={{ color: C.charcoal }}>{tr("프로그램별 리더 정원")}</p>
             {programs.map((p) => {
               const cap = caps[p.id] || TEACHER_CAP;
               const taken = joins.filter((j) => j.programId === p.id && j.status === "approved").length;
@@ -13226,40 +13268,6 @@ function TeachersPanel({ teachers, joins, legacyPin, hqPin, onAdd, onSetPin, onS
             })}
           </div>
         )}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-2.5" role="tablist" aria-label="Sign-up filter">
-          {chip("waiting", tr("대기 {0}", [count("waiting")]))}
-          {chip("approved", tr("확정 {0}", [count("approved")]))}
-          {chip("declined", tr("거절 {0}", [count("declined")]))}
-          {chip("all", tr("전체 {0}", [joins.length]))}
-        </div>
-        {shown.length === 0 && <div className="bg-white rounded-2xl p-5 text-center"><p className="f-body text-[15px] text-gray-400">{tr("해당하는 신청이 없어요.")}</p></div>}
-        <div className="space-y-2.5">
-          {shown.map((j) => {
-            const t = teachers.find((x) => x.id === j.teacherId);
-            const p = getProgram(j.programId);
-            const slot = p ? sessionsOf(p).find((x) => x.id === j.slotId) : null;
-            const st = look[j.status] || look.waiting;
-            return (
-              <div key={j.key + j.requestedAt} className="bg-white rounded-2xl p-4" data-testid="join-row">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="f-display text-[18px] font-semibold" style={{ color: C.green }}>{t ? t.name : "—"}</p>
-                    <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{p ? splitTitle(p.title)[0] || p.title : "—"}{slot ? ` · ${slot.label}` : ""}</p>
-                    <p className="f-body text-[13px] text-gray-400">{[p ? p.date : "", fmtDay(j.requestedAt)].filter(Boolean).join(" · ")}</p>
-                  </div>
-                  <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: st.bg, color: st.color }}>{st.label}</span>
-                </div>
-                {j.note && <p className="f-body text-[15px] mt-2 rounded-xl px-3 py-2" style={{ background: C.cream, color: C.charcoal }}>{j.note}</p>}
-                {j.status !== "withdrawn" && (
-                  <div className="flex gap-2 mt-3">
-                    {j.status !== "declined" && <button onClick={() => setConfirm({ key: j.key, status: "declined", who: t ? t.name : "" })} className="focus-ring tap flex-1 f-body text-[15px] font-bold rounded-xl py-2.5" style={{ background: C.cream, color: "#B03A2E" }}>{tr("거절")}</button>}
-                    {j.status !== "approved" && <button onClick={() => setConfirm({ key: j.key, status: "approved", who: t ? t.name : "" })} className="focus-ring tap flex-[2] f-display text-[15px] font-semibold rounded-xl py-2.5 text-white" style={{ background: C.green }}>{tr("확정")}</button>}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </FoldBar>
 
       <FoldBar title={tr("선생님 계정")} summary={tr("선생님 {0}명", [teachers.filter((t) => t.active).length])} defaultOpen={!teachers.some((t) => t.active)}>

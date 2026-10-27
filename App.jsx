@@ -4224,6 +4224,7 @@ function teacherAccounts(suggestions) {
 const teacherByPin = (accounts, pin) => accounts.find((t) => t.active && t.pin === pin) || null;
 /** Most teachers per program (per session when a program has sessions). Sign-ups up to this number confirm by themselves. */
 const TEACHER_CAP = 6;
+const AUTO_CONFIRM_BEFORE = "2026-10-27T07:00:00Z"; // 16:00 KST on the day HQ approval became required
 /** HQ can set another number for one program; the latest setting wins. */
 function teacherCaps(suggestions) {
   const caps = {};
@@ -4263,7 +4264,10 @@ function teacherJoins(suggestions) {
   list.forEach((j) => { if (j.status === "approved") seats[seatKey(j)] = (seats[seatKey(j)] || 0) + 1; });
   list.forEach((j) => {
     if (j.status !== "pending") return;
-    if ((seats[seatKey(j)] || 0) >= (caps[j.programId] || TEACHER_CAP)) j.status = "waiting"; // seats are full: shown as "already taken"; otherwise it stays pending until HQ confirms
+    const full = (seats[seatKey(j)] || 0) >= (caps[j.programId] || TEACHER_CAP);
+    if (String(j.requestedAt || "") < AUTO_CONFIRM_BEFORE) { // sign-ups made before HQ approval was required were confirmed by themselves: keep them confirmed
+      if (!full) { j.status = "approved"; j.auto = true; j.decidedAt = j.requestedAt; seats[seatKey(j)] = (seats[seatKey(j)] || 0) + 1; } else j.status = "waiting";
+    } else if (full) j.status = "waiting"; // seats are full: shown as "already taken"; otherwise it stays pending until HQ confirms
   });
   return list.reverse();
 }
@@ -9342,7 +9346,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z150"; // change with every delivery
+const APP_BUILD = "2026-10-27-z151"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

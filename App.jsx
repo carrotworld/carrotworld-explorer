@@ -568,6 +568,14 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"정보 보기": "Show info",
+"레벨 {0} · 지난 체험 {1}회": "Level {0} · {1} past trips",
+"안전수칙 동의 ✓": "Safety agreement ✓",
+"안전수칙 동의 전": "Safety agreement pending",
+"지난 체험은 아직 피드백이 부모님께 전달되지 않았어요.": "The report of the last trip has not been sent to the parents yet.",
+"처음 오는 아이예요. 지난 기록이 없어요.": "First trip: no earlier record.",
+"더 도와주면 좋은 것": "Could use more help with",
+"아직 내 팀에 배정된 아이가 없어요. 본사가 팀을 정하면 여기에 나와요.": "No children are on your team yet. They show here once HQ sets the teams.",
 "체험이 시작되면 여기서 피드백을 쓸 수 있어요.": "You can write feedback here once a trip has started.",
 "출석을 먼저 눌러 주세요": "Please mark attendance first",
 "아직 체험 전이에요. 체험 후에 피드백을 쓸 수 있어요.": "The trip has not happened yet. You can write feedback after it.",
@@ -9312,7 +9320,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z131"; // change with every delivery
+const APP_BUILD = "2026-10-27-z133"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9871,8 +9879,42 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
 /** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
  *  the other leaders' teams folded, the lesson-material button once at the bottom. */
 const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
+/** What a leader may know about a child on their own team before the trip: level, how many trips, and a short summary of the last report
+ *  that was already sent to the parents. No other leader's name, no scores, nothing from drafts. */
+function KidPreview({ kid, program, adventures }) {
+  const AREA_KO = { vocabulary: "어휘", sentence: "문장", listening: "듣기", fluency: "유창성", pronunciation: "발음" };
+  const past = adventures
+    .filter((a) => a.studentId === kid.id && a.programId !== program.id && !a.canceled && a.attended)
+    .map((a) => ({ a, p: getProgram(a.programId) }))
+    .filter((x) => x.p)
+    .sort((x, y) => String(lastDay(y.p) || "").localeCompare(String(lastDay(x.p) || "")));
+  const last = past.find((x) => feedbackSent(x.a));
+  const fb = last ? last.a.feedback : null;
+  const rated = fb ? ADVICE_AREAS.filter((k) => Number(fb.language && fb.language[k]) > 0).sort((x, y) => Number(fb.language[x]) - Number(fb.language[y])) : [];
+  const weak = rated.length > 1 ? rated[0] : "";
+  const tags = last ? (last.a.teacherTags || []) : [];
+  const agreed = safetyAgreements(SAFETY_ROWS).some((r) => r.studentIds.includes(kid.id));
+  return (
+    <div className="rounded-xl px-3 py-2.5 mb-1.5" style={{ background: "white", border: `1px solid ${C.beige}` }} data-testid="kid-preview">
+      <p className="f-body text-[13px] font-bold" style={{ color: "#8A8060" }}>{tr("레벨 {0} · 지난 체험 {1}회", [kid.level, past.length])} · {agreed ? tr("안전수칙 동의 ✓") : tr("안전수칙 동의 전")}</p>
+      {!last ? (
+        <p className="f-body text-[14px] mt-1" style={{ color: C.charcoal }}>{past.length ? tr("지난 체험은 아직 피드백이 부모님께 전달되지 않았어요.") : tr("처음 오는 아이예요. 지난 기록이 없어요.")}</p>
+      ) : (
+        <div className="mt-1 space-y-1">
+          <p className="f-body text-[13px] font-bold" style={{ color: C.green }}>{tr("지난 체험")} · {splitTitle(last.p.title)[0]}{last.p.date ? ` · ${last.p.date}` : ""}</p>
+          {fb && fb.cefrLevel && <p className="f-body text-[14px]" style={{ color: C.charcoal }}>CEFR {fb.cefrLevel}</p>}
+          {tags.length > 0 && <div className="flex gap-1.5 flex-wrap">{tags.slice(0, 4).map((tg) => <span key={tg} className="f-body text-[12px] font-bold rounded-full px-2.5 py-0.5" style={{ background: "#EAF7EF", color: "#1F7A44" }}>{TAG_KO[tg] || tg}</span>)}</div>}
+          {last.a.teacherNote && <p className="f-body text-[14px]" style={{ color: C.charcoal }}>“{last.a.teacherNote}”</p>}
+          {weak && <p className="f-body text-[13px]" style={{ color: "#B25A0B" }}>{tr("더 도와주면 좋은 것")}: {AREA_KO[weak]}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MyTeamsCard({ finished = false, program, slot, adventures, students, name, status, onOpenMaterials, onOpenFeedback, onMark }) {
   const [showOthers, setShowOthers] = useState(false);
+  const [openKid, setOpenKid] = useState(""); // the child whose short summary is open
   const same = (t) => !!name && String(t || "").trim().toLowerCase() === name.trim().toLowerCase();
   const slotId = slot ? slot.id : "";
   const time = infoForSession(infoFrom(program), slot || null).time;
@@ -9915,8 +9957,9 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
                 {t.kids.map((k) => {
                   const st = k.adv.attended ? "in" : k.adv.absent ? "out" : "";
                   return (
-                    <div key={k.id} className="flex items-center gap-2 py-1.5" style={{ borderTop: `1px solid ${C.beige}` }} data-testid="team-kid">
-                      <span className="flex-1 min-w-0 f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal }}>{k.name}</span>
+                    <div key={k.id} style={{ borderTop: `1px solid ${C.beige}` }}>
+                    <div className="flex items-center gap-2 py-1.5" data-testid="team-kid">
+                      <button onClick={() => setOpenKid(openKid === k.id ? "" : k.id)} aria-expanded={openKid === k.id} aria-label={`${k.name} ${tr("정보 보기")}`} data-testid="kid-info-btn" className="focus-ring tap flex-1 min-w-0 text-left f-body text-[16px] font-semibold truncate" style={{ color: C.charcoal, minHeight: 44 }}>{k.name}<span className="ml-1.5 text-[12px] font-bold" style={{ color: "#9C927D" }}>{openKid === k.id ? "▴" : "ⓘ"}</span></button>
                       <span className="f-body text-[14px] shrink-0" style={{ color: "#8A8060" }}>{k.level}</span>
                       {canMark && (
                         <button
@@ -9931,6 +9974,8 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
                       {(attendedOk => attendedOk && (feedbackDone(k.adv)
                         ? <span className="shrink-0 f-body text-[13px] font-bold rounded-full px-3 py-2" data-testid="kid-feedback" data-ok="1" style={{ background: "#EAF7EF", color: "#1F7A44" }}>✓ {tr("Feedback")}</span>
                         : <button onClick={() => onOpenFeedback && onOpenFeedback(program.id)} data-testid="kid-feedback" data-ok="0" className="focus-ring tap shrink-0 f-body text-[13px] font-bold rounded-full px-3" style={{ background: "#FFF1E2", color: "#B25A0B", border: "1.5px solid #F0C48E", minHeight: 40 }}>{tr("Feedback")} ›</button>))(k.adv.attended)}
+                    </div>
+                    {openKid === k.id && <KidPreview kid={k} program={program} adventures={adventures} />}
                     </div>
                   );
                 })}
@@ -12480,7 +12525,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
     return false;
   });
   // feedback is only written for trips that have started (today or earlier), so trips still ahead are not offered there
-  const feedbackProgs = programsOrdered().filter((p) => p.published !== false && (isLive(p) || tripDayPassed(p) || adventures.some((a) => a.programId === p.id && a.attended)));
+  const feedbackProgs = programsOrdered().filter((p) => p.published !== false && (isLive(p) || tripDayPassed(p) || adventures.some((a) => a.programId === p.id && a.attended)) && (!teacherId || joins.some((j) => j.teacherId === teacherId && j.programId === p.id && j.status === "approved")));
   const program = (tab === "feedback" ? feedbackProgs.find((p) => p.id === programId) || feedbackProgs[0] : null) || (tab === "feedback" ? null : PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null);
   const shortTitle = (p) => splitTitle(p.title)[0] || p.title;
   const mySignups = joins.filter((j) => j.teacherId === teacherId);
@@ -12512,7 +12557,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
         .filter((x) => x.st && !isPendingStudent(x.st))
     : [];
   const mine = name ? roster.filter((x) => ((teamOf(program, x.a) || {}).teacher || "").trim().toLowerCase() === name.trim().toLowerCase()) : [];
-  const filtering = mineOnly && mine.length > 0;
+  const filtering = !!name; // a leader sees only their own team's children (never another leader's)
   const fbRank = (x) => (x.a.attended && !feedbackDone(x.a) ? 0 : x.a.attended ? 2 : 1); // feedback still to write first, finished ones last
   const list = (filtering ? mine : roster).slice().sort((x, y) => fbRank(x) - fbRank(y) || byKoName(x.st.name, y.st.name));
   const feedbackLeft = list.filter((x) => x.a.attended && !feedbackDone(x.a)).length;
@@ -12698,12 +12743,6 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
             <div className="px-5 pb-8 space-y-3">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="f-body text-[15px] font-bold" style={{ color: feedbackLeft ? "#B25A0B" : list.some((x) => x.a.attended) ? "#1F7A44" : "#8A8060" }} data-testid="feedback-head">{feedbackLeft ? tr("피드백 {0}명 남음", [feedbackLeft]) : list.some((x) => x.a.attended) ? tr("피드백을 모두 썼어요 ✓") : tripDayPassed(program) ? tr("출석을 먼저 눌러 주세요") : tr("아직 체험 전이에요. 체험 후에 피드백을 쓸 수 있어요.")}</p>
-                {mine.length > 0 && (
-                  <div className="flex gap-2" role="group" aria-label="Whose children">
-                    <button onClick={() => setMineOnly(true)} aria-pressed={mineOnly} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: mineOnly ? C.green : "white", color: mineOnly ? "white" : C.charcoal, border: `1px solid ${C.beige}` }}>{tr("내 팀 {0}", [mine.length])}</button>
-                    <button onClick={() => setMineOnly(false)} aria-pressed={!mineOnly} className="focus-ring tap f-body text-[14px] font-bold rounded-full px-3.5 py-1.5" style={{ background: !mineOnly ? C.green : "white", color: !mineOnly ? "white" : C.charcoal, border: `1px solid ${C.beige}` }}>{tr("모든 아이 {0}", [roster.length])}</button>
-                  </div>
-                )}
               </div>
               {feedbackLeft === 0 && (() => {
                 const earned = payItems.filter((i) => i.programId === program.id && !i.paid && !i.needsAmount);
@@ -12718,7 +12757,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                   </button>
                 );
               })()}
-              {name && mine.length === 0 && roster.length > 0 && <p className="f-body text-[13px] text-gray-400">{tr("아직 내 팀에 배정된 아이가 없어서 모두 보여요.")}</p>}
+              {name && mine.length === 0 && <p className="f-body text-[14px] text-gray-500 bg-white rounded-2xl p-4 text-center" data-testid="no-my-kids">{tr("아직 내 팀에 배정된 아이가 없어요. 본사가 팀을 정하면 여기에 나와요.")}</p>}
               {list.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("아직 신청한 아이가 없어요.")}</p></div>}
               {list.map(({ a, st }) => (
                 <TeacherStudentCard

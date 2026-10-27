@@ -57,6 +57,7 @@ const EN = {
 "다시 열기": "Reopen",
 "마감하기": "Close it",
 "지난 체험": "Past trip",
+"가능한 시간을 골라 주세요 (여러 개 가능)": "Pick the times you can do (more than one is fine)",
 "선착순이에요. 본사가 확인하면 확정돼요.": "First come, first served. Confirmed once HQ accepts.",
 "{0} 리더를 확정할까요?": "Confirm {0}?",
 "{0} 리더의 신청을 삭제할까요?": "Delete {0}'s sign-up?",
@@ -6672,7 +6673,7 @@ function ConfirmDialog({ title, children, actions }) {
         <div className="f-body text-[16px] text-gray-600 text-center mb-5">{children}</div>
         <div className="space-y-2">
           {actions.map((a) => (
-            <button key={a.label} onClick={a.onClick} className="focus-ring tap w-full f-body text-[17px] font-bold rounded-xl py-3" style={tones[a.tone || "plain"]}>
+            <button key={a.label} onClick={a.onClick} disabled={!!a.disabled} className="focus-ring tap w-full f-body text-[17px] font-bold rounded-xl py-3" style={{ ...tones[a.tone || "plain"], opacity: a.disabled ? 0.4 : 1 }}>
               {a.label}
             </button>
           ))}
@@ -9341,7 +9342,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z144"; // change with every delivery
+const APP_BUILD = "2026-10-27-z145"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12518,17 +12519,37 @@ function LeaderNote({ text }) {
   return <p className="f-body text-[14px] rounded-xl px-3 py-2.5 mb-3 whitespace-pre-line" style={{ background: "#FFF1E2", border: "1.5px solid #F0C48E", color: "#8A4B0B" }} data-testid="leader-note">📌 <b>{tr("본사 특이사항")}</b>{"\n"}{String(text).trim()}</p>;
 }
 
-function JoinDialog({ title, onSend, onClose, hqNote }) {
+function JoinDialog({ title, onSend, onClose, hqNote, choices = [] }) {
   const [note, setNote] = useState("");
+  // one button per time slot of the program (made from its sessions); one slot is chosen already
+  const [sel, setSel] = useState(() => (choices.length === 1 ? [choices[0].id] : []));
+  const needsPick = choices.length > 1;
+  const toggle = (id) => setSel((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   return (
     <ConfirmDialog
       title={title}
       actions={[
-        { label: tr("신청하기"), tone: "primary", onClick: () => onSend(note) },
+        { label: tr("신청하기"), tone: "primary", disabled: needsPick && sel.length === 0, onClick: () => { if (needsPick && sel.length === 0) return; onSend(note, choices.length ? (needsPick ? sel : [choices[0].id]) : [""]); } },
         { label: tr("취소"), tone: "plain", onClick: onClose },
       ]}
     >
       {hqNote && <div className="mt-2"><LeaderNote text={hqNote} /></div>}
+      {needsPick && (
+        <div className="mt-3" data-testid="join-times">
+          <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("가능한 시간을 골라 주세요 (여러 개 가능)")}</p>
+          <div className="space-y-2">
+            {choices.map((c) => {
+              const on = sel.includes(c.id);
+              return (
+                <button key={c.id} type="button" onClick={() => toggle(c.id)} aria-pressed={on} data-testid="join-time" data-on={on ? "1" : "0"} className="focus-ring tap w-full text-left rounded-xl px-3.5 py-2.5 f-body" style={{ minHeight: 48, background: on ? C.green : "white", color: on ? "white" : C.charcoal, border: `2px solid ${on ? C.green : C.beige}` }}>
+                  <span className="text-[16px] font-bold">{on ? "✓ " : ""}{c.label}</span>
+                  {c.time && <span className="text-[14px] block" style={{ opacity: 0.85 }}>{c.time}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <p className="f-body text-[14px] text-gray-600 mt-2 mb-1.5">{tr("상황 설명 (선택) — 가능한 시간, 이동 수단, 참고할 점 등을 적어 주세요. 없으면 비워 두세요.")}</p>
       <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={500} data-testid="join-note" placeholder={tr("예) 오후 2시 이후에만 가능해요 / 차로 이동해요")} aria-label={tr("상황 설명")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}`, resize: "none" }} />
     </ConfirmDialog>
@@ -12694,6 +12715,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 {openSlots(p).map((x) => {
                   const j = stateOf(p.id, x.id);
                   const chip = j ? chipFor(j) : null;
+                  if (!x.label && payPreview(p, x.id) === null && !chip && !(p.teamsDone || p.teacherClosed)) return null; // nothing to show for this row
                   return (
                     <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
                       <div className="min-w-0" style={!x.label && payPreview(p, x.id) === null && !chip ? { display: "none" } : undefined}>
@@ -12708,22 +12730,24 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                         <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
                       ) : p.teamsDone ? (
                         <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
-                      ) : !j ? (
-                        <button onClick={() => setAsking({ program: p, slot: x })} className="focus-ring tap f-display text-[15px] font-semibold rounded-xl px-4 py-2 text-white" style={{ background: C.green, flex: !x.label && payPreview(p, x.id) === null ? 1 : "none" }}>{tr("참여 신청")}</button>
-                      ) : (
+                      ) : !j ? null : (
                         <button onClick={() => onWithdraw(p.id, x.id)} className="focus-ring tap shrink-0 f-body text-[14px] font-bold" style={{ color: "#B03A2E" }}>{tr("신청 취소")}</button>
                       )}
                     </div>
                   );
                 })}
               </div>
+              {teacherId && !p.teamsDone && !p.teacherClosed && !tripDayPassed(p) && openSlots(p).some((x) => !stateOf(p.id, x.id)) && (
+                <button onClick={() => setAsking({ program: p })} className="focus-ring tap w-full mt-2.5 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }} data-testid="signup-open">{tr("참여 신청")}</button>
+              )}
             </div>
           ))}
           {asking && (
             <JoinDialog
-              title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program) + (asking.slot.label ? ` · ${asking.slot.label}` : "")])}
+              title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program)])}
               hqNote={asking.program.leaderNote}
-              onSend={(note) => { onJoin(asking.program.id, asking.slot.id, note); setAsking(null); }}
+              choices={openSlots(asking.program).filter((x) => !stateOf(asking.program.id, x.id)).map((x) => { const ss = sessionsOf(asking.program).find((y) => y.id === x.id) || {}; return { id: x.id, label: x.label || tr("참여"), time: ss.time || "" }; })}
+              onSend={(note, ids) => { (ids && ids.length ? ids : [""]).forEach((sid) => onJoin(asking.program.id, sid, note)); setAsking(null); }}
               onClose={() => setAsking(null)}
             />
           )}

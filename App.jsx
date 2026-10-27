@@ -970,6 +970,10 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"부모님이 앱에서 신청한 아이예요. 결제를 안내하고, 결제가 끝나면 버튼을 눌러 프로그램에 추가하세요.": "Children whose parents applied in the app. Send the payment guide, then tap once payment is done to add them to the program.",
+"💳 결제 안내를 보내 주세요": "💳 Please send the payment guide",
+"결제 완료 · {0} 추가": "Paid · add to {0}",
+"결제 완료 · 프로그램에 추가": "Paid · add to program",
 "희망": "Preferred",
 "영어 이름을 만들고 있어요…": "Making the English name…",
 "한글로만 쓰면 영어 이름이 자동으로 붙어요. 리더 화면에는 이름 아래에 보여요.": "Type the name in Korean and the English name is added automatically. Leaders see it under the name.",
@@ -1960,12 +1964,50 @@ const splitTitle = (title) => {
   return [main.trim(), rest.join(": ").trim()];
 };
 /** Program name as it appears everywhere in lists: big main name, English line under it. */
+const EN_NAMES = new Map(); // Korean place name -> English name (remembered on this phone so each name is asked for once)
+const EN_PENDING = new Map();
+try { Object.entries(JSON.parse(localStorage.getItem("cw-en-names") || "{}")).forEach(([k, v]) => EN_NAMES.set(k, v)); } catch (e) { /* no storage */ }
+function fetchEnglishName(ko) {
+  if (EN_NAMES.has(ko)) return Promise.resolve(EN_NAMES.get(ko));
+  if (!EN_PENDING.has(ko)) {
+    EN_PENDING.set(ko, fetch(`/api/translate?q=${encodeURIComponent(ko)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const en = String((j && j.en) || "").trim().replace(/[.:：]+$/, "");
+        if (!en || !/[A-Za-z]/.test(en)) return "";
+        EN_NAMES.set(ko, en);
+        try { localStorage.setItem("cw-en-names", JSON.stringify(Object.fromEntries(EN_NAMES))); } catch (e) { /* no storage */ }
+        return en;
+      })
+      .catch(() => "")
+      .finally(() => EN_PENDING.delete(ko)));
+  }
+  return EN_PENDING.get(ko);
+}
+/** English name for a program: the part written after the colon, or (Korean-only names) a stored/auto-made translation. */
+function useEnglishName(title) {
+  const [main, sub] = splitTitle(title);
+  const need = !sub && /[\uAC00-\uD7A3]/.test(main);
+  const [auto, setAuto] = useState(need ? EN_NAMES.get(main) || "" : "");
+  useEffect(() => {
+    if (!need) return undefined;
+    let live = true;
+    fetchEnglishName(main).then((en) => { if (live) setAuto(en || ""); });
+    return () => { live = false; };
+  }, [main, need]);
+  return sub || (need ? auto : "");
+}
+/** The small English line under a Korean program name (nothing while it is not known). */
+function EnglishLine({ program, className = "f-body text-[14px] text-gray-500 leading-snug" }) {
+  const en = useEnglishName(program.title);
+  return en ? <p className={className} data-testid="en-name">{en}</p> : null;
+}
 function ProgramTitle({ program, size = 22 }) {
-  const [main, sub] = splitTitle(program.title);
+  const [main] = splitTitle(program.title);
   return (
     <>
       <p className="f-headline leading-snug" style={{ color: C.green, fontSize: size }}>{main || program.title}</p>
-      {sub && <p className="f-body text-[15px] text-gray-500 leading-snug">{sub}</p>}
+      <EnglishLine program={program} className="f-body text-[15px] text-gray-500 leading-snug" />
     </>
   );
 }
@@ -9263,7 +9305,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z117"; // change with every delivery
+const APP_BUILD = "2026-10-27-z119"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11325,24 +11367,32 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
                   <div className="rounded-2xl p-4" style={{ background: "#FFF1E2", border: `1px solid ${C.beige}` }} data-testid="apply-queue">
                     <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                       <p className="f-display text-[17px] font-bold" style={{ color: "#B25A0B" }}>{tr("🙋 참여 신청 {0}명", [applies.length])}</p>
-                      {applies.length > 1 && (
-                        <span className="flex gap-1.5 flex-wrap" data-testid="apply-all">
-                          {(slots.length ? slots : [{ id: undefined, label: "" }]).map((x) => (
-                            <button key={x.id || "all"} onClick={() => { applies.forEach(({ st }) => onEnrollStudent(st.id, programId, undefined, x.id)); onResolveSuggestions(applies.map((a) => a.row.id)); }} className="focus-ring tap f-body text-[14px] font-bold px-3 py-1.5 rounded-full text-white" style={{ background: C.green, minHeight: 40 }}>{x.label ? tr("모두 {0}에 추가", [x.label]) : tr("모두 추가")}</button>
-                          ))}
-                        </span>
-                      )}
                     </div>
                     <div className="space-y-2">
-                      {applies.map(({ st, row }) => (
-                        <div key={st.id} className="flex items-center gap-3">
-                          <span className="text-[23px]">{st.avatar}</span>
-                          <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}{(() => { const w = slots.find((x) => x.id === applySlotId(row)); return w ? <span className="block f-body text-[13px] font-bold" style={{ color: "#B25A0B" }} data-testid="wish-slot">{tr("희망")} · {w.label}{w.time ? ` ${w.time}` : ""}</span> : null; })()}</span>
-                          {enrollButtons(st, () => onResolveSuggestions([row.id]), applySlotId(row))}
-                        </div>
-                      ))}
+                      {applies.map(({ st, row }) => {
+                        const wishId = applySlotId(row);
+                        const w = slots.find((x) => x.id === wishId);
+                        const add = (slotId) => { onEnrollStudent(st.id, programId, undefined, slotId); onResolveSuggestions([row.id]); };
+                        return (
+                          <div key={st.id} className="rounded-xl p-3 bg-white" data-testid="apply-row">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[23px]">{st.avatar}</span>
+                              <span className="flex-1 min-w-0 f-body text-[17px] font-semibold truncate" style={{ color: C.charcoal }}>{st.name}</span>
+                            </div>
+                            <div className="mt-2">{w && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }} data-testid="wish-slot">{tr("희망")} · {w.label}{w.time ? ` ${w.time}` : ""}</span>}</div>
+                            <p className="f-body text-[14px] font-bold mt-1.5" style={{ color: "#B25A0B" }} data-testid="pay-todo">{tr("💳 결제 안내를 보내 주세요")}</p>
+                            <div className="flex gap-2 flex-wrap mt-2">
+                              {slots.length > 0 ? slots.map((x) => (
+                                <button key={x.id} onClick={() => add(x.id)} data-testid="paid-btn" className="focus-ring tap f-body text-[14px] font-bold px-3.5 rounded-full" style={{ minHeight: 44, background: !wishId || wishId === x.id ? C.green : C.beige, color: !wishId || wishId === x.id ? "white" : C.green }}>{tr("결제 완료 · {0} 추가", [x.label])}</button>
+                              )) : (
+                                <button onClick={() => add(undefined)} data-testid="paid-btn" className="focus-ring tap f-body text-[14px] font-bold px-3.5 rounded-full text-white" style={{ minHeight: 44, background: C.green }}>{tr("결제 완료 · 프로그램에 추가")}</button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="f-body text-[13px] text-gray-500 mt-2">{tr("부모님이 앱에서 신청한 아이예요. 누르면 이 프로그램에 바로 추가돼요.")}</p>
+                    <p className="f-body text-[13px] text-gray-500 mt-2">{tr("부모님이 앱에서 신청한 아이예요. 결제를 안내하고, 결제가 끝나면 버튼을 눌러 프로그램에 추가하세요.")}</p>
                   </div>
                 )}
               </div>
@@ -12477,6 +12527,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 {nextJoin && <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: chipFor(nextJoin).bg, color: chipFor(nextJoin).color }}>{chipFor(nextJoin).text.replace(" ✓", "")}</span>}
               </div>
               <p className="f-display text-[22px] font-semibold leading-snug mt-1" style={{ color: C.green }}>{shortTitle(nextP)}</p>
+              <EnglishLine program={nextP} />
               <div className="mt-2 space-y-0.5 f-body text-[14px]" style={{ color: "#5F6B66" }}>
                 <p>{[nextP.date, nextSlot && nextSlot.label, nextTime].filter(Boolean).join(" · ")}</p>
                 <p>{nextP.locationKo || nextP.location}</p>
@@ -12506,6 +12557,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {signable.map((p) => (
             <div key={p.id} className="bg-white rounded-2xl p-4" data-testid="upcoming-program">
               <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}{!upcoming.some((u) => u.id === p.id) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
+              <EnglishLine program={p} className="f-body text-[14px] text-gray-500 leading-snug -mt-0.5 mb-1" />
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
               <LeaderNote text={p.leaderNote} />
               <div className="space-y-2">

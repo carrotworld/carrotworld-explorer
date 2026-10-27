@@ -9215,7 +9215,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z113"; // change with every delivery
+const APP_BUILD = "2026-10-27-z114"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11749,9 +11749,6 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
                 </button>
               ))}
             </div>
-            <button onClick={() => setStep("register")} className="focus-ring tap w-full rounded-2xl f-display text-[17px] font-bold flex items-center justify-center gap-2" style={{ minHeight: 56, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }} data-testid="signup-parent-home">
-              ✨ 처음이세요? 가입하기 <ChevronRight size={18} />
-            </button>
           </>
         )}
 

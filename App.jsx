@@ -568,6 +568,10 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"이 줄 삭제": "Delete this line",
+"이 줄을 삭제할까요?": "Delete this line?",
+"정산 목록에서 빠져요. 아래 '삭제한 항목'에서 되돌릴 수 있어요.": "It leaves the pay list. You can bring it back under 'Deleted lines' below.",
+"삭제한 항목 {0}건": "Deleted lines: {0}",
 "체험 끝남": "Trip finished",
 "체험 끝남 · 피드백 완료": "Trip finished · feedback done",
 "체험 끝남 · 피드백 작성 전": "Trip finished · feedback to write",
@@ -4263,12 +4267,14 @@ function paySettings(suggestions) {
   let rate = DEFAULT_PAY_RATE;
   let taxOn = true;
   const amounts = {};
-  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "payRate" || r.key === "payAmount" || r.key === "payTax").sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
+  const excluded = new Set(); // lines HQ deleted from the pay list
+  (suggestions || []).filter((sg) => sg.type === SETTING_TYPE).map(readRow).filter((r) => r.key === "payRate" || r.key === "payAmount" || r.key === "payTax" || r.key === "payExclude").sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach((r) => {
     if (r.key === "payTax") taxOn = !!r.value;
+    else if (r.key === "payExclude") { if (r.value) excluded.add(r.scope); else excluded.delete(r.scope); }
     else if (r.key === "payRate") { const n = Number(r.value); if (n > 0) rate = Math.round(n); }
     else if (r.scope) { if (r.value === "" || r.value === null || r.value === undefined) delete amounts[r.scope]; else if (Number(r.value) >= 0) amounts[r.scope] = Math.round(Number(r.value)); }
   });
-  return { rate, amounts, taxOn };
+  return { rate, amounts, taxOn, excluded };
 }
 /** Every payout HQ recorded, newest first (undone ones are marked). */
 function payPayouts(suggestions) {
@@ -4279,7 +4285,7 @@ function payPayouts(suggestions) {
 }
 /** What each confirmed teacher earned on programs that are over, and whether it was paid already. */
 function teacherEarnings(suggestions, joins, now, adventures = [], teachers = []) {
-  const { rate, amounts } = paySettings(suggestions);
+  const { rate, amounts, excluded } = paySettings(suggestions);
   const paidBy = new Map();
   payPayouts(suggestions).filter((p) => !p.voided).forEach((p) => p.keys.forEach((k) => paidBy.set(k, p)));
   return (joins || []).filter((j) => j.status === "approved").map((j) => {
@@ -4289,6 +4295,8 @@ function teacherEarnings(suggestions, joins, now, adventures = [], teachers = []
     const tname = String(((teachers || []).find((t) => t.id === j.teacherId) || {}).name || "").trim().toLowerCase();
     const myTeamIds = tname ? teamsOf(p).filter((t) => String(t.teacher || "").trim().toLowerCase() === tname && (!j.slotId || !t.sessionId || t.sessionId === j.slotId)).map((t) => t.id) : [];
     const kids = adventures.filter((a) => a.programId === j.programId && !a.canceled && (!myTeamIds.length || (myTeamIds.includes(a.teamId) && (!j.slotId || !a.sessionId || a.sessionId === j.slotId))));
+    // teams are set but this leader has no children in this slot: the slot was not run by them, so there is nothing to pay
+    if (teamsOf(p).length > 0 && (!myTeamIds.length || kids.length === 0)) return null;
     // counted after the trip day, or on the day itself once the feedback of the children who came is all sent
     if (!tripDayPassed(p, now) && !(hasDate(p) && todayKst(now) >= lastDay(p) && kids.some((a) => a.attended))) return null;
     if (kids.some((a) => a.attended && !feedbackDone(a))) return null; // counted once the feedback is submitted
@@ -4299,9 +4307,10 @@ function teacherEarnings(suggestions, joins, now, adventures = [], teachers = []
     if (amounts[j.key] !== undefined) { amount = amounts[j.key]; source = "manual"; }
     else if (amounts[j.programId] !== undefined) { amount = amounts[j.programId]; source = "program"; }
     else if (hours > 0) { amount = Math.round(hours * rate); source = "hours"; }
-    const paid = paidBy.get(j.key) || null;
-    return { key: j.key, teacherId: j.teacherId, programId: j.programId, slotId: j.slotId || "", title: splitTitle(p.title)[0] || p.title, date: p.date || "", slotLabel: slot ? slot.label : "", day: lastDay(p) || "", hours, amount, source, needsAmount: source === "none", paid: !!paid, paidAt: paid ? paid.at : "" };
-  }).filter(Boolean).sort((a, b) => String(b.day).localeCompare(String(a.day)));
+    // paid already: by the sign-up itself, or (if the sign-up key changed since) by a payout that lists the same trip and slot
+    const paid = paidBy.get(j.key) || payPayouts(suggestions).filter((x) => !x.voided && x.teacherId === j.teacherId).find((x) => (x.lines || []).some((l) => l.title === (splitTitle(p.title)[0] || p.title) && (l.slot || "") === (slot ? slot.label : "") && (l.date || "") === (p.date || ""))) || null;
+    return { excluded: excluded.has(j.key), key: j.key, teacherId: j.teacherId, programId: j.programId, slotId: j.slotId || "", title: splitTitle(p.title)[0] || p.title, date: p.date || "", slotLabel: slot ? slot.label : "", day: lastDay(p) || "", hours, amount, source, needsAmount: source === "none", paid: !!paid, paidAt: paid ? paid.at : "" };
+  }).filter(Boolean).filter((it, i, all) => all.findIndex((o) => o.teacherId === it.teacherId && o.programId === it.programId && o.slotLabel === it.slotLabel && o.slotId === it.slotId) === i).sort((a, b) => String(b.day).localeCompare(String(a.day)));
 }
 
 /** Places HQ has used before (name, address, meeting point, short intro): typing the same place name fills them in. The latest save of a name wins. */
@@ -9299,7 +9308,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z127"; // change with every delivery
+const APP_BUILD = "2026-10-27-z128"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10999,7 +11008,7 @@ function PriorityPanel({ onSet }) {
   );
 }
 
-function TeacherDashboard({ onSetPriorities, onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -11698,7 +11707,7 @@ function TeacherDashboard({ onSetPriorities, onSetProgramLeaderNote, onSetProgra
           {payData && (
             <div className="px-5">
               <FoldBar title={tr("수당 정산")} defaultOpen={tab === "pay"}>
-                <PayPanel teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />
+                <PayPanel onExclude={onSetPayExclude || (() => {})} teachers={teachers} pay={payData} onSetRate={onSetPayRate || (() => {})} onSetAmount={onSetPayAmount || (() => {})} onSetTax={onSetPayTax || (() => {})} onPay={onPayTeacher || (() => {})} onVoid={onVoidPayout || (() => {})} />
               </FoldBar>
             </div>
           )}
@@ -12800,12 +12809,14 @@ function PayStatement({ teacherName, lines, taxOn, rate, date, onClose }) {
 }
 
 /** HQ: what each teacher has earned since the last payout. "정산 완료" empties it; camps and special trips are typed by hand. */
-function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVoid }) {
+function PayPanel({ onExclude, teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVoid }) {
   const [stmt, setStmt] = useState(null); // { teacherName, lines, taxOn, rate, date }
   const [rateText, setRateText] = useState("");
   const [edit, setEdit] = useState(null); // { scope, text }
   const [confirm, setConfirm] = useState(null); // { teacher, items }
   const [confirmVoid, setConfirmVoid] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null); // a pay line HQ wants to delete
+  const [showRemoved, setShowRemoved] = useState(false);
   const nameOf = (id) => ((teachers.find((t) => t.id === id) || {}).name) || "—";
   const unpaid = pay.items.filter((i) => !i.paid);
   const byTeacher = [...new Set(unpaid.map((i) => i.teacherId))].map((id) => ({ id, name: nameOf(id), items: unpaid.filter((i) => i.teacherId === id) })).sort((a, b) => a.name.localeCompare(b.name));
@@ -12879,7 +12890,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
                 return (
                   <div key={i.key} className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="f-body text-[15px] truncate" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
+                      <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
                       <p className="f-body text-[12px] text-gray-400">{[i.date, sourceNote(i)].filter(Boolean).join(" · ")}</p>
                       {!i.needsAmount && pay.taxOn && <p className="f-body text-[13px] font-bold" style={{ color: "#1F7A44" }} data-testid="hq-item-net">{tr("세후 {0} (세금 {1} 뺀 금액)", [won(payTax(i.amount, true).net), won(payTax(i.amount, true).tax)])}</p>}
                     </div>
@@ -12891,6 +12902,7 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
                     ) : (
                       <button onClick={() => setEdit({ scope: i.key, text: i.source === "manual" ? String(i.amount) : "" })} className="focus-ring tap shrink-0 f-body text-[14px] font-bold rounded-full px-3 py-1.5" style={{ background: C.cream, color: i.needsAmount ? "#B25A0B" : C.charcoal }}>{i.needsAmount ? tr("금액 입력") : `${won(i.amount)} ✎`}</button>
                     )}
+                    {!editing && <button onClick={() => setConfirmDel(i)} aria-label={tr("이 줄 삭제")} data-testid="pay-del" className="focus-ring tap shrink-0 rounded-full f-body text-[15px] font-bold" style={{ width: 36, height: 36, background: "#FBE9E6", color: "#B03A2E" }}>✕</button>}
                   </div>
                 );
               })}
@@ -12904,6 +12916,34 @@ function PayPanel({ teachers, pay, onSetRate, onSetAmount, onSetTax, onPay, onVo
         );
       })}
 
+      {confirmDel && (
+        <ConfirmDialog
+          title={tr("이 줄을 삭제할까요?")}
+          actions={[
+            { label: tr("삭제"), tone: "danger", onClick: () => { onExclude(confirmDel.key, true); setConfirmDel(null); } },
+            { label: tr("취소"), tone: "plain", onClick: () => setConfirmDel(null) },
+          ]}
+        >
+          {`${nameOf(confirmDel.teacherId)} · ${confirmDel.title}${confirmDel.slotLabel ? ` · ${confirmDel.slotLabel}` : ""}`}<br />{tr("정산 목록에서 빠져요. 아래 '삭제한 항목'에서 되돌릴 수 있어요.")}
+        </ConfirmDialog>
+      )}
+      {(pay.removed || []).length > 0 && (
+        <div className="bg-white rounded-2xl p-4" data-testid="pay-removed">
+          <button onClick={() => setShowRemoved((v) => !v)} aria-expanded={showRemoved} className="focus-ring tap w-full flex items-center justify-between f-body text-[15px] font-bold" style={{ color: "#8A8060" }}>
+            <span>{tr("삭제한 항목 {0}건", [pay.removed.length])}</span><span>{showRemoved ? "▴" : "▾"}</span>
+          </button>
+          {showRemoved && (
+            <div className="mt-2 space-y-1.5">
+              {pay.removed.map((i) => (
+                <div key={i.key} className="flex items-center justify-between gap-2">
+                  <p className="f-body text-[14px] min-w-0 truncate" style={{ color: C.charcoal }}>{nameOf(i.teacherId)} · {i.title}{i.slotLabel ? ` · ${i.slotLabel}` : ""}</p>
+                  <button onClick={() => onExclude(i.key, false)} className="focus-ring tap shrink-0 f-body text-[13px] font-bold rounded-full px-3 py-1.5" style={{ background: C.cream, color: C.green }}>{tr("되돌리기")}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {pay.payouts.filter((p) => !p.voided).length > 0 && (
         <div>
           <p className="f-display font-semibold text-[18px] mb-1.5" style={{ color: C.green }}>{tr("정산 내역")}</p>
@@ -13398,6 +13438,7 @@ function CarrotExplorer() {
   const setPayRate = (value) => savePaySetting({ key: "payRate", value });
   const setPayTax = (on) => savePaySetting({ key: "payTax", value: !!on });
   const setPayAmount = (scope, value) => savePaySetting({ key: "payAmount", scope, value });
+  const setPayExclude = (scope, value) => savePaySetting({ key: "payExclude", scope, value: !!value });
   const payTeacher = (teacherId, items, amount) => saveRow({ id: `pay-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "paid", id: `p${Date.now().toString(36)}`, teacherId, keys: items.map((i) => i.key), lines: items.map(lineOf), taxOn: payData.taxOn, rate: payData.rate, amount, at: new Date().toISOString() }) });
   const voidPayout = (id) => saveRow({ id: `payv-${Date.now()}`, type: PAY_TYPE, familyPin: "hq", resolved: false, message: JSON.stringify({ kind: "void", id, at: new Date().toISOString() }) });
   const rememberPlace = (p) => {
@@ -13864,7 +13905,8 @@ function CarrotExplorer() {
 
   const teachers = teacherAccounts(suggestions);
   const joins = teacherJoins(suggestions);
-  const payData = { ...paySettings(suggestions), items: teacherEarnings(suggestions, joins, undefined, adventures, teachers), payouts: payPayouts(suggestions) };
+  const allEarnings = teacherEarnings(suggestions, joins, undefined, adventures, teachers);
+  const payData = { ...paySettings(suggestions), items: allEarnings.filter((i) => !i.excluded), removed: allEarnings.filter((i) => i.excluded), payouts: payPayouts(suggestions) };
   const teacherApps = teacherApplications(suggestions, teachers);
   const legacyPin = currentGuidePin(suggestions);
   // a teacher whose account HQ turns off is signed out at the next refresh
@@ -14000,6 +14042,7 @@ function CarrotExplorer() {
               payData={payData}
               onSetPayRate={setPayRate}
               onSetPayAmount={setPayAmount}
+              onSetPayExclude={setPayExclude}
               onSetPayTax={setPayTax}
               onPayTeacher={payTeacher}
               onVoidPayout={voidPayout}

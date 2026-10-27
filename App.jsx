@@ -568,6 +568,7 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"본사 확인 {0}명": "HQ review {0}",
 "이 줄 삭제": "Delete this line",
 "이 줄을 삭제할까요?": "Delete this line?",
 "정산 목록에서 빠져요. 아래 '삭제한 항목'에서 되돌릴 수 있어요.": "It leaves the pay list. You can bring it back under 'Deleted lines' below.",
@@ -4299,7 +4300,7 @@ function teacherEarnings(suggestions, joins, now, adventures = [], teachers = []
     if (teamsOf(p).length > 0 && (!myTeamIds.length || kids.length === 0)) return null;
     // counted after the trip day, or on the day itself once the feedback of the children who came is all sent
     if (!tripDayPassed(p, now) && !(hasDate(p) && todayKst(now) >= lastDay(p) && kids.some((a) => a.attended))) return null;
-    if (kids.some((a) => a.attended && !feedbackDone(a))) return null; // counted once the feedback is submitted
+    if (kids.some((a) => a.attended && !feedbackSent(a))) return null; // counted only once every report has been sent to the parents (HQ approved)
     const slot = sessionsOf(p).find((x) => x.id === j.slotId) || null;
     const hours = parseHours(infoForSession(infoFrom(p), slot).time);
     let amount = 0;
@@ -9308,7 +9309,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z128"; // change with every delivery
+const APP_BUILD = "2026-10-27-z129"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12562,7 +12563,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
       {header}
       <div className="pt-4" />
 
-      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const left = past ? myKids(p, j.slotId || "").filter((a) => a.attended && !feedbackDone(a)).length : 0; const wait = past ? [left > 0 ? tr("피드백 {0}명", [left]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
+      {tab === "pay" && teacherId && <MyPay expected={PROGRAMS.filter((p) => p.published !== false && (upcoming.some((u) => u.id === p.id) || recentlyRun(p))).flatMap((p) => mySignups.filter((j) => j.programId === p.id && j.status === "approved" && teamSet(p, j.slotId || "") && !payItems.some((i) => i.key === j.key)).map((j) => { const sl = sessionsOf(p).find((x) => x.id === j.slotId) || null; const past = recentlyRun(p); const mk = past ? myKids(p, j.slotId || "").filter((a) => a.attended) : []; const left = mk.filter((a) => !feedbackDone(a)).length; const hold = mk.filter((a) => feedbackDone(a) && !feedbackSent(a)).length; const wait = past ? [left > 0 ? tr("피드백 {0}명", [left]) : "", hold > 0 ? tr("본사 확인 {0}명", [hold]) : ""].filter(Boolean) : []; return { key: `${p.id}|${j.slotId || ""}`, title: shortTitle(p), slotLabel: sl ? sl.label : "", date: p.date || "", amount: payPreview(p, j.slotId), wait }; }))} items={payItems} payouts={payouts} taxOn={payInfo.taxOn !== false} rate={payInfo.rate} name={name} />}
 
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">

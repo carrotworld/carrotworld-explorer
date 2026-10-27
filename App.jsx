@@ -970,6 +970,12 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+  "✓ 마무리 완료": "✓ All done",
+  "남은 아이 {0}명 · 마무리 {1}명": "{0} left · {1} done",
+  "✓ 마무리된 아이 {0}명": "✓ {0} children finished",
+  "✓ 마무리 · 피드백 완료": "✓ Done · feedback sent",
+  "● 본사 확인 대기": "● Waiting for HQ",
+  "○ 피드백 작성 전": "○ Feedback not written",
   "📌 리더 특이사항": "📌 Notes for leaders",
   "신청할 때 리더에게 보여요. 부모님께는 안 보여요. 없으면 비워 두세요.": "Leaders see this when they sign up. Parents do not. Leave blank if none.",
   "리더 특이사항": "Notes for leaders",
@@ -2258,8 +2264,9 @@ function PracticeBoxes({ word, count, onChange }) {
 }
 
 /* ---- Word sound -------------------------------------------------------------------------------------------------
- * The voice is made inside the app (public/speech.js, a small speech engine) and played as a plain <audio>, so it does not depend on the
- * phone's own voices, the silent switch or the browser. The file loads the first time a word card is shown/tapped. Fallback: the phone's voice. */
+ * 1) A natural English voice made on the server (/api/tts, Cloudflare Workers AI) and played as a plain <audio>: it does not depend on the
+ *    phone's own voices, the silent switch or the browser, and every word is made once and then cached.
+ * 2) If that is not reachable: the small voice engine inside the app (public/speech.js) if it is there, then the phone's own voice. */
 let SPEECH_LOAD = null;
 const loadSpeechEngine = () => {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
@@ -2276,37 +2283,42 @@ const loadSpeechEngine = () => {
   }
   return SPEECH_LOAD;
 };
+const ttsUrl = (text) => `/api/tts?w=${encodeURIComponent(String(text).trim().toLowerCase())}`;
 const SPEECH_URLS = new Map();
 let SPEECH_AUDIO = null;
-// a tiny silent clip: playing it inside the tap unlocks the audio element for the sound that follows a moment later
-const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 function speakWord(word) {
   const text = String(word || "").trim();
   if (!text || typeof window === "undefined") return;
-  try {
-    if (!SPEECH_AUDIO) SPEECH_AUDIO = new Audio();
-    SPEECH_AUDIO.src = SILENT_WAV;
-    const p0 = SPEECH_AUDIO.play();
-    if (p0 && p0.catch) p0.catch(() => {});
-  } catch (e) { /* ignore */ }
+  let finished = false;
   const phoneVoice = () => {
     try {
       const ss = window.speechSynthesis; if (!ss) return;
       ss.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = 0.85; ss.speak(u);
     } catch (e) { /* no voice */ }
   };
-  loadSpeechEngine().then(() => {
-    let url = SPEECH_URLS.get(text.toLowerCase());
-    if (!url) {
-      const wav = window.cwSpeechWav(text);
-      if (!wav || !wav.length) throw new Error("no sound made");
-      url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
-      SPEECH_URLS.set(text.toLowerCase(), url);
-    }
-    SPEECH_AUDIO.src = url;
+  const localEngine = () => {
+    if (finished) return; finished = true;
+    loadSpeechEngine().then(() => {
+      let url = SPEECH_URLS.get(text.toLowerCase());
+      if (!url) {
+        const wav = window.cwSpeechWav(text);
+        if (!wav || !wav.length) throw new Error("no sound made");
+        url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
+        SPEECH_URLS.set(text.toLowerCase(), url);
+      }
+      SPEECH_AUDIO.onerror = null;
+      SPEECH_AUDIO.src = url;
+      const p = SPEECH_AUDIO.play();
+      if (p && p.catch) p.catch(phoneVoice);
+    }).catch(phoneVoice);
+  };
+  try {
+    if (!SPEECH_AUDIO) SPEECH_AUDIO = new Audio();
+    SPEECH_AUDIO.onerror = localEngine;
+    SPEECH_AUDIO.src = ttsUrl(text); // set and played right inside the tap, so every phone allows it
     const p = SPEECH_AUDIO.play();
-    if (p && p.catch) p.catch(phoneVoice);
-  }).catch(phoneVoice);
+    if (p && p.catch) p.catch((e) => { if (e && e.name === "NotAllowedError") phoneVoice(); else localEngine(); });
+  } catch (e) { localEngine(); }
 }
 function SpeakButton({ word, size = 44 }) {
   return (
@@ -2321,7 +2333,7 @@ function SpeakButton({ word, size = 44 }) {
 }
 
 function VocabularyCard({ v, onTap, checks, onCheck }) {
-  useEffect(() => { loadSpeechEngine().catch(() => {}); }, []);
+  useEffect(() => { try { fetch(ttsUrl(v.en)).catch(() => {}); } catch (e) { /* warm the cache so the first tap is fast */ } }, [v.en]);
   return (
     <div className="bg-white rounded-2xl p-4 text-left">
       <div className="flex items-start justify-between">
@@ -5991,8 +6003,18 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
     setEditing(false);
   };
 
+  // where this child stands: finished (feedback sent and approved), waiting for HQ, or not written yet
+  const wrapUp = limited ? (feedbackDone(adv) ? "done" : adv.attended ? "todo" : "") : feedbackSent(adv) ? "done" : feedbackDone(adv) ? "check" : adv.attended ? "todo" : "";
+  const WRAP = {
+    done: { bg: "#F1FAF4", bar: "#2E9E5B", chipBg: "#DCF3E4", chip: "#1F7A44", label: tr("✓ 마무리 완료") },
+    check: { bg: "#FFFBF2", bar: C.orange, chipBg: "#FFE9D2", chip: "#B25A0B", label: tr("● 본사 확인 대기") },
+    todo: { bg: "#FFFFFF", bar: "#D8CEB8", chipBg: "#F3EEE3", chip: "#8A8060", label: tr("○ 피드백 작성 전") },
+  }[wrapUp];
   return (
-    <div className="bg-white rounded-2xl overflow-hidden">
+    <div className="rounded-2xl overflow-hidden" data-testid="student-card" data-wrap={wrapUp || "none"} style={{ background: WRAP ? WRAP.bg : "white", border: wrapUp === "done" ? `2px solid ${WRAP.bar}` : undefined, borderLeft: `6px solid ${WRAP ? WRAP.bar : "transparent"}` }}>
+      {wrapUp === "done"
+        ? <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white flex items-center gap-2" style={{ background: WRAP.bar }} data-testid="wrap-chip">{WRAP.label}</div>
+        : WRAP && <div className="px-3 pt-2.5"><span className="inline-block f-body text-[13px] font-bold rounded-full px-3 py-1" style={{ background: WRAP.chipBg, color: WRAP.chip }} data-testid="wrap-chip">{WRAP.label}</span></div>}
       <div className="flex items-center gap-3 p-3">
         <span className="text-[27px]">{student.avatar}</span>
         <div className="flex-1 min-w-0">
@@ -9193,7 +9215,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-26-z107"; // change with every delivery
+const APP_BUILD = "2026-10-27-z113"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11349,23 +11371,36 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
                 </div>
               </div>
           <div className="px-5 space-y-3">
-            {roster.slice().sort((x, y) => Number(!!(x.adv.attended && feedbackDone(x.adv))) - Number(!!(y.adv.attended && feedbackDone(y.adv))) || byKoName(x.student.name, y.student.name)).map(({ student, adv }) => (
+            {(() => {
+              const isDone = (r) => !!(r.adv.attended && feedbackDone(r.adv));
+              const sorted = roster.slice().sort((x, y) => Number(isDone(x)) - Number(isDone(y)) || byKoName(x.student.name, y.student.name));
+              const doneN = sorted.filter(isDone).length;
+              const firstDone = sorted.findIndex(isDone);
+              return (
+                <>
+                  {roster.length > 0 && <p className="f-display text-[16px] font-bold" style={{ color: C.charcoal }} data-testid="wrap-summary">{tr("남은 아이 {0}명 · 마무리 {1}명", [roster.length - doneN, doneN])}</p>}
+                  {sorted.map(({ student, adv }, idx) => (
+                    <React.Fragment key={student.id}>
+                      {doneN > 0 && idx === firstDone && <div className="rounded-xl px-4 py-2 f-display text-[16px] font-bold text-white" style={{ background: "#2E9E5B" }} data-testid="done-divider">{tr("✓ 마무리된 아이 {0}명", [doneN])}</div>}
               <TeacherStudentCard
-                key={student.id}
-                student={student}
-                allStudents={students}
-                adv={adv}
-                program={program}
-                programTitle={program.title}
-                onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
-                adventures={adventures}
-                participationCount={attendedCount(adventures, student.id)}
-                onUpdate={(patch) => updateAdventure(student.id, programId, patch)}
-                onOpenToday={() => onSetProgramToday(programId, true)}
-                onEditStudent={(patch) => onEditStudent(student.id, patch)}
-                onDeleteStudent={() => onDeleteStudent(student.id)}
-              />
-            ))}
+                                    student={student}
+                    allStudents={students}
+                    adv={adv}
+                    program={program}
+                    programTitle={program.title}
+                    onCancelEnrollment={onCancelEnrollment ? () => onCancelEnrollment(student.id, programId) : undefined}
+                    adventures={adventures}
+                    participationCount={attendedCount(adventures, student.id)}
+                    onUpdate={(patch) => updateAdventure(student.id, programId, patch)}
+                    onOpenToday={() => onSetProgramToday(programId, true)}
+                    onEditStudent={(patch) => onEditStudent(student.id, patch)}
+                    onDeleteStudent={() => onDeleteStudent(student.id)}
+                  />
+                    </React.Fragment>
+                  ))}
+                </>
+              );
+            })()}
 
             {canceledHere.length > 0 && (
               <div className="bg-white rounded-2xl p-4">
@@ -11714,8 +11749,8 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
                 </button>
               ))}
             </div>
-            <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-2" style={{ color: C.orange }}>
-              처음이신가요? 자녀 등록하기
+            <button onClick={() => setStep("register")} className="focus-ring tap w-full rounded-2xl f-display text-[17px] font-bold flex items-center justify-center gap-2" style={{ minHeight: 56, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }} data-testid="signup-parent-home">
+              ✨ 처음이세요? 가입하기 <ChevronRight size={18} />
             </button>
           </>
         )}
@@ -11728,22 +11763,23 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
             <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>
               Enter PIN
             </h1>
-            <p className="f-body text-[17px] text-gray-500 text-center mb-8">
+            <p className="f-body text-[17px] text-gray-500 text-center mb-4">
               {role === "parent" ? "로그인 번호 4자리" : role === "guide" ? "Teacher access" : "HQ access"}
             </p>
-            <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null, pin: role === "guide" ? pin : undefined })} />
-            {pinLocked && <p role="alert" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
-            {waitingForHq && <p role="status" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: C.orange }} data-testid="teacher-waiting">Your sign-up is waiting for HQ. You can log in once it is accepted.</p>}
             {role === "parent" && (
-              <button onClick={() => setStep("register")} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }}>
-                처음이신가요? 자녀 등록하기
+              <button onClick={() => setStep("register")} className="focus-ring tap w-full rounded-2xl f-display text-[17px] font-bold flex items-center justify-center gap-2" style={{ minHeight: 56, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }} data-testid="signup-parent">
+                ✨ 처음이세요? 가입하기 <ChevronRight size={18} />
               </button>
             )}
             {role === "guide" && onTeacherApply && (
-              <button onClick={() => { setTSent(false); setTError(""); setStep("teacherjoin"); }} className="focus-ring tap w-full text-center f-body text-[15px] font-bold py-4" style={{ color: C.orange }} data-testid="teacher-join-link">
-                First time? Ask to join as a teacher
+              <button onClick={() => { setTSent(false); setTError(""); setStep("teacherjoin"); }} className="focus-ring tap w-full rounded-2xl f-display text-[17px] font-bold flex items-center justify-center gap-2" style={{ minHeight: 56, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }} data-testid="teacher-join-link">
+                ✨ First time? Sign up <ChevronRight size={18} />
               </button>
             )}
+            <div className="mb-5" />
+            <PinPad validate={validate} onSuccess={(pin) => onLogin({ role, familyPin: role === "parent" ? pin : null, pin: role === "guide" ? pin : undefined })} />
+            {pinLocked && <p role="alert" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: "#C0392B" }}>{LOCKED_MSG}</p>}
+            {waitingForHq && <p role="status" className="text-center f-body text-[15px] mt-3 font-bold" style={{ color: C.orange }} data-testid="teacher-waiting">Your sign-up is waiting for HQ. You can log in once it is accepted.</p>}
           </>
         )}
 
@@ -11752,7 +11788,7 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
             <button onClick={() => setStep("pin")} className="focus-ring tap flex items-center gap-1.5 mb-6 f-body text-[17px] font-bold" style={{ color: C.green }}>
               <ArrowLeft size={16} /> Back
             </button>
-            <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>Join as a teacher</h1>
+            <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>Sign up</h1>
             {tSent ? (
               <div className="bg-white rounded-2xl p-5 text-center mt-4" data-testid="teacher-join-sent">
                 <p className="f-display text-[18px] font-semibold mb-1" style={{ color: C.green }}>Request sent ✓</p>
@@ -11772,7 +11808,7 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
                   className="focus-ring tap w-full rounded-xl py-3 f-display text-[17px] font-semibold text-white disabled:opacity-60"
                   style={{ background: C.orange }}
                   data-testid="teacher-join-send"
-                >{tBusy ? "Sending…" : "Send request"}</button>
+                >{tBusy ? "Sending…" : "Send sign-up request"}</button>
               </>
             )}
           </>
@@ -11784,10 +11820,10 @@ function LoginScreen({ students, teachers = [], teacherApps = [], onTeacherApply
               <ArrowLeft size={16} /> Back
             </button>
             <h1 className="f-display text-[23px] font-semibold text-center mb-1" style={{ color: C.green }}>
-              자녀 등록
+              가입하기
             </h1>
             <p className="f-body text-[17px] text-gray-500 text-center mb-6">
-              등록하면 바로 로그인돼요
+              아이 이름과 번호만 쓰면 바로 시작해요
             </p>
             <RegisterStudentPanel mode="parent" students={students} onLookupPin={onLookupPin} onLookupPhone={onLookupPhone} onRegister={onSelfRegister} />
           </>

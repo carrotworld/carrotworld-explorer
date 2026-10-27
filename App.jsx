@@ -1103,6 +1103,17 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+"일정표 보기": "View schedule",
+"테마 아이콘 · 장소 사진 · 일정표 · 시간대": "Theme icon · place photo · schedule · time slots",
+"일정표": "Schedule",
+"부모님용 일정표 (캠프 등)": "Schedule for parents (camps etc.)",
+"올리면 부모님 화면에 '일정표 보기' 버튼이 생겨요.": "Once uploaded, parents see a 'View schedule' button.",
+"리더용 일정표 (캠프 등)": "Schedule for leaders (camps etc.)",
+"올리면 리더 화면에만 '일정표 보기' 버튼이 생겨요. 준비물 같은 내용을 넣을 수 있어요.": "Once uploaded, only leaders see a 'View schedule' button. You can include materials and notes.",
+"올리는 중…": "Uploading…",
+"이미지 바꾸기": "Replace image",
+"이미지 올리기": "Upload image",
+"이미지를 읽지 못했어요. 다른 파일로 해 보세요.": "Could not read the image. Try another file.",
 "체험 신청 ": "Trip sign-ups: ",
 "등록한 아이": "Children registered",
 "체험 신청": "Trip sign-ups",
@@ -4577,6 +4588,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     {liked ? "♥" : "♡"}
                   </button>
                 </div>
+                <ScheduleButton program={p} className="mt-2.5" />
                 {open && (
                   <div className="mt-2 pl-3.5">
                     {p.themeKo && <p className="f-body text-[14px]" style={{ color: C.charcoal }}>{p.themeKo}</p>}
@@ -5435,6 +5447,7 @@ function GuideLinks({ program, adv, onInfo }) {
   const cls = "focus-ring tap f-body text-[14px] font-semibold flex items-center";
   return (
     <>
+    <ScheduleButton program={program} className="mt-3" />
     {!agreed && (
       <button onClick={() => onInfo(program.id, sid, true)} data-testid="safety-link" className="focus-ring tap w-full mt-3 flex items-center justify-between gap-3 rounded-2xl px-4 text-left" style={{ minHeight: 64, background: "#FFF1E2", border: `2px solid ${C.orange}`, color: "#B25A0B" }}>
         <span><span className="block f-display text-[19px] font-bold">🛡️ 안전수칙 동의하기</span><span className="block f-body text-[13px]">한 번만 하면 돼요</span></span>
@@ -8187,6 +8200,8 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
   const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
+  const [scheduleImage, setScheduleImage] = useState(initial?.scheduleImage || ""); // the camp timetable picture for parents
+  const [leaderScheduleImage, setLeaderScheduleImage] = useState(initial?.leaderScheduleImage || ""); // the one for leaders (with materials and notes)
   const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null); // the one place photo shown on the home cards
   const [photoMsg, setPhotoMsg] = useState("");
   const [materials, setMaterials] = useState(() => materialsFrom(initial));
@@ -8317,7 +8332,7 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
       onSave({ ...shared, levelMaterials });
       return;
     }
-    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0] || "", icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, published, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0] || "", icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, scheduleImage, leaderScheduleImage, published, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (onRememberPlace && location.trim() && (noticeInfo.venue || "").trim()) onRememberPlace({ name: location.trim(), venue: noticeInfo.venue.trim(), meetingPoint: (noticeInfo.meetingPoint || "").trim(), intro: themeKo.trim() });
     if (isEdit) {
       onSave(info);
@@ -8471,7 +8486,7 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
       >
         <span className="text-left min-w-0">
           <span className="block f-body text-[15px] font-bold" style={{ color: C.green }}>{tr("추가 설정")}</span>
-          <span className="block f-body text-[13px] text-gray-500">{tr("테마 아이콘 · 장소 사진 · 시간대")}</span>
+          <span className="block f-body text-[13px] text-gray-500">{tr("테마 아이콘 · 장소 사진 · 일정표 · 시간대")}</span>
         </span>
         <span className="shrink-0 whitespace-nowrap f-body text-[15px] font-bold ml-2" style={{ color: C.green }}>{showMore ? tr("접기 ▴") : tr("펼치기 ▾")}</span>
       </button>
@@ -8516,6 +8531,10 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
         </div>
         {photoMsg && <p className="f-body text-[13px] mt-1.5" style={{ color: "#B25A0B" }}>{photoMsg}</p>}
         <p className="f-body text-[12px] text-gray-400 mt-1.5">{tr("사진은 작게 줄여서 저장돼요. 저장해야 반영돼요.")}</p>
+      </div>
+      <div className="mb-3 space-y-2.5">
+        <ScheduleImageField id="schedule" title={tr("부모님용 일정표 (캠프 등)")} hint={tr("올리면 부모님 화면에 '일정표 보기' 버튼이 생겨요.")} value={scheduleImage} onSave={setScheduleImage} />
+        <ScheduleImageField id="leader-schedule" title={tr("리더용 일정표 (캠프 등)")} hint={tr("올리면 리더 화면에만 '일정표 보기' 버튼이 생겨요. 준비물 같은 내용을 넣을 수 있어요.")} value={leaderScheduleImage} onSave={setLeaderScheduleImage} />
       </div>
 
 
@@ -9363,7 +9382,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z156"; // change with every delivery
+const APP_BUILD = "2026-10-28-z158"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9996,6 +10015,7 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
       </div>
       <p className="f-body text-[14px] text-gray-500" data-testid="my-teams-when">{[program.date, slot && slot.label, time].filter(Boolean).join(" · ")}</p>
       {program.leaderNote && <div className="mt-2"><LeaderNote text={program.leaderNote} /></div>}
+      <ScheduleButton program={program} kind="leader" className="mt-2" />
       {program.teamsDone && <p className="f-body text-[13px] font-bold mt-2" style={{ color: "#1F7A44" }} data-testid="teams-done-notice">🔔 {tr("본사에서 팀 세팅을 마쳤어요. 내 팀과 아이들을 확인해 주세요.")}</p>}
       <div className="flex items-center justify-between mt-3 mb-1.5"><p className="f-body text-[12px] font-bold tracking-[0.08em] uppercase" style={{ color: C.orange }}>{tr("내 담당 팀")}</p>{canMark && kidsN > 0 && <p className="f-body text-[13px] font-bold" style={{ color: markedN === kidsN ? "#1F7A44" : "#8A8060" }} data-testid="mark-count">{tr("출석 {0}/{1}", [markedN, kidsN])}</p>}</div>
       {mine.length === 0 ? (
@@ -12544,6 +12564,56 @@ function LangToggle({ lang, onChange }) {
 
 /** A small question before a teacher signs up: an optional note for HQ. */
 /** HQ writes what the leaders should know before they sign up (shown to leaders, never to parents). */
+/** The camp's timetable picture: a button that opens it full screen (parents, leaders), and the HQ field to upload it. */
+function ScheduleViewer({ src, onClose }) {
+  useBack(() => { onClose(); return true; }, 10);
+  return (
+    <div className="fixed inset-0 z-50 overflow-auto" style={{ background: "rgba(20,28,24,0.97)" }} role="dialog" aria-modal="true" aria-label={tr("일정표 보기")} data-testid="schedule-viewer" onClick={onClose}>
+      <div className="sticky top-0 flex justify-end p-3" style={{ zIndex: 1 }}>
+        <button onClick={onClose} className="focus-ring tap f-body text-[15px] font-bold rounded-full px-4 py-2" style={{ background: "white", color: C.green, minHeight: 44 }}>{tr("닫기")}</button>
+      </div>
+      <img src={src} alt={tr("일정표")} className="w-full max-w-lg mx-auto block px-3 pb-8" style={{ touchAction: "pinch-zoom pan-y pan-x" }} />
+    </div>
+  );
+}
+function ScheduleButton({ program, kind = "parent", className = "mt-2" }) {
+  const [open, setOpen] = useState(false);
+  const src = program && (kind === "leader" ? program.leaderScheduleImage : program.scheduleImage);
+  if (!src) return null;
+  return (
+    <div className={className}>
+      <button onClick={() => setOpen(true)} data-testid="schedule-open" className="focus-ring tap w-full f-display text-[16px] font-semibold rounded-xl py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B", border: `1.5px solid ${C.orange}`, minHeight: 46 }}>📅 {tr("일정표 보기")}</button>
+      {open && <ScheduleViewer src={src} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+function ScheduleImageField({ value, onSave, title, hint, id = "schedule" }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="rounded-xl p-3" style={{ background: "#FFF8EC", border: `1px solid ${C.beige}` }} data-testid={`${id}-editor`}>
+      <p className="f-body text-[15px] font-bold" style={{ color: C.charcoal }}>{title}</p>
+      <p className="f-body text-[13px] text-gray-500 mt-0.5">{hint}</p>
+      {value && <img src={value} alt="" className="w-full max-h-64 object-contain rounded-lg mt-2" style={{ background: "white" }} />}
+      <div className="flex gap-2 mt-2">
+        <label className="focus-ring tap flex-1 text-center f-body text-[14px] font-bold rounded-xl py-2.5 cursor-pointer" style={{ background: "white", border: `1px solid ${C.beige}`, color: C.green, opacity: busy ? 0.5 : 1 }}>
+          {busy ? tr("올리는 중…") : value ? tr("이미지 바꾸기") : tr("이미지 올리기")}
+          <input type="file" accept="image/*" className="hidden" data-testid={`${id}-input`} onChange={async (e) => {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = "";
+            if (!f) return;
+            setBusy(true); setMsg("");
+            try { onSave(await shrinkPhoto(f, 1400, 0.8)); } catch (err) { setMsg(tr("이미지를 읽지 못했어요. 다른 파일로 해 보세요.")); }
+            setBusy(false);
+          }} />
+        </label>
+        {value && <button onClick={() => onSave("")} className="focus-ring tap f-body text-[14px] font-bold rounded-xl px-4 py-2.5" style={{ background: "white", border: `1px solid ${C.beige}`, color: "#9C927D" }}>{tr("빼기")}</button>}
+      </div>
+      {msg && <p className="f-body text-[13px] mt-1.5" style={{ color: "#B25A0B" }}>{msg}</p>}
+    </div>
+  );
+}
+
 function LeaderNoteField({ value, onSave }) {
   const [text, setText] = useState(value || "");
   const [saved, setSaved] = useState(false);
@@ -12715,6 +12785,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
               <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && !tripDayPassed(p) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>
               <LeaderNote text={p.leaderNote} />
+              <ScheduleButton program={p} kind="leader" className="mb-2" />
               <div className="space-y-2">
                 {openSlots(p).map((x) => {
                   const j = stateOf(p.id, x.id);
@@ -12776,6 +12847,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                 <p>{nextP.locationKo || nextP.location}</p>
                 {nextLevels.length > 0 && <p>{tr("담당 레벨")} {nextLevels.join(" · ")}</p>}
               </div>
+              <ScheduleButton program={nextP} kind="leader" className="mt-3" />
               <div className="flex flex-wrap gap-1.5 mt-3">
                 <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: nextReady ? "#EAF7EF" : "#FFF1E2", color: nextReady ? "#1F7A44" : "#B25A0B" }}>{nextReady ? tr("자료 준비됨") : tr("자료 준비 중")}</span>
               </div>
@@ -13844,7 +13916,7 @@ function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
+  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
     const dm = defaultMaterials();
     const iconInfo = themeChoice(icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -13867,6 +13939,8 @@ function CarrotExplorer() {
       icon,
       icons,
       coverPhoto: coverPhoto || null,
+      scheduleImage: scheduleImage || "",
+      leaderScheduleImage: leaderScheduleImage || "",
       levelMaterials: levelMaterials || null,
       prepMaterials: prepMaterials || {},
       objective: objective || null,
@@ -13889,7 +13963,7 @@ function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
+  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
     const iconInfo = themeChoice(icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -13909,6 +13983,8 @@ function CarrotExplorer() {
       dateReached: !!dateReached,
       coverPhoto: coverPhoto || null,
     };
+    if (scheduleImage !== undefined) patch.scheduleImage = scheduleImage || "";
+    if (leaderScheduleImage !== undefined) patch.leaderScheduleImage = leaderScheduleImage || "";
     if (startDate !== undefined) patch.startDate = startDate || "";
     if (endDate !== undefined) patch.endDate = endDate || "";
     if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;

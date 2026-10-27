@@ -970,6 +970,15 @@ const EN = {
 "달력에서 고르기": "Pick from the calendar",
 "정하면 오늘 진행, 복습, 안내 공개가 날짜에 맞춰 저절로 바뀌어요.": "Once it is set, Live today, the review and the notice change by themselves with the date.",
 "팀 자동 만들기": "Make teams automatically",
+"순서 정리 닫기": "Close ordering",
+"↕ 급한 순서로 정리됨": "↕ Ordered by urgency",
+"↕ 급한 순서로 정리": "↕ Order by urgency",
+"위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌어요. 끝난 프로그램은 알아서 맨 뒤로 가요.": "Higher means more urgent. Moving a program changes the list and the chips right away. Finished programs go to the end by themselves.",
+"정리할 프로그램이 없어요.": "No programs to arrange.",
+"맨 위로": "To top",
+"위로": "Up",
+"아래로": "Down",
+"날짜 순서로 되돌리기": "Back to date order",
 "부모님이 앱에서 신청한 아이예요. 결제를 안내하고, 결제가 끝나면 버튼을 눌러 프로그램에 추가하세요.": "Children whose parents applied in the app. Send the payment guide, then tap once payment is done to add them to the program.",
 "💳 결제 안내를 보내 주세요": "💳 Please send the payment guide",
 "결제 완료 · {0} 추가": "Paid · add to {0}",
@@ -1584,8 +1593,10 @@ const programsOrdered = (list = PROGRAMS) => {
   const today = todayKst();
   const past = (p) => hasDate(p) && lastDay(p) < today;
   const idx = new Map(list.map((p, i) => [p.id, i]));
-  const rank = (p) => (past(p) ? 2 : hasDate(p) ? 0 : 1);
-  return [...list].sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? String(a.startDate).localeCompare(String(b.startDate)) : rank(a) === 2 ? String(lastDay(b)).localeCompare(String(lastDay(a))) : 0) || idx.get(a.id) - idx.get(b.id));
+  // HQ can put urgent programs first by hand (`priority` 1, 2, 3...); those come before the date order, finished ones stay last
+  const pri = (p) => (Number(p.priority) > 0 ? Number(p.priority) : 0);
+  const rank = (p) => (past(p) ? 2 : pri(p) ? -1 : hasDate(p) ? 0 : 1);
+  return [...list].sort((a, b) => rank(a) - rank(b) || (rank(a) === -1 ? pri(a) - pri(b) : 0) || (rank(a) === 0 ? String(a.startDate).localeCompare(String(b.startDate)) : rank(a) === 2 ? String(lastDay(b)).localeCompare(String(lastDay(a))) : 0) || idx.get(a.id) - idx.get(b.id));
 };
 const lastDay = (p) => (p && YMD.test(p.endDate || "") && p.endDate >= p.startDate ? p.endDate : p.startDate);
 /** Reads a date written by hand ("10월 24일", "10월24", "10월 24~25일", "10/24") and returns { start, end } as YYYY-MM-DD, or null.
@@ -9305,7 +9316,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z119"; // change with every delivery
+const APP_BUILD = "2026-10-27-z120"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10962,7 +10973,47 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
   );
 }
 
-function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+/** HQ puts the urgent programs first by hand (▲ ▼). Programs that are over stay at the end on their own. */
+function PriorityPanel({ onSet }) {
+  const [open, setOpen] = useState(false);
+  const list = programsOrdered().filter((p) => !(hasDate(p) && lastDay(p) < todayKst()));
+  const manual = list.some((p) => Number(p.priority) > 0);
+  const move = (i, to) => {
+    if (to < 0 || to >= list.length) return;
+    const ids = list.map((p) => p.id);
+    const [x] = ids.splice(i, 1);
+    ids.splice(to, 0, x);
+    onSet(ids);
+  };
+  const btn = { minHeight: 44, minWidth: 44 };
+  return (
+    <div className="mb-3" data-testid="priority-panel">
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="priority-toggle" className="focus-ring tap f-body text-[14px] font-bold rounded-full px-4" style={{ minHeight: 40, background: open || manual ? C.green : C.beige, color: open || manual ? "white" : C.green }}>
+        {open ? tr("순서 정리 닫기") : manual ? tr("↕ 급한 순서로 정리됨") : tr("↕ 급한 순서로 정리")}
+      </button>
+      {open && (
+        <div className="bg-white rounded-2xl p-3 mt-2 space-y-1.5">
+          <p className="f-body text-[13px] text-gray-500 px-1 pb-1">{tr("위에 있을수록 급한 프로그램이에요. 화살표로 옮기면 목록과 칩 순서가 바로 바뀌어요. 끝난 프로그램은 알아서 맨 뒤로 가요.")}</p>
+          {list.length === 0 && <p className="f-body text-[14px] text-gray-400 px-1">{tr("정리할 프로그램이 없어요.")}</p>}
+          {list.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-2 rounded-xl px-2.5 py-1.5" style={{ background: C.cream }} data-testid="priority-row">
+              <span className="f-display text-[16px] font-bold w-6 text-center" style={{ color: "#B25A0B" }}>{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="f-body text-[15px] font-bold truncate" style={{ color: C.charcoal }}>{splitTitle(p.title)[0] || p.title}</p>
+                <p className="f-body text-[12px] text-gray-500 truncate">{p.date}</p>
+              </div>
+              <button onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={tr("위로")} data-testid="priority-up" className="focus-ring tap rounded-full text-[18px]" style={{ ...btn, background: "white", color: i === 0 ? "#D9CDB4" : C.green }}>▲</button>
+              <button onClick={() => move(i, i + 1)} disabled={i === list.length - 1} aria-label={tr("아래로")} className="focus-ring tap rounded-full text-[18px]" style={{ ...btn, background: "white", color: i === list.length - 1 ? "#D9CDB4" : C.green }}>▼</button>
+            </div>
+          ))}
+          {manual && <button onClick={() => onSet([])} data-testid="priority-reset" className="focus-ring tap w-full f-body text-[14px] font-bold rounded-xl mt-1" style={{ minHeight: 44, color: "#8A8060", background: C.cream }}>{tr("날짜 순서로 되돌리기")}</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherDashboard({ onSetPriorities, onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -11581,6 +11632,7 @@ function TeacherDashboard({ onSetProgramLeaderNote, onSetProgramPrivate, onAddLe
             <RegisterProgramPanel onRegister={async (...a) => { const r = await onRegisterProgram(...a); setOpenNew(false); return r; }} onDirtyChange={setDirtyNew} apiRef={newApi} places={places} onRememberPlace={onRememberPlace} />
           </div>
           <SectionBar>{tr("등록된 프로그램")}</SectionBar>
+          {onSetPriorities && <PriorityPanel onSet={onSetPriorities} />}
           {programsOrdered().map((p) =>
             editingProgramId === p.id ? (
               <RegisterProgramPanel
@@ -13794,6 +13846,17 @@ function CarrotExplorer() {
     rerender((v) => v + 1);
     sync(api.updateProgram(programId, { leaderNote }));
   };
+  // HQ's own order for urgent programs: ids in the order they should appear (empty = back to the automatic date order)
+  const setProgramPriorities = (ids) => {
+    const order = new Map(ids.map((id, i) => [id, i + 1]));
+    PROGRAMS.forEach((p, idx) => {
+      const next = order.get(p.id) || 0;
+      if ((Number(p.priority) || 0) === next) return;
+      PROGRAMS[idx] = { ...p, priority: next };
+      sync(api.updateProgram(p.id, { priority: next }));
+    });
+    rerender((v) => v + 1);
+  };
   const setProgramRecruit = (programId, closed) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -13946,6 +14009,7 @@ function CarrotExplorer() {
               onAddLeader={addLeaderJoin}
               onSetProgramPrivate={setProgramPrivate}
               onSetProgramLeaderNote={setProgramLeaderNote}
+              onSetPriorities={setProgramPriorities}
               onMarkJoinsSeen={markJoinsSeen}
               onSetTeacherCap={setTeacherCap}
               payData={payData}

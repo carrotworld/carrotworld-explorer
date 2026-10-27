@@ -568,6 +568,7 @@ const EN = {
 "역사/궁": "History / Palace",
 "역사/기념": "History / Memorial",
 "전통문화": "Traditional culture",
+"✓ 확정됐어요": "✓ Confirmed",
 "정보 보기": "Show info",
 "레벨 {0} · 지난 체험 {1}회": "Level {0} · {1} past trips",
 "안전수칙 동의 ✓": "Safety agreement ✓",
@@ -9329,7 +9330,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z135"; // change with every delivery
+const APP_BUILD = "2026-10-27-z136"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -9888,6 +9889,11 @@ function ProgramTeachersBar({ program, slots, joins, teachers, roster, onDecide,
 /** Teacher: one card per programme and time slot. Date and time once at the top, my teams (name, children, level) under "My teams",
  *  the other leaders' teams folded, the lesson-material button once at the bottom. */
 const sortLevelsCmp = (a, b) => LEVEL_CHOICES.indexOf(a) - LEVEL_CHOICES.indexOf(b);
+/** The orange strip on a trip the leader is confirmed for (the orange twin of the green "done" strip). */
+function ConfirmedStrip() {
+  return <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: C.orange, margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="confirmed-strip">{tr("✓ 확정됐어요")}</div>;
+}
+const CONFIRMED_BOX = { background: "#FFF8F0", border: `2px solid ${C.orange}`, borderLeft: `6px solid ${C.orange}` };
 /** What a leader may know about a child on their own team before the trip: level, how many trips, and a short summary of the last report
  *  that was already sent to the parents. No other leader's name, no scores, nothing from drafts. */
 function KidPreview({ kid, program, adventures }) {
@@ -9942,7 +9948,8 @@ function MyTeamsCard({ finished = false, program, slot, adventures, students, na
   const markedN = mine.reduce((n, t) => n + t.kids.filter((k) => k.adv.attended).length, 0);
   const kidsN = mine.reduce((n, t) => n + t.kids.length, 0);
   return (
-    <div className="rounded-2xl p-4" data-testid="my-teams" data-finished={finished ? "1" : "0"} data-ended={ended ? "1" : "0"} style={finished ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : ended ? { background: "white", borderLeft: "6px solid #D8CEB8" } : { background: "white" }}>
+    <div className="rounded-2xl p-4" data-testid="my-teams" data-finished={finished ? "1" : "0"} data-ended={ended ? "1" : "0"} style={finished ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : ended ? { background: "white", borderLeft: "6px solid #D8CEB8" } : status === "approved" ? CONFIRMED_BOX : { background: "white" }}>
+      {!finished && !ended && status === "approved" && <ConfirmedStrip />}
       {finished
         ? <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="finished-badge">✓ {tr("체험 끝남 · 피드백 완료")}</div>
         : ended && <p className="f-body text-[13px] font-bold rounded-full px-3 py-1 mb-2.5 inline-block" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="ended-badge">○ {tr("체험 끝남 · 피드백 작성 전")}</p>}
@@ -12628,10 +12635,11 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
         <div className="px-5 pb-8 space-y-3">
           {!teacherId && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.")}</p>}
           {nextP && (
-            <div className="bg-white rounded-2xl p-4" data-testid="next-trip">
+            <div className="rounded-2xl p-4" data-testid="next-trip" style={nextJoin && nextJoin.status === "approved" ? CONFIRMED_BOX : { background: "white" }}>
+              {nextJoin && nextJoin.status === "approved" && <ConfirmedStrip />}
               <div className="flex items-center justify-between gap-2">
                 <span className="f-body text-[12px] font-bold tracking-[0.1em] uppercase" style={{ color: C.orange }}>{tr("다음 체험")}</span>
-                {nextJoin && <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: chipFor(nextJoin).bg, color: chipFor(nextJoin).color }}>{chipFor(nextJoin).text.replace(" ✓", "")}</span>}
+                {nextJoin && nextJoin.status !== "approved" && <span className="f-body text-[12px] font-bold px-2.5 py-1 rounded-full" style={{ background: chipFor(nextJoin).bg, color: chipFor(nextJoin).color }}>{chipFor(nextJoin).text.replace(" ✓", "")}</span>}
               </div>
               <p className="f-display text-[22px] font-semibold leading-snug mt-1" style={{ color: C.green }}>{shortTitle(nextP)}<ThemePills program={nextP} className="ml-2" /></p>
               <div className="mt-2 space-y-0.5 f-body text-[14px]" style={{ color: "#5F6B66" }}>
@@ -12661,7 +12669,8 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
           {signable.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p>}
           {signable.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {signable.map((p) => (
-            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : { background: "white" }}>
+            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : { background: "white" }}>
+              {!tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved") && <ConfirmedStrip />}
               {tripDayPassed(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="ended-badge">✓ {tr("체험 끝남")}</div>}
               <p className="f-display text-[19px] font-semibold" style={{ color: C.green }}>{shortTitle(p)}<ThemePills program={p} className="ml-2" />{!upcoming.some((u) => u.id === p.id) && !tripDayPassed(p) && <span className="ml-2 align-middle f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.beige, color: "#8A8060" }}>{tr("지난 체험")}</span>}</p>
               <p className="f-body text-[14px] text-gray-500 mb-3">{[p.date, p.location, (p.levels || [p.level]).join(" · ")].filter(Boolean).join(" · ")}</p>

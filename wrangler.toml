@@ -6,3 +6,6 @@ pages_build_output_dir = "dist"
 binding = "DB"                          # accessed in code as env.DB
 database_name = "carrotworld-explorer-db"
 database_id = "7ba33616-e036-412e-8bf5-b19a999d16ba"   # printed by `wrangler d1 create`
+
+[ai]
+binding = "AI"                          # Workers AI: natural voice for the word sound (functions/api/tts.js)

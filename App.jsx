@@ -4488,7 +4488,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     const done = applied(c, p);
                     return done ? (
                       <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5" style={{ background: "#EAF7EF" }} data-testid="apply-done">
-                        <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요 · 확인 중</span>
+                        <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요 · 결제는 따로 안내드려요</span>
                         {onApply && <button onClick={() => onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의` })} className="focus-ring tap f-body text-[13px] font-bold px-2 py-1" style={{ color: "#8A8060" }}>취소</button>}
                       </div>
                     ) : (
@@ -4503,6 +4503,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                       </button>
                     );
                   })}
+                  <p className="f-body text-[13px] leading-snug px-1" style={{ color: "#8A8060" }} data-testid="pay-note">💳 앱에서는 신청만 받아요. 결제는 신청 후 본사에서 따로 안내드려요.</p>
                 </div>
               </div>
             );
@@ -9215,7 +9216,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z114"; // change with every delivery
+const APP_BUILD = "2026-10-27-z115"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

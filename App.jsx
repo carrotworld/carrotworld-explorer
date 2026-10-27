@@ -5465,9 +5465,10 @@ function ChildHomeCard({ child, adventures, points, onStart, onInfo, onReport, o
       <div key={x.program.id} className="border-b last:border-b-0" style={{ borderColor: C.beige }} data-testid="experience-row">
         <button onClick={() => setOpenId(open ? null : x.program.id)} aria-expanded={open} className="focus-ring tap w-full min-h-[56px] px-4 py-2.5 flex items-center gap-3 text-left">
           <span className="min-w-0 flex-1">
-            <span className="block f-body text-[15px] font-semibold leading-snug truncate" style={{ color: C.green }}>{splitTitle(x.program.title)[0] || x.program.title}</span>
-            <span className="block f-body text-[12px] text-gray-500">{x.program.date} · {experienceStatus(x.a)}</span>
+            <span className="block f-body text-[17px] font-bold leading-snug" style={{ color: C.green }}>{splitTitle(x.program.title)[0] || x.program.title}</span>
+            <span className="block f-body text-[15px] mt-0.5 leading-snug" style={{ color: "#5F6B66" }} data-testid="experience-when">{when(x.program, x.a)}</span>
           </span>
+          <span className="shrink-0 f-body text-[14px] font-bold rounded-full px-3 py-1.5" style={experienceStatus(x.a) === "신청 완료" ? { background: "#EAF7EF", color: "#1F7A44" } : { background: C.cream, color: "#8A8060" }} data-testid="experience-status">{experienceStatus(x.a) === "신청 완료" ? "✓ " : ""}{experienceStatus(x.a)}</span>
           <ChevronRight size={16} color="#B9B8B0" className={`shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
         </button>
         {open && (
@@ -9320,7 +9321,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z133"; // change with every delivery
+const APP_BUILD = "2026-10-27-z134"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

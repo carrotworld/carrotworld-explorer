@@ -9342,7 +9342,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-27-z145"; // change with every delivery
+const APP_BUILD = "2026-10-27-z146"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12550,8 +12550,6 @@ function JoinDialog({ title, onSend, onClose, hqNote, choices = [] }) {
           </div>
         </div>
       )}
-      <p className="f-body text-[14px] text-gray-600 mt-2 mb-1.5">{tr("상황 설명 (선택) — 가능한 시간, 이동 수단, 참고할 점 등을 적어 주세요. 없으면 비워 두세요.")}</p>
-      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={500} data-testid="join-note" placeholder={tr("예) 오후 2시 이후에만 가능해요 / 차로 이동해요")} aria-label={tr("상황 설명")} className="focus-ring w-full rounded-xl p-3 f-body text-[16px] outline-none" style={{ background: C.cream, border: `1px solid ${C.beige}`, resize: "none" }} />
     </ConfirmDialog>
   );
 }

@@ -1105,6 +1105,23 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+  "마감 관리": "Manage closing",
+  "프로그램 전체": "Whole program",
+  "정원이 차면 자동으로 마감돼요. 정원과 상관없이 직접 닫고 다시 열 수도 있어요.": "Closes automatically when full. You can also close and reopen it yourself at any time.",
+  "학생 모집 중": "Students: open",
+  "학생 마감됨 · 다시 열기": "Students: closed · reopen",
+  "학생 정원 마감 (자동)": "Students: full (auto)",
+  "리더 모집 중": "Leaders: open",
+  "리더 마감됨 · 다시 열기": "Leaders: closed · reopen",
+  "리더 정원 마감 (자동)": "Leaders: full (auto)",
+  "이 시간 학생 정원 (비우면 제한 없음)": "Student limit for this time (empty = no limit)",
+  "시간대 학생 정원": "Time slot student limit",
+"학생 정원": "Student limit",
+"(비워 두면 제한 없어요)": "(leave empty for no limit)",
+"예) 12": "e.g. 12",
+"정원이 차면 부모님 화면에 '신청이 마감됐어요'가 떠요.": "When full, parents see 'Applications are closed'.",
+"마감 {0}/{1}": "Full {0}/{1}",
+"정원 {0}/{1}": "Seats {0}/{1}",
 "답한 부모님 {0}명": "Parents who answered: {0}",
 "(눌러서 점수 보기)": "(tap to see scores)",
 "아직 안 한 부모님 {0}명": "Parents who have not answered: {0}",
@@ -4045,6 +4062,29 @@ const KAKAO_CHAT_URL = ""; // paste the KakaoTalk channel / open-chat link here 
 const wishId = (familyPin, programId) => `wish-${familyPin}-${programId}`;
 const APPLY_TYPE = "신청 문의";
 const applyId = (studentId, programId) => `apply-${studentId}-${programId}`;
+// student limit per program (HQ sets it; empty = no limit): children already in + parents' open applications
+const studentCapOf = (p) => { const n = parseInt(p && p.studentCap, 10); return n > 0 ? n : 0; };
+const studentTaken = (p, adventures, suggestions) => {
+  const ids = new Set((adventures || []).filter((a) => a.programId === p.id && !a.canceled).map((a) => a.studentId));
+  (suggestions || []).forEach((sg) => { if (sg.type === "신청 문의" && !sg.resolved && String(sg.id || "").startsWith("apply-") && String(sg.id).endsWith(`-${p.id}`)) ids.add(String(sg.id).slice(6, -(p.id.length + 1))); });
+  return ids.size;
+};
+// one time slot: its own limit (optional) and HQ's manual close
+const slotCapOf = (x) => { const n = parseInt(x && x.studentCap, 10); return n > 0 ? n : 0; };
+const slotTaken = (p, x, adventures, suggestions) => {
+  const ids = new Set((adventures || []).filter((a) => a.programId === p.id && !a.canceled && a.sessionId === x.id).map((a) => a.studentId));
+  (suggestions || []).forEach((sg) => { if (sg.type === "신청 문의" && !sg.resolved && String(sg.id || "").startsWith("apply-") && String(sg.id).endsWith(`-${p.id}`) && applySlotId(sg) === x.id) ids.add(String(sg.id).slice(6, -(p.id.length + 1))); });
+  return ids.size;
+};
+const slotStudentAuto = (p, x, adventures, suggestions) => slotCapOf(x) > 0 && slotTaken(p, x, adventures, suggestions) >= slotCapOf(x);
+const slotStudentFull = (p, x, adventures, suggestions) => !!x.studentClosed || slotStudentAuto(p, x, adventures, suggestions);
+// whole program closed to parents: HQ closed it, the program limit is reached, or every time slot is closed
+const studentFull = (p, adventures, suggestions) => {
+  if (p.studentClosed) return true;
+  if (studentCapOf(p) > 0 && studentTaken(p, adventures, suggestions) >= studentCapOf(p)) return true;
+  const sl = sessionsOf(p);
+  return sl.length > 0 && sl.every((x) => slotStudentFull(p, x, adventures, suggestions));
+};
 // the time slot a parent picked is kept inside the application message as [s:<slotId>]
 const applySlotId = (row) => { const m = row && /\[s:([^\]]+)\]/.exec(row.message || ""); return m ? m[1] : ""; };
 const isWish = (sg) => sg.type === WISH_TYPE;
@@ -4584,7 +4624,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                   <button onClick={() => setOpenId(open ? null : p.id)} aria-expanded={open} className="focus-ring tap flex-1 min-w-0 text-left">
                     <span className="block f-display text-[18px] font-semibold leading-snug" style={{ color: C.green }}>{splitTitle(p.title)[0] || p.title}<ThemePills program={p} className="ml-2" /></span>
                     <span className="block f-body text-[13px] text-gray-500 mt-0.5">{p.date} · {levelLabel(p)}{fits ? <b style={{ color: "#1F7A44" }}> · 우리 아이 레벨</b> : null}</span>
-                    <span className="block f-body text-[12px] mt-0.5" style={{ color: "#9C927D" }}>{open ? "접기 ▴" : "자세히 ▾"}</span>
+                    <span className="block f-body text-[12px] mt-0.5" style={{ color: "#9C927D" }}>{studentFull(p, adventures, suggestions) ? <b style={{ color: "#B03A2E" }}>마감 · </b> : null}{open ? "접기 ▴" : "자세히 ▾"}</span>
                   </button>
                   <button
                     onClick={() => onToggleWish({ familyPin, programId: p.id, message })}
@@ -4611,7 +4651,8 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     const done = applied(c, p);
                     const row = suggestions.find((sg) => sg.id === applyId(c.id, p.id) && !sg.resolved);
                     const pk = `${c.id}-${p.id}`;
-                    const chosen = pick[pk] || (slots.length === 1 ? slots[0].id : "");
+                    const openOnes = slots.filter((x) => !slotStudentFull(p, x, adventures, suggestions));
+                    const chosen = (pick[pk] && openOnes.some((x) => x.id === pick[pk]) ? pick[pk] : "") || (openOnes.length === 1 ? openOnes[0].id : "");
                     const slotOf = (id) => slots.find((x) => x.id === id);
                     const slotText = (x) => (x ? (x.time ? `${x.label} ${x.time}` : x.label) : "");
                     const sent = slotOf(applySlotId(row));
@@ -4621,6 +4662,11 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                         <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요{sent ? ` · ${slotText(sent)}` : ""}</span>
                         {onApply && <button onClick={() => onApply({ studentId: c.id, programId: p.id, familyPin, message: row.message })} className="focus-ring tap f-body text-[13px] font-bold px-2 py-1" style={{ color: "#8A8060" }}>취소</button>}
                       </div>
+                    ) : studentFull(p, adventures, suggestions) ? (
+                      <div key={c.id} className="rounded-xl px-3.5 py-3 text-center" style={{ background: "#F3EEE3" }} data-testid="apply-closed">
+                        <p className="f-display text-[16px] font-bold" style={{ color: "#8A8060" }}>신청이 마감됐어요</p>
+                        <p className="f-body text-[13px]" style={{ color: "#8A8060" }}>모집이 끝났어요. 다음 체험을 기다려 주세요.</p>
+                      </div>
                     ) : (
                       <div key={c.id} className="space-y-2">
                         {slots.length > 1 && (
@@ -4628,7 +4674,11 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                             <p className="f-body text-[13px] font-bold mb-1 px-1" style={{ color: C.charcoal }}>{pending.length > 1 ? `${c.name} · ` : ""}희망 시간을 골라주세요</p>
                             <div className="flex gap-2 flex-wrap">
                               {slots.map((x) => (
+                                slotStudentFull(p, x, adventures, suggestions) ? (
+                                  <button key={x.id} role="radio" aria-checked="false" aria-disabled="true" disabled data-testid="slot-closed" className="f-body text-[15px] font-bold rounded-xl px-3.5" style={{ minHeight: 44, background: "#F3EEE3", color: "#A89F88", border: `1px solid ${C.beige}`, textDecoration: "line-through" }}>{slotText(x)} <span style={{ textDecoration: "none", display: "inline-block" }}>· 마감</span></button>
+                                ) : (
                                 <button key={x.id} role="radio" aria-checked={chosen === x.id} onClick={() => setPick((cur) => ({ ...cur, [pk]: x.id }))} data-testid="slot-opt" className="focus-ring tap f-body text-[15px] font-bold rounded-xl px-3.5" style={{ minHeight: 44, background: chosen === x.id ? C.green : C.cream, color: chosen === x.id ? "white" : C.charcoal, border: `1px solid ${chosen === x.id ? C.green : C.beige}` }}>{slotText(x)}</button>
+                                )
                               ))}
                             </div>
                           </div>
@@ -8208,6 +8258,7 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
   const [icons, setIcons] = useState(() => (initial ? programIcons(initial) : []));
   const [themeKo, setThemeKo] = useState(initial?.themeKo || "");
   const [dateReached, setDateReached] = useState(initial?.dateReached || false);
+  const [studentCap, setStudentCap] = useState(initial?.studentCap ? String(initial.studentCap) : ""); // children limit (empty = no limit)
   const [scheduleImage, setScheduleImage] = useState(initial?.scheduleImage || ""); // the camp timetable picture for parents
   const [leaderScheduleImage, setLeaderScheduleImage] = useState(initial?.leaderScheduleImage || ""); // the one for leaders (with materials and notes)
   const [coverPhoto, setCoverPhoto] = useState(initial?.coverPhoto || null); // the one place photo shown on the home cards
@@ -8340,13 +8391,14 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
       onSave({ ...shared, levelMaterials });
       return;
     }
-    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0] || "", icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, scheduleImage, leaderScheduleImage, published, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
+    const info = { title: title.trim(), date: date.trim(), startDate, endDate: startDate && endDate > startDate ? endDate : "", location: location.trim() || "서울", level: lv[0], levels: lv, icon: ic[0] || "", icons: ic, themeKo: themeKo.trim(), dateReached, coverPhoto, scheduleImage, leaderScheduleImage, studentCap: parseInt(studentCap, 10) > 0 ? parseInt(studentCap, 10) : 0, published, ...shared, levelMaterials, prepMaterials, sessions: sessions.filter((x) => x.label.trim()).map((x) => ({ ...x, id: x.id || newId("s"), label: x.label.trim(), time: (x.time || "").trim(), meetingTime: (x.meetingTime || "").trim(), meetingPoint: (x.meetingPoint || "").trim(), studentCap: parseInt(x.studentCap, 10) > 0 ? parseInt(x.studentCap, 10) : 0, publishedAt: x.published ? x.publishedAt || new Date().toISOString() : x.publishedAt })), info: { ...noticeInfo, publishedAt: noticeInfo.published ? noticeInfo.publishedAt || new Date().toISOString() : noticeInfo.publishedAt } };
     if (onRememberPlace && location.trim() && (noticeInfo.venue || "").trim()) onRememberPlace({ name: location.trim(), venue: noticeInfo.venue.trim(), meetingPoint: (noticeInfo.meetingPoint || "").trim(), intro: themeKo.trim() });
     if (isEdit) {
       onSave(info);
     } else {
       onRegister(info);
       startSnap.current = null; // the cleared form below becomes the new "nothing typed yet"
+      setStudentCap(""); setScheduleImage(""); setLeaderScheduleImage("");
       setTitle(""); setDate(""); setLocation("서울"); setLevels([]); setIcons([]); setThemeKo(""); setDateReached(false); setMaterials(defaultMaterials()); setLevelSets({}); setSessions(defaultSessions()); setActiveLevel(null); setShowMaterials(false); setNoticeInfo(emptyInfo()); setShowInfo(false);
     }
   };
@@ -8485,6 +8537,10 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
         style={{ background: C.cream, border: `1px solid ${C.beige}` }}
       />
 
+      <p className="f-body text-[15px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("학생 정원")} <span className="font-normal text-gray-400">{tr("(비워 두면 제한 없어요)")}</span></p>
+      <input value={studentCap} onChange={(e) => setStudentCap(e.target.value.replace(/\D/g, "").slice(0, 3))} inputMode="numeric" placeholder={tr("예) 12")} data-testid="student-cap-input" aria-label={tr("학생 정원")} className="focus-ring w-full rounded-xl p-3 f-body text-[17px] outline-none mb-1" style={{ background: C.cream, border: `1px solid ${C.beige}` }} />
+      <p className="f-body text-[12px] text-gray-400 mb-3">{tr("정원이 차면 부모님 화면에 '신청이 마감됐어요'가 떠요.")}</p>
+
       <button
         onClick={() => setShowMore((v) => !v)}
         aria-expanded={showMore}
@@ -8560,6 +8616,9 @@ function RegisterProgramPanel({ onDuplicate, materialsOnly, initial, defaultShow
                   <input value={x.label} onChange={(e) => upd({ label: e.target.value })} placeholder={tr("이름 (예: 오전)")} aria-label={tr("시간대 이름")} className={small} style={{ ...st, flex: 1 }} />
                   <input value={x.time || ""} onChange={(e) => upd({ time: e.target.value })} placeholder="10:00 ~ 12:00" aria-label={tr("시간대 체험 시간")} className={small} style={{ ...st, flex: 1.3 }} />
                   <button onClick={() => setSessions((prev) => prev.filter((_, k) => k !== i))} aria-label={tr("시간대 삭제")} className="focus-ring tap shrink-0 f-body text-[14px] font-bold px-1" style={{ color: "#C0674A" }}>{tr("삭제")}</button>
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <input value={x.studentCap || ""} onChange={(e) => upd({ studentCap: e.target.value.replace(/\D/g, "").slice(0, 3) })} inputMode="numeric" placeholder={tr("이 시간 학생 정원 (비우면 제한 없음)")} aria-label={tr("시간대 학생 정원")} data-testid="slot-cap-input" className={small} style={st} />
                 </div>
                 <div className="flex gap-2">
                   <input value={x.meetingTime || ""} onChange={(e) => upd({ meetingTime: e.target.value })} placeholder={tr("집합 시간")} aria-label={tr("시간대 집합 시간")} className={small} style={{ ...st, flex: 1 }} />
@@ -9428,7 +9487,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-28-z163"; // change with every delivery
+const APP_BUILD = "2026-10-28-z166"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10148,6 +10207,39 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
+/* HQ: close / reopen sign-up by hand, for the whole program or for one time slot (parents and leaders separately) */
+function CloseControls({ program, slots, adventures, suggestions, joins, teacherCapMap, onSet }) {
+  const rows = [{ id: "", label: slots.length ? tr("프로그램 전체") : tr("이 프로그램"), x: null }, ...slots.map((x) => ({ id: x.id, label: x.label + (x.time ? ` ${x.time}` : ""), x }))];
+  const chip = (state, onClick, labels, tid) => {
+    const look = state === "closed" ? { bg: "#FDEDEA", color: "#B03A2E" } : state === "auto" ? { bg: "#F3EEE3", color: "#8A8060" } : { bg: "#EAF7EF", color: "#1F7A44" };
+    return <button onClick={state === "auto" ? undefined : onClick} disabled={state === "auto"} data-testid={tid} data-state={state} className="focus-ring tap f-body text-[13px] font-bold px-3 rounded-full whitespace-nowrap" style={{ minHeight: 40, background: look.bg, color: look.color }}>{labels[state]}</button>;
+  };
+  const seats = (sid) => (joins || []).filter((j) => j.programId === program.id && (j.slotId || "") === (sid || "") && j.status === "approved").length;
+  return (
+    <div className="px-5 mb-3" data-testid="close-controls">
+      <div className="bg-white rounded-2xl p-3.5" style={{ border: `1px solid ${C.beige}` }}>
+        <p className="f-display text-[16px] font-semibold mb-0.5" style={{ color: C.green }}>{tr("마감 관리")}</p>
+        <p className="f-body text-[13px] text-gray-500 mb-2">{tr("정원이 차면 자동으로 마감돼요. 정원과 상관없이 직접 닫고 다시 열 수도 있어요.")}</p>
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const sKey = r.x ? (r.x.studentClosed ? "closed" : slotStudentAuto(program, r.x, adventures, suggestions) ? "auto" : "open") : (program.studentClosed ? "closed" : studentCapOf(program) > 0 && studentTaken(program, adventures, suggestions) >= studentCapOf(program) ? "auto" : "open");
+            const lKey = r.x ? (r.x.leaderClosed ? "closed" : seats(r.id) >= (teacherCapMap[program.id] || TEACHER_CAP) ? "auto" : "open") : (program.teacherClosed ? "closed" : "open");
+            return (
+              <div key={r.id || "all"} className="rounded-xl p-2.5" style={{ background: C.cream }} data-testid="close-row">
+                <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{r.label}</p>
+                <div className="flex gap-2 flex-wrap">
+                  {chip(sKey, () => onSet(program.id, r.id, "student", sKey !== "closed"), { open: tr("학생 모집 중"), closed: tr("학생 마감됨 · 다시 열기"), auto: tr("학생 정원 마감 (자동)") }, "close-student")}
+                  {chip(lKey, () => onSet(program.id, r.id, "leader", lKey !== "closed"), { open: tr("리더 모집 중"), closed: tr("리더 마감됨 · 다시 열기"), auto: tr("리더 정원 마감 (자동)") }, "close-leader")}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MatchingPanel({ program, slots, slotId, onSlot, roster, leaders, otherLeaders = [], onAddLeader, onSaveTeams, onAssign, onSetSlot, recruitClosed, onRecruit, leaderPrivate, onPrivate, teamsDone, teamsDoneAt, onTeamsDone, onRemove, onLevel, onMaterial, teamAdmin, addStudent }) {
   const [matId, setMatId] = useState(null);
   const [prepOpen, setPrepOpen] = useState(false);
@@ -11177,7 +11269,7 @@ function PriorityPanel({ onSet }) {
   );
 }
 
-function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
+function TeacherDashboard({ onSetClose, onSetPayExclude, onSetPriorities, onSetProgramLeaderNote, onSetProgramPrivate, onAddLeader, onMarkJoinsSeen, adventures, canceledAdventures = [], students, lastSyncAt, onOpenGuide, onDecideReview, onAddPointEntry, onSavePointItems, onSetTeacherCap, teacherCapMap, payData, onSetPayRate, onSetPayAmount, onSetPayTax, onPayTeacher, onVoidPayout, places = [], onRememberPlace, teacherApps = [], onAcceptTeacherApp, onRejectTeacherApp, onSetProgramDates, teachers = [], joins = [], legacyPin, onAddTeacher, onSetTeacherPin, onSetTeacherActive, onDecideJoin, updateAdventure, onSaveTeams, onCancelEnrollment, onRestoreEnrollment, onAcceptFamily, onRejectFamily, onSetProgramToday, onSetProgramReview, onSetProgramRecruit, onSetTeamsDone, onRefresh, onCheckSave, onExportData, onResolveSuggestions, onRegisterStudent, onRegisterProgram, onEditProgram, onDeleteProgram, onEnrollStudent, onEditStudent, onDeleteStudent, suggestions, onToggleSuggestion }) {
   applyPointItems(currentPointItems(suggestions));
   const [moreReminders, setMoreReminders] = useState(false);
   const [dateAsk, setDateAsk] = useState(null);
@@ -11630,6 +11722,7 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
                   </div>
                 )}
               </div>
+              {onSetClose && <CloseControls program={program} slots={slots} adventures={adventures} suggestions={suggestions} joins={joins} teacherCapMap={teacherCapMap || {}} onSet={onSetClose} />}
               <MatchingPanel
                 key={programId}
                 program={program}
@@ -11867,6 +11960,7 @@ function TeacherDashboard({ onSetPayExclude, onSetPriorities, onSetProgramLeader
                         <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ background: look.bg, color: look.color }}>{tr(look.label)}</span>
                         {draft && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ color: "#8A8060", border: `1px solid ${C.beige}` }}>{tr("임시 저장")}</span>}
                         <span className="f-body text-[13px] text-gray-500">{tr("신청 {0}명", [st.enrolled])}</span>
+                        {(studentCapOf(p) > 0 || studentFull(p, adventures, suggestions)) && <span className="f-body text-[13px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={studentFull(p, adventures, suggestions) ? { background: "#FDEDEA", color: "#B03A2E" } : { background: C.cream, color: "#8A8060" }} data-testid="student-cap-chip">{studentFull(p, adventures, suggestions) ? (studentCapOf(p) > 0 ? tr("마감 {0}/{1}", [studentTaken(p, adventures, suggestions), studentCapOf(p)]) : tr("마감")) : tr("정원 {0}/{1}", [studentTaken(p, adventures, suggestions), studentCapOf(p)])}</span>}
                       </div>
                     );
                   })()}
@@ -12715,7 +12809,7 @@ function JoinDialog({ title, onSend, onClose, hqNote, choices = [] }) {
 }
 
 /** What the foreign teachers see: upcoming programs to sign up for, the class materials and the feedback. */
-function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
+function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], payouts = [], payInfo = {}, students, adventures, joins, lang, onLang, onLogout, onOpenGuide, updateAdventure, onSaveMaterials, onJoin, onWithdraw }) {
   const name = (teacher && teacher.name) || "";
   const teacherId = (teacher && teacher.id) || "";
   const [tab, setTab] = useState("programs");
@@ -12736,6 +12830,8 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
   const program = (tab === "feedback" ? feedbackProgs.find((p) => p.id === programId) || feedbackProgs[0] : null) || (tab === "feedback" ? null : PROGRAMS.find((p) => p.id === programId) || PROGRAMS[0] || null);
   const shortTitle = (p) => splitTitle(p.title)[0] || p.title;
   const mySignups = joins.filter((j) => j.teacherId === teacherId);
+  // every seat is taken (HQ's leader limit for the program): nobody else can sign up for that slot
+  const slotFull = (p, sid) => !!((sessionsOf(p).find((x) => x.id === sid) || {}).leaderClosed) || (joins || []).filter((x) => x.programId === p.id && (x.slotId || "") === (sid || "") && x.status === "approved").length >= (teacherCapMap[p.id] || TEACHER_CAP);
   const stateOf = (programId2, slotId) => {
     const j = mySignups.find((x) => x.programId === programId2 && (x.slotId || "") === (slotId || ""));
     return j && j.status !== "withdrawn" ? j : null;
@@ -12837,7 +12933,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                   const j = stateOf(p.id, x.id);
                   const chip = j ? chipFor(j) : null;
                   if (j && (j.status === "declined" || j.status === "waiting") && !x.label) return null; // the card's red strip already says it
-                  if (!x.label && payPreview(p, x.id) === null && !chip && !(p.teamsDone || p.teacherClosed)) return null; // nothing to show for this row
+                  if (!x.label && payPreview(p, x.id) === null && !chip && !(p.teamsDone || p.teacherClosed || slotFull(p, x.id))) return null; // nothing to show for this row
                   return (
                     <div key={x.id || "all"} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5" style={{ background: C.cream }}>
                       <div className="min-w-0" style={!x.label && payPreview(p, x.id) === null && !chip ? { display: "none" } : undefined}>
@@ -12848,7 +12944,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                           </p>); })()}
                         {chip && (j && (j.status === "declined" || j.status === "waiting") ? <p className="f-body text-[14px] font-bold" style={{ color: "#B8604A" }} data-testid="taken-note">✕</p> : <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>)}
                       </div>
-                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed) && !j ? (
+                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed || slotFull(p, x.id)) && !j ? (
                         <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
                       ) : p.teamsDone ? (
                         <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
@@ -12859,7 +12955,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
                   );
                 })}
               </div>
-              {teacherId && !p.teamsDone && !p.teacherClosed && !tripDayPassed(p) && openSlots(p).some((x) => !stateOf(p.id, x.id)) && (
+              {teacherId && !p.teamsDone && !p.teacherClosed && !tripDayPassed(p) && openSlots(p).some((x) => !stateOf(p.id, x.id) && !slotFull(p, x.id)) && (
                 <button onClick={() => setAsking({ program: p })} className="focus-ring tap w-full mt-2.5 f-display text-[16px] font-semibold rounded-xl py-3 text-white" style={{ background: C.green }} data-testid="signup-open">{tr("참여 신청")}</button>
               )}
             </div>
@@ -12925,7 +13021,7 @@ function GuideApp({ onEditStudent, teacher, payItems = [], payouts = [], payInfo
             <JoinDialog
               title={tr("{0} 참여를 신청할까요?", [shortTitle(asking.program)])}
               hqNote={asking.program.leaderNote}
-              choices={openSlots(asking.program).filter((x) => !stateOf(asking.program.id, x.id)).map((x) => { const ss = sessionsOf(asking.program).find((y) => y.id === x.id) || {}; return { id: x.id, label: x.label || tr("참여"), time: ss.time || "" }; })}
+              choices={openSlots(asking.program).filter((x) => !stateOf(asking.program.id, x.id) && !slotFull(asking.program, x.id)).map((x) => { const ss = sessionsOf(asking.program).find((y) => y.id === x.id) || {}; return { id: x.id, label: x.label || tr("참여"), time: ss.time || "" }; })}
               onSend={(note, ids) => { (ids && ids.length ? ids : [""]).forEach((sid) => onJoin(asking.program.id, sid, note)); setAsking(null); }}
               onClose={() => setAsking(null)}
             />
@@ -13962,7 +14058,7 @@ function CarrotExplorer() {
     sync(api.deleteStudent(studentId));
   };
 
-  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
+  const registerProgram = ({ title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, studentCap, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
     const dm = defaultMaterials();
     const iconInfo = themeChoice(icon);
     const id = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.random().toString(36).slice(2, 5)}`;
@@ -13987,6 +14083,7 @@ function CarrotExplorer() {
       coverPhoto: coverPhoto || null,
       scheduleImage: scheduleImage || "",
       leaderScheduleImage: leaderScheduleImage || "",
+      studentCap: studentCap > 0 ? studentCap : 0,
       levelMaterials: levelMaterials || null,
       prepMaterials: prepMaterials || {},
       objective: objective || null,
@@ -14009,7 +14106,7 @@ function CarrotExplorer() {
     sync(api.createProgram(newProgram));
   };
 
-  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
+  const editProgram = (programId, { title, date, startDate, endDate, location, level, levels, icon, icons, themeKo, dateReached, coverPhoto, scheduleImage, leaderScheduleImage, studentCap, levelMaterials, prepMaterials, objective, sessions, vocabulary, expressions, bigQuestion, bigQuestionOptions, challenge, missions, remember, focus, reviewOpen, info, published }) => {
     const iconInfo = themeChoice(icon);
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -14031,6 +14128,7 @@ function CarrotExplorer() {
     };
     if (scheduleImage !== undefined) patch.scheduleImage = scheduleImage || "";
     if (leaderScheduleImage !== undefined) patch.leaderScheduleImage = leaderScheduleImage || "";
+    if (studentCap !== undefined) patch.studentCap = studentCap > 0 ? studentCap : 0;
     if (startDate !== undefined) patch.startDate = startDate || "";
     if (endDate !== undefined) patch.endDate = endDate || "";
     if (levelMaterials !== undefined) patch.levelMaterials = levelMaterials || null;
@@ -14179,6 +14277,23 @@ function CarrotExplorer() {
     });
     rerender((v) => v + 1);
   };
+  // HQ closes / reopens sign-up by hand: whole program or one time slot, for parents ("student") or leaders
+  const setClose = (programId, slotId, who, closed) => {
+    const idx = PROGRAMS.findIndex((p) => p.id === programId);
+    if (idx === -1) return;
+    if (!slotId) {
+      const patch = who === "student" ? { studentClosed: !!closed } : { teacherClosed: !!closed };
+      PROGRAMS[idx] = { ...PROGRAMS[idx], ...patch };
+      rerender((v) => v + 1);
+      sync(api.updateProgram(programId, patch));
+      return;
+    }
+    const key = who === "student" ? "studentClosed" : "leaderClosed";
+    const sessions = (PROGRAMS[idx].sessions || []).map((x) => (x.id === slotId ? { ...x, [key]: !!closed } : x));
+    PROGRAMS[idx] = { ...PROGRAMS[idx], sessions };
+    rerender((v) => v + 1);
+    sync(api.updateProgram(programId, { sessions }));
+  };
   const setProgramRecruit = (programId, closed) => {
     const idx = PROGRAMS.findIndex((p) => p.id === programId);
     if (idx === -1) return;
@@ -14286,7 +14401,7 @@ function CarrotExplorer() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col relative" style={{ background: C.cream }}>
           {showManual && <TeacherManual lang={teacherLang} role="guide" onClose={() => setShowManual(false)} />}
           <div className="flex-1 overflow-y-auto">
-            <GuideApp onEditStudent={editStudent} teacher={{ id: session.teacherId, name: session.teacherName }} payInfo={{ taxOn: payData.taxOn, rate: payData.rate, amounts: payData.amounts }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
+            <GuideApp teacherCapMap={teacherCaps(suggestions)} onEditStudent={editStudent} teacher={{ id: session.teacherId, name: session.teacherName }} payInfo={{ taxOn: payData.taxOn, rate: payData.rate, amounts: payData.amounts }} payItems={payData.items.filter((i) => i.teacherId === session.teacherId)} payouts={payData.payouts.filter((p) => p.teacherId === session.teacherId && !p.voided)} joins={joins} onJoin={(programId, slotId, note) => sendJoin("request", session.teacherId, programId, slotId, note)} onWithdraw={(programId, slotId) => sendJoin("withdraw", session.teacherId, programId, slotId, "")} students={students} adventures={liveAdventures} lang={teacherLang} onLang={setTeacherLang} onLogout={logout} onOpenGuide={() => setShowManual(true)} updateAdventure={updateAdventure} onSaveMaterials={editProgramMaterials} />
           </div>
         </div>
       </div>
@@ -14314,6 +14429,7 @@ function CarrotExplorer() {
               onSetProgramToday={setProgramToday}
               onSetProgramReview={setProgramReview}
               onSetProgramRecruit={setProgramRecruit}
+              onSetClose={setClose}
               onSetTeamsDone={setProgramTeamsDone}
               onCheckSave={checkServerSave}
               onSaveTeams={setProgramTeams}
@@ -14322,6 +14438,7 @@ function CarrotExplorer() {
               onDecideReview={decideReview}
               teachers={teachers}
               joins={joins}
+              teacherCapMap={teacherCaps(suggestions)}
               legacyPin={legacyPin}
               onAddTeacher={addTeacher}
               teacherApps={teacherApps}

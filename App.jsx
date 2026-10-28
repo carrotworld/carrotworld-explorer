@@ -9121,8 +9121,7 @@ function StatsPanel({ adventures, students, suggestions }) {
               const nameOf = (a) => { const st = students.find((x) => x.id === a.studentId); return st ? tr("{0} 부모님", [st.name]) : tr("이름 없음"); };
               const progOf = (a) => { const pr = getProgram(a.programId); return pr && !program ? ` · ${splitTitle(pr.title)[0] || pr.title}` : ""; };
               const answered = rows.filter((a) => a.parentSurvey).sort((x, y) => String(y.parentSurvey.at || "").localeCompare(String(x.parentSurvey.at || "")));
-              const waiting = rows.filter((a) => a.attended && !a.parentSurvey);
-              if (!answered.length && !waiting.length) return null;
+              if (!answered.length) return null;
               const chip = (a, ok, i) => <span key={`${ok}-${a.studentId}-${a.programId}-${i}`} className="inline-block f-body text-[14px] font-bold rounded-full px-3 py-1.5 mr-1.5 mb-1.5" style={{ background: ok ? "#EAF7EF" : "#FFF1E2", color: ok ? "#1F7A44" : "#B25A0B" }}>{ok ? "✓ " : ""}{nameOf(a)}{progOf(a)}</span>;
               return (
                 <div className="mb-4" data-testid="survey-who">
@@ -9145,8 +9144,6 @@ function StatsPanel({ adventures, students, suggestions }) {
                       </details>
                     );
                   }) : <span className="f-body text-[14px] text-gray-400">{tr("아직 없어요")}</span>}</div>
-                  <p className="f-body text-[14px] font-bold mt-2 mb-1.5" style={{ color: C.charcoal }}>{tr("아직 안 한 부모님 {0}명", [waiting.length])}</p>
-                  <div>{waiting.length ? waiting.map((a, i) => chip(a, false, i)) : <span className="f-body text-[14px] text-gray-400">{tr("모두 답했어요")}</span>}</div>
                 </div>
               );
             })()}
@@ -9431,7 +9428,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-28-z162"; // change with every delivery
+const APP_BUILD = "2026-10-28-z163"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

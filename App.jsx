@@ -416,6 +416,7 @@ const EN = {
 "외 {0}개": "+{0} more",
 "부모 만족도 설문": "Parent satisfaction survey",
 "체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견은 이름 없이 보여요.": "Surveys left by parents after the trip (out of 5). Comments are shown without names.",
+"체험 후 학부모가 남긴 설문이에요 (5점 만점). 의견마다 누가 썼는지 보여요.": "Surveys left by parents after the trip (out of 5). Each comment shows who wrote it.",
 "등록 {0}명 · 예습 {1}% · 출석 {2}% · 복습 {3}%{4}{5}": "Registered {0} · Prep {1}% · Attended {2}% · Review {3}%{4}{5}",
 "프로그램별 비교": "Compare programs",
 "어떤 프로그램에서 아이들이 잘 따라오는지 비교해 보세요.": "See in which programs the children keep up best.",
@@ -1075,6 +1076,7 @@ const EN = {
   "세후 {0} (세금 {1} 뺀 금액)": "After tax {0} (tax {1} taken out)",
   "세전 {0} · 세금 {1}": "Before tax {0} · Tax {1}",
   "이름 없이 보여요 · 5점 만점": "Shown without names · out of 5",
+  "누가 썼는지 보여요 · 5점 만점": "Shows who wrote it · out of 5",
   "부모님 의견": "Parents' feedback",
   "아직 등록한 아이가 없어요": "No children yet",
   "현장 참여 {0}% · 복습 {1}%": "Came {0}% · Review {1}%",
@@ -1103,6 +1105,12 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+"답한 부모님 {0}명": "Parents who answered: {0}",
+"(눌러서 점수 보기)": "(tap to see scores)",
+"아직 안 한 부모님 {0}명": "Parents who have not answered: {0}",
+"모두 답했어요": "Everyone answered",
+"{0} 부모님": "{0}'s parent",
+"연락처 뒷자리": "Phone ending",
 "일정표 보기": "View schedule",
 "테마 아이콘 · 장소 사진 · 일정표 · 시간대": "Theme icon · place photo · schedule · time slots",
 "일정표": "Schedule",
@@ -8833,7 +8841,7 @@ function summarizeRows(rows) {
   const ratings = rows.map((a) => a.reflection?.rating).filter((v) => typeof v === "number");
   const prepDays = rows.filter((a) => a.enrolledAt && a.beforeCompletedAt).map((a) => Math.max(0, daysBetween(a.enrolledAt, a.beforeCompletedAt)));
   const afterDays = rows.filter((a) => a.attendedAt && a.afterCompletedAt).map((a) => Math.max(0, daysBetween(a.attendedAt, a.afterCompletedAt)));
-  const surveys = rows.filter((a) => a.parentSurvey).map((a) => a.parentSurvey);
+  const surveys = rows.filter((a) => a.parentSurvey).map((a) => ({ ...a.parentSurvey, _studentId: a.studentId, _programId: a.programId })); // keeps who wrote it
   const surveyAvg = SURVEY_ITEMS.map((it) => {
     const vals = surveys.map((sv) => sv.ratings?.[it.key]).filter((v) => typeof v === "number");
     return { key: it.key, label: it.label, avg: avgOf(vals), n: vals.length };
@@ -8842,7 +8850,7 @@ function summarizeRows(rows) {
     surveys
       .filter((sv) => sv[field])
       .sort((x, y) => String(y.at || "").localeCompare(String(x.at || "")))
-      .map((sv) => sv[field]);
+      .map((sv) => ({ text: sv[field], studentId: sv._studentId, programId: sv._programId, at: sv.at || "" }));
   const survey = {
     n: surveys.length,
     attended: rows.filter((a) => a.attended).length,
@@ -9107,7 +9115,41 @@ function StatsPanel({ adventures, students, suggestions }) {
             )}
           </StatCard>
 
-          <StatCard title={tr("부모님 의견")} hint={tr("이름 없이 보여요 · 5점 만점")}>
+          <StatCard title={tr("부모님 의견")} hint={tr("누가 썼는지 보여요 · 5점 만점")}>
+            {(() => {
+              // who answered the parent survey, and who has not yet (children who came to the trip)
+              const nameOf = (a) => { const st = students.find((x) => x.id === a.studentId); return st ? tr("{0} 부모님", [st.name]) : tr("이름 없음"); };
+              const progOf = (a) => { const pr = getProgram(a.programId); return pr && !program ? ` · ${splitTitle(pr.title)[0] || pr.title}` : ""; };
+              const answered = rows.filter((a) => a.parentSurvey).sort((x, y) => String(y.parentSurvey.at || "").localeCompare(String(x.parentSurvey.at || "")));
+              const waiting = rows.filter((a) => a.attended && !a.parentSurvey);
+              if (!answered.length && !waiting.length) return null;
+              const chip = (a, ok, i) => <span key={`${ok}-${a.studentId}-${a.programId}-${i}`} className="inline-block f-body text-[14px] font-bold rounded-full px-3 py-1.5 mr-1.5 mb-1.5" style={{ background: ok ? "#EAF7EF" : "#FFF1E2", color: ok ? "#1F7A44" : "#B25A0B" }}>{ok ? "✓ " : ""}{nameOf(a)}{progOf(a)}</span>;
+              return (
+                <div className="mb-4" data-testid="survey-who">
+                  <p className="f-body text-[14px] font-bold mb-1.5" style={{ color: C.charcoal }}>{tr("답한 부모님 {0}명", [answered.length])} <span className="font-normal text-gray-400">{tr("(눌러서 점수 보기)")}</span></p>
+                  <div className="space-y-1.5" data-testid="survey-answers">{answered.length ? answered.map((a, i) => {
+                    const sv = a.parentSurvey;
+                    const rj = REJOIN_OPTIONS.find((o) => o.key === sv.rejoin);
+                    return (
+                      <details key={`${a.studentId}-${a.programId}-${i}`} className="rounded-xl" style={{ background: "#EAF7EF" }} data-testid="survey-answer">
+                        <summary className="cursor-pointer px-3 py-2 f-body text-[14px] font-bold" style={{ color: "#1F7A44", minHeight: 44, display: "flex", alignItems: "center" }}>✓ {nameOf(a)}{progOf(a)}{sv.at ? ` · ${fmtDay(sv.at)}` : ""}</summary>
+                        <div className="px-3 pb-2.5 f-body text-[14px]" style={{ color: C.charcoal }}>
+                          {SURVEY_ITEMS.map((it) => typeof sv.ratings?.[it.key] === "number" && (
+                            <p key={it.key} className="flex justify-between gap-2 py-0.5"><span>{tr(it.label)}</span><b>{sv.ratings[it.key]} / 5</b></p>
+                          ))}
+                          {rj && <p className="flex justify-between gap-2 py-0.5"><span>{tr("다시 참여하고 싶으세요?")}</span><b>{tr(rj.label)}</b></p>}
+                          {sv.good && <p className="mt-1.5"><b>{tr("좋았던 점")}</b> · {sv.good}</p>}
+                          {sv.improve && <p className="mt-1"><b>{tr("아쉬운 점·바라는 점")}</b> · {sv.improve}</p>}
+                          {sv.wish && <p className="mt-1"><b>{tr("가보고 싶은 체험·장소")}</b> · {sv.wish}</p>}
+                        </div>
+                      </details>
+                    );
+                  }) : <span className="f-body text-[14px] text-gray-400">{tr("아직 없어요")}</span>}</div>
+                  <p className="f-body text-[14px] font-bold mt-2 mb-1.5" style={{ color: C.charcoal }}>{tr("아직 안 한 부모님 {0}명", [waiting.length])}</p>
+                  <div>{waiting.length ? waiting.map((a, i) => chip(a, false, i)) : <span className="f-body text-[14px] text-gray-400">{tr("모두 답했어요")}</span>}</div>
+                </div>
+              );
+            })()}
             {sum.survey.n === 0 ? (
               <p className="f-body text-[15px] text-gray-400">{tr("아직 설문 응답이 없어요. 출석한 아이의 학부모에게는 앱에서 설문 알림이 떠요.")}</p>
             ) : (
@@ -9135,9 +9177,16 @@ function StatsPanel({ adventures, students, suggestions }) {
                   <div key={g.k} className="mt-4">
                     <p className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mb-2" style={{ background: g.k === "good" ? "#EAF7EF" : g.k === "improve" ? "#FFF1E2" : C.beige, color: g.k === "good" ? "#1F7A44" : g.k === "improve" ? "#B25A0B" : C.green }}>{g.title} ({g.list.length})</p>
                     <div className="space-y-1.5">
-                      {g.list.slice(0, 5).map((t, i) => (
-                        <p key={i} className="f-body text-[15px] rounded-xl p-2.5" style={{ background: C.cream, color: C.charcoal }}>{t}</p>
-                      ))}
+                      {g.list.slice(0, 5).map((t, i) => {
+                        const who = students.find((x) => x.id === t.studentId);
+                        const prog = getProgram(t.programId);
+                        return (
+                          <div key={i} className="rounded-xl p-2.5" style={{ background: C.cream }} data-testid="survey-comment">
+                            <p className="f-body text-[15px]" style={{ color: C.charcoal }}>{t.text}</p>
+                            <p className="f-body text-[13px] mt-1 font-bold" style={{ color: "#8A8060" }}>— {who ? tr("{0} 부모님", [who.name]) : tr("이름 없음")}{who && who.phoneLast4 ? ` · ${tr("연락처 뒷자리")} ${who.phoneLast4}` : ""}{prog && !program ? ` · ${splitTitle(prog.title)[0] || prog.title}` : ""}{t.at ? ` · ${fmtDay(t.at)}` : ""}</p>
+                          </div>
+                        );
+                      })}
                       {g.list.length > 5 && <p className="f-body text-[14px] text-gray-400">{tr("외 {0}개", [g.list.length - 5])}</p>}
                     </div>
                   </div>
@@ -9382,7 +9431,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-28-z158"; // change with every delivery
+const APP_BUILD = "2026-10-28-z162"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];

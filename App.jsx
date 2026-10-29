@@ -9487,7 +9487,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-28-z166"; // change with every delivery
+const APP_BUILD = "2026-10-29-z167"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12843,8 +12843,11 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
   // every request I made for this trip was declined (or the seats were full): the whole card says so
   const takenAll = (p) => { const mine = mySignups.filter((j) => j.programId === p.id && j.status !== "withdrawn"); return mine.length > 0 && mine.every((j) => j.status === "declined" || j.status === "waiting"); };
   const joinedAll = (p) => !!teacherId && (sessionsOf(p).length ? sessionsOf(p).map((x) => x.id) : [""]).every((sid) => mySignups.some((j) => j.programId === p.id && (j.slotId || "") === (sid || "") && ["approved", "pending", "waiting"].includes(j.status)));
-  const signable0 = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && !p.teacherClosed && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed).filter((p) => tripDayPassed(p) || !joinedAll(p)).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
+  const signable0 = programsOrdered([...upcoming, ...PROGRAMS.filter((p) => p.published !== false && (!p.teacherClosed || (!p.teamsDone && !tripDayPassed(p))) && !upcoming.some((u) => u.id === p.id)).slice()]).filter((p) => !p.teacherClosed || (!p.teamsDone && !tripDayPassed(p))).filter((p) => tripDayPassed(p) || !joinedAll(p)).filter((p) => !p.leaderPrivate || !!teacherId && mySignups.some((j) => j.programId === p.id && j.status !== "withdrawn"));
   const signable = signable0;
+  // sign-up closed (by HQ or full) for a program this leader has no sign-up in: shown, but greyed out with a "closed" bar
+  const closedFor = (p) => !tripDayPassed(p) && !p.teamsDone && (!!p.teacherClosed || openSlots(p).every((x) => slotFull(p, x.id))) && !mySignups.some((j) => j.programId === p.id && ["approved", "pending", "waiting", "declined"].includes(j.status));
+  const CLOSED_BOX = { background: "#F3EEE3", border: "2px solid #C9BFA8", borderLeft: "6px solid #A89F88" };
   // what a teacher would get for a program (before the 3.3% withholding): HQ's amount for the program, else hours x hourly rate
   const payPreview = (p, slotId) => {
     const amounts = payInfo.amounts || {};
@@ -12920,7 +12923,8 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
     j.status === "approved" ? { text: tr("확정 ✓"), bg: "#EAF7EF", color: "#1F7A44" } : j.status === "declined" ? { text: tr("죄송해요, 이 자리는 이미 정해졌어요"), bg: "#F3EEE3", color: "#8A8060" } : j.status === "waiting" ? { text: tr("죄송해요, 이 자리는 이미 정해졌어요"), bg: "#F3EEE3", color: "#8A8060" } : { text: tr("본사 확인 중"), bg: "#FFF1E2", color: "#B25A0B" };
 
   const signableCard = (p) => (
-            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : takenAll(p) ? TAKEN_BOX : { background: "white" }}>
+            <div key={p.id} className="rounded-2xl p-4" data-testid="upcoming-program" data-ended={tripDayPassed(p) ? "1" : "0"} style={tripDayPassed(p) ? { background: "#F1FAF4", border: "2px solid #2E9E5B", borderLeft: "6px solid #2E9E5B" } : mySignups.some((j) => j.programId === p.id && j.status === "approved") ? CONFIRMED_BOX : takenAll(p) ? TAKEN_BOX : closedFor(p) ? CLOSED_BOX : { background: "white" }} data-closed={closedFor(p) ? "1" : "0"}>
+              {closedFor(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#A89F88", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="closed-badge">🔒 {tr("신청 마감")}</div>}
               {!tripDayPassed(p) && mySignups.some((j) => j.programId === p.id && j.status === "approved") && <ConfirmedStrip />}
               {!tripDayPassed(p) && takenAll(p) && <TakenStrip />}
               {tripDayPassed(p) && <div className="px-4 py-2.5 f-display text-[17px] font-bold text-white" style={{ background: "#2E9E5B", margin: "-16px -16px 12px", borderRadius: "14px 14px 0 0" }} data-testid="ended-badge">✓ {tr("체험 끝남")}</div>}
@@ -12944,8 +12948,7 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
                           </p>); })()}
                         {chip && (j && (j.status === "declined" || j.status === "waiting") ? <p className="f-body text-[14px] font-bold" style={{ color: "#B8604A" }} data-testid="taken-note">✕</p> : <span className="inline-block f-body text-[13px] font-bold px-2.5 py-1 rounded-full mt-0.5" style={{ background: chip.bg, color: chip.color }}>{chip.text}</span>)}
                       </div>
-                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed || slotFull(p, x.id)) && !j ? (
-                        <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
+                      {!teacherId ? null : j && j.status === "declined" ? null : (p.teamsDone || p.teacherClosed || slotFull(p, x.id)) && !j ? (closedFor(p) && !x.label ? null : <span className="shrink-0 f-body text-[14px] font-bold rounded-xl px-3.5 py-2" style={{ background: "#F3EEE3", color: "#8A8060" }} data-testid="signup-closed">{tr("신청 마감")}</span>
                       ) : p.teamsDone ? (
                         <span className="shrink-0 f-body text-[13px] font-bold" style={{ color: "#1F7A44" }}>{tr("팀 확정")}</span>
                       ) : !j ? null : (
@@ -12964,7 +12967,7 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
   const appliedConfirmed = mineTeam.filter((x) => x.status === "approved").map((x) => x.el);
   const appliedWaiting = mineTeam.filter((x) => x.status !== "approved").map((x) => x.el);
   const appliedDeclined = signable.filter((p) => !tripDayPassed(p) && takenAll(p));
-  const canSignList = signable.filter((p) => !tripDayPassed(p) && !takenAll(p));
+  const canSignList = signable.filter((p) => !tripDayPassed(p) && !takenAll(p)).sort((a, b) => Number(closedFor(a)) - Number(closedFor(b))); // closed ones go last
   const pastList = signable.filter((p) => tripDayPassed(p));
   return (
     <div className="flex-1">

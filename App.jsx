@@ -1105,6 +1105,8 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+  "팀 세팅은 학생 등록과 함께 진행돼요. 조금만 기다려 주세요.": "Teams are set up as students register. Please wait a little.",
+  "팀은 선착순으로 세팅해요.": "Teams are set first come, first served.",
   "마감 관리": "Manage closing",
   "프로그램 전체": "Whole program",
   "정원이 차면 자동으로 마감돼요. 정원과 상관없이 직접 닫고 다시 열 수도 있어요.": "Closes automatically when full. You can also close and reopen it yourself at any time.",
@@ -9487,7 +9489,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-29-z167"; // change with every delivery
+const APP_BUILD = "2026-10-29-z169"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -12979,6 +12981,10 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
       {tab === "programs" && (
         <div className="px-5 pb-8 space-y-3">
           {!teacherId && <p className="f-body text-[14px] font-bold rounded-xl px-3.5 py-2.5" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("본사에서 개인 번호를 받으면 참여를 신청할 수 있어요.")}</p>}
+          <div className="rounded-2xl px-4 py-3.5" style={{ background: C.orange, boxShadow: "0 4px 14px rgba(244,123,32,0.35)" }} data-testid="team-wait-note">
+            <p className="f-display text-[18px] font-bold leading-snug text-white">⏳ {tr("팀 세팅은 학생 등록과 함께 진행돼요. 조금만 기다려 주세요.")}</p>
+            <p className="f-display text-[18px] font-bold leading-snug text-white mt-1">⭐ {tr("팀은 선착순으로 세팅해요.")}</p>
+          </div>
           {nextP && !(teacherId && mySignups.some((j) => j.programId === nextP.id && ["approved", "pending", "waiting"].includes(j.status) && !teamSet(nextP, j.slotId || ""))) && (
             <div className="rounded-2xl p-4" data-testid="next-trip" style={nextJoin && nextJoin.status === "approved" ? CONFIRMED_BOX : { background: "white" }}>
               {nextJoin && nextJoin.status === "approved" && <ConfirmedStrip />}
@@ -13015,7 +13021,7 @@ function GuideApp({ teacherCapMap = {}, onEditStudent, teacher, payItems = [], p
               </button>
             </div>
           )}
-          {canSignList.length > 0 && <div className="pt-1"><p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p><p className="f-body text-[13px] mt-0.5" style={{ color: "#9C927D" }} data-testid="first-come-note">{tr("선착순이에요. 본사가 확인하면 확정돼요.")}</p></div>}
+          {canSignList.length > 0 && <div className="pt-1"><p className="f-body text-[13px] font-bold" style={{ color: "#9C927D" }}>{tr("신청할 수 있는 체험")}</p></div>}
           {canSignList.length === 0 && appliedConfirmed.length + appliedDeclined.length + appliedWaiting.length + pastList.length === 0 && <div className="bg-white rounded-2xl p-6 text-center"><p className="f-body text-[16px] text-gray-400">{tr("신청할 수 있는 예정 프로그램이 없어요.")}</p></div>}
           {canSignList.map(signableCard)}
           {pastList.length > 0 && <p className="f-body text-[13px] font-bold pt-1" style={{ color: "#9C927D" }} data-testid="past-label">{tr("지난 체험")}</p>}

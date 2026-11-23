@@ -1105,6 +1105,15 @@ const EN = {
   "이 프로그램": "This program",
   "전체 프로그램": "All programs",
   "한 줄 요약": "In one line",
+  "새 프로그램 신청 {0}건": "New program applications: {0}",
+  "프로그램 신청 {0}건": "Program applications: {0}",
+  "신청 문의 {0}건": "Application inquiries: {0}",
+  "부모님이 앱에서 신청했어요. 결제 안내를 마치면 이 프로그램에 추가해 주세요.": "A parent applied in the app. After the payment guide, add the child to this program.",
+  "(알 수 없는 아이)": "(unknown child)",
+  "희망 시간 · {0}": "Preferred time · {0}",
+  "희망 시간을 고르지 않았어요": "No preferred time chosen",
+  "이 프로그램에 추가": "Add to this program",
+  "확인함": "Seen",
   "팀 세팅은 학생 등록과 함께 진행돼요. 조금만 기다려 주세요.": "Teams are set up as students register. Please wait a little.",
   "팀은 선착순으로 세팅해요.": "Teams are set first come, first served.",
   "마감 관리": "Manage closing",
@@ -4658,7 +4667,7 @@ function ProgramBrowse({ children, adventures, suggestions, familyPin, onToggleW
                     const slotOf = (id) => slots.find((x) => x.id === id);
                     const slotText = (x) => (x ? (x.time ? `${x.label} ${x.time}` : x.label) : "");
                     const sent = slotOf(applySlotId(row));
-                    const send = () => onApply && onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청 문의${chosen && slotOf(chosen) ? ` · 희망 ${slotText(slotOf(chosen))} [s:${chosen}]` : ""}` });
+                    const send = () => onApply && onApply({ studentId: c.id, programId: p.id, familyPin, message: `${c.name} · ${p.title} 신청${chosen && slotOf(chosen) ? ` · 희망 ${slotText(slotOf(chosen))} [s:${chosen}]` : ""}` });
                     return done ? (
                       <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5" style={{ background: "#EAF7EF" }} data-testid="apply-done">
                         <span className="f-body text-[15px] font-bold" style={{ color: "#1F7A44" }}>✓ {pending.length > 1 ? `${c.name} · ` : ""}신청 접수됐어요{sent ? ` · ${slotText(sent)}` : ""}</span>
@@ -9489,7 +9498,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-10-29-z169"; // change with every delivery
+const APP_BUILD = "2026-11-23-z171"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -10209,6 +10218,32 @@ function AddStudentPicker({ others, enrollButtons, liked }) {
 const teamColor = (program, t) => (t && t.color) || TEAM_COLORS[Math.max(0, teamsOf(program).findIndex((x) => x.id === (t || {}).id)) % TEAM_COLORS.length];
 
 /** HQ: match the children of one program (and time slot) with leaders. One line per child; unplaced children first. */
+/* HQ: parents' application inquiries for this program — see who asked (and for which time) and add the child with one tap */
+function ApplyInquiries({ program, slots, items, onAdd, onDismiss }) {
+  if (!items.length) return null;
+  const slotLabel = (id) => { const x = slots.find((y) => y.id === id); return x ? (x.time ? `${x.label} ${x.time}` : x.label) : ""; };
+  return (
+    <div className="px-5 mb-3" data-testid="apply-inquiries">
+      <div className="rounded-2xl p-3.5" style={{ background: "#FFF1E2", border: `2px solid ${C.orange}` }}>
+        <p className="f-display text-[18px] font-bold" style={{ color: "#B25A0B" }}>🙋 {tr("프로그램 신청 {0}건", [items.length])}</p>
+        <p className="f-body text-[13px] mb-2" style={{ color: "#8A5A25" }}>{tr("부모님이 앱에서 신청했어요. 결제 안내를 마치면 이 프로그램에 추가해 주세요.")}</p>
+        <div className="space-y-2">
+          {items.map((it) => (
+            <div key={it.row.id} className="bg-white rounded-xl p-3" data-testid="apply-inquiry-row">
+              <p className="f-body text-[17px] font-bold" style={{ color: C.green }}>{it.student ? it.student.name : tr("(알 수 없는 아이)")}</p>
+              <p className="f-body text-[14px] text-gray-500">{it.slot && slotLabel(it.slot) ? tr("희망 시간 · {0}", [slotLabel(it.slot)]) : tr("희망 시간을 고르지 않았어요")}</p>
+              <div className="flex gap-2 mt-2.5">
+                <button onClick={() => onDismiss(it)} className="focus-ring tap f-body text-[14px] font-bold rounded-xl px-3.5" style={{ minHeight: 44, background: C.cream, color: C.charcoal }}>{tr("확인함")}</button>
+                {it.student && <button onClick={() => onAdd(it)} data-testid="apply-add" className="focus-ring tap flex-1 f-display text-[15px] font-semibold rounded-xl text-white" style={{ minHeight: 44, background: C.green }}>{tr("이 프로그램에 추가")}</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* HQ: close / reopen sign-up by hand, for the whole program or for one time slot (parents and leaders separately) */
 function CloseControls({ program, slots, adventures, suggestions, joins, teacherCapMap, onSet }) {
   const rows = [{ id: "", label: slots.length ? tr("프로그램 전체") : tr("이 프로그램"), x: null }, ...slots.map((x) => ({ id: x.id, label: x.label + (x.time ? ` ${x.time}` : ""), x }))];
@@ -11371,8 +11406,8 @@ function TeacherDashboard({ onSetClose, onSetPayExclude, onSetPriorities, onSetP
     teacherNotices.push({
       key: "inquiries",
       icon: "🙋",
-      title: tr("새 신청 문의 {0}건", [pendingInquiries.length]),
-      text: pendingInquiries.slice(-2).map((x) => x.message).join(" / "),
+      title: tr("새 프로그램 신청 {0}건", [pendingInquiries.length]),
+      text: pendingInquiries.slice(-2).map((x) => String(x.message || "").replace(" 신청 문의", " 신청")).join(" / "),
       onClick: () => {
         const hit = PROGRAMS.find((pp) => pendingInquiries.some((x) => students.some((st) => x.id === applyId(st.id, pp.id))));
         setProgramId((hit || PROGRAMS[0] || {}).id); setTab("manage");
@@ -11724,6 +11759,16 @@ function TeacherDashboard({ onSetClose, onSetPayExclude, onSetPriorities, onSetP
                   </div>
                 )}
               </div>
+              <ApplyInquiries
+                program={program}
+                slots={slots}
+                items={suggestions
+                  .filter((x) => x.type === "신청 문의" && !x.resolved && String(x.id || "").startsWith("apply-") && String(x.id).endsWith(`-${programId}`))
+                  .map((x) => { const sid = String(x.id).slice(6, -(programId.length + 1)); return { row: x, sid, student: students.find((st) => st.id === sid), slot: applySlotId(x) }; })
+                  .filter((it) => !roster.some((r) => r.student.id === it.sid))}
+                onAdd={(it) => { (onEnrollStudent || (() => {}))(it.sid, programId, it.student && it.student.level, it.slot || undefined); onResolveSuggestions([it.row.id]); }}
+                onDismiss={(it) => onResolveSuggestions([it.row.id])}
+              />
               {onSetClose && <CloseControls program={program} slots={slots} adventures={adventures} suggestions={suggestions} joins={joins} teacherCapMap={teacherCapMap || {}} onSet={onSetClose} />}
               <MatchingPanel
                 key={programId}

@@ -176,6 +176,8 @@ const EN = {
 "삭제": "Delete",
 "{0} · Level {1} · 로그인 번호 {2}": "{0} · Level {1} · Login number {2}",
 "신청 번호 뒷자리 {0}": "Application phone ends in {0}",
+"학부모 전화번호": "Parent phone number",
+"번호 없음": "No number",
 "획득한 뱃지": "Badges earned",
 "뱃지와 랭크는 실제 완료 기록에서 자동으로 계산돼요 (직접 수정 불가).": "Badges and rank are calculated automatically from completed records (cannot be edited).",
 "출석한 체험은 취소할 수 없어요. 출석 체크를 해제하면 취소할 수 있어요.": "A trip the child attended cannot be cancelled. Un-mark attendance first to cancel.",
@@ -6413,7 +6415,15 @@ function TeacherStudentCard({ limited, defaultGuideName, student, allStudents, o
             ) : (
               <div>
                 <p className="f-body text-[17px]" style={{ color: C.charcoal }}>{tr("{0} · Level {1} · 로그인 번호 {2}", [student.name, student.level, student.familyPin])}</p>
-                {phoneOfFamily(student.familyPin) ? <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }} data-testid="family-phone">{phoneOfFamily(student.familyPin)}</p> : student.phoneLast4 && <p className="f-body text-[14px] mt-1" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
+                <div className="mt-2 rounded-xl px-3 py-2.5" style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="family-phone-box">
+                  <p className="f-body text-[13px] font-bold" style={{ color: "#8A8060" }}>{tr("학부모 전화번호")}</p>
+                  {phoneOfFamily(student.familyPin)
+                    ? <a href={`tel:${FAMILY_PHONES[student.familyPin]}`} className="focus-ring tap f-display text-[20px] font-bold" style={{ color: C.green }} data-testid="family-phone">📞 {phoneOfFamily(student.familyPin)}</a>
+                    : <div>
+                        {student.phoneLast4 && <p className="f-body text-[14px]" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
+                        <PhoneAdd kind="family" id={student.familyPin} />
+                      </div>}
+                </div>
               </div>
             )}
           </div>
@@ -6692,6 +6702,20 @@ function familyPhones(suggestions) {
 let FAMILY_PHONES = {}; // set on every render of the app, read by the HQ screens
 let PHONE_SAVER = () => {};
 /** HQ: type the full number for people who signed up before full numbers were kept. */
+function ParentPhoneBox({ student }) {
+  const full = FAMILY_PHONES[student.familyPin];
+  return (
+    <div className="mb-2 rounded-xl px-3 py-2.5" style={{ background: C.cream, border: `1px solid ${C.beige}` }} data-testid="family-phone-box">
+      <p className="f-body text-[13px] font-bold" style={{ color: "#8A8060" }}>{tr("학부모 전화번호")}</p>
+      {full
+        ? <a href={`tel:${full}`} className="focus-ring tap f-display text-[20px] font-bold" style={{ color: C.green }} data-testid="family-phone">📞 {formatPhone(full)}</a>
+        : <div>
+            {student.phoneLast4 && <p className="f-body text-[14px]" style={{ color: "#9C927D" }}>{tr("신청 번호 뒷자리 {0}", [student.phoneLast4])}</p>}
+            <PhoneAdd kind="family" id={student.familyPin} />
+          </div>}
+    </div>
+  );
+}
 function PhoneAdd({ kind, id }) {
   const [on, setOn] = useState(false); const [v, setV] = useState(""); const [err, setErr] = useState(false);
   if (!on) return <button onClick={(e) => { e.stopPropagation(); setOn(true); }} className="focus-ring tap f-body text-[13px] font-semibold underline" style={{ color: C.orange }} data-testid="phone-add">{tr("전체 번호 입력")}</button>;
@@ -9498,7 +9522,7 @@ const teacherNamesIn = (programs) => [...new Set(programs.flatMap((p) => teamsOf
 /*  prep, review and the teacher's feedback. Staff read it (in English  */
 /*  and Korean) and only then send it. Nothing reaches a parent unseen. */
 /* ================================================================== */
-const APP_BUILD = "2026-11-23-z171"; // change with every delivery
+const APP_BUILD = "2026-11-25-z174"; // change with every delivery
 const FEATURES = { parentAdvice: false }; // on hold: switch to true to bring back the parent advice drafts
 const adviceConfig = { ai: false, url: "/api/advice", timeoutMs: 25000 }; // ai: off until the server function and the privacy notice are in place
 const ADVICE_AREAS = ["vocabulary", "sentence", "listening", "fluency", "pronunciation"];
@@ -11204,6 +11228,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
                   <span className="flex-1 min-w-0">
                     <span className="block f-body text-[17px] font-bold truncate" style={{ color: C.green }}>{r.st.name}{r.st.status === "pending" && <span className="ml-1.5 f-body text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#FFF1E2", color: "#B25A0B" }}>{tr("승인 대기")}</span>}</span>
                     <span className="block f-body text-[13px] text-gray-500">{r.st.level ? `Level ${r.st.level} · ` : ""}{r.st.birthDate ? `${r.st.birthDate}${ageText(r.st.birthDate) ? ` (${ageText(r.st.birthDate)})` : ""} · ` : ""}PIN <b style={{ color: C.charcoal }}>{r.st.familyPin}</b> · {tr("등록")} {r.reg || "—"}</span>
+                    <span className="block f-body text-[14px] font-bold mt-0.5" style={{ color: FAMILY_PHONES[r.st.familyPin] ? C.green : "#9C927D" }} data-testid="row-phone">{FAMILY_PHONES[r.st.familyPin] ? `📞 ${formatPhone(FAMILY_PHONES[r.st.familyPin])}` : (r.st.phoneLast4 ? `📞 ···-····-${r.st.phoneLast4}` : `📞 ${tr("번호 없음")}`)}</span>
                   </span>
                   <span className="text-right shrink-0">
                     <span className="block f-body text-[13px] text-gray-500">{tr("신청 {0} · 참여 {1}", [r.applied, r.took])}</span>
@@ -11213,6 +11238,7 @@ function StudentRoster({ students, adventures, onEditStudent, onDeleteStudent })
               </button>
               {open && (
                 <div className="px-3.5 pb-3 space-y-1">
+                  <ParentPhoneBox student={r.st} />
                   {onEditStudent && editId === r.st.id && <div className="pb-2"><StudentEditForm student={r.st} onCancel={() => setEditId(null)} onSave={(patch) => { onEditStudent(r.st.id, patch); setEditId(null); }} /></div>}
                   {onEditStudent && <div className="pb-2"><StudentBasics student={r.st} onSave={(patch) => onEditStudent(r.st.id, patch)} /></div>}
                   {r.advs.length === 0 && <p className="f-body text-[14px] text-gray-400">{tr("아직 신청한 체험이 없어요.")}</p>}
